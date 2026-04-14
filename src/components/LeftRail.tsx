@@ -26,6 +26,7 @@ export function LeftRail({
 }: LeftRailProps) {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [showColorCustomizer, setShowColorCustomizer] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const navItems: NavItem[] = [
   {
     id: 'dashboard',
@@ -87,27 +88,32 @@ export function LeftRail({
         }}
         onFocus={() => setFocusedIndex(index)}
         className={`
-          relative w-full flex items-center justify-center p-2 rounded-md transition-colors
+          relative w-full flex items-center p-2 rounded-md transition-colors duration-200
           ${isActive || isSettings && showColorCustomizer ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'}
           ${isFocused ? 'ring-2 ring-[#0461BA] ring-offset-1' : ''}
         `}
-        aria-current={isActive ? 'page' : undefined}>
-        
+        aria-current={isActive ? 'page' : undefined}
+        style={{ justifyContent: isHovered ? 'flex-start' : 'center' }}
+      >
         {isActive &&
-        <motion.div
-          layoutId="activeIndicator"
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-[#0461BA] rounded-r-full"
-          transition={{
-            duration: 0.18,
-            ease: 'easeOut'
-          }} />
-
+          <motion.div
+            layoutId="activeIndicator"
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-[#0461BA] rounded-r-full"
+            transition={{
+              duration: 0.18,
+              ease: 'easeOut'
+            }} />
         }
         <Icon
           size={18}
           className={`flex-shrink-0 ${isActive || isSettings && showColorCustomizer ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} />
-        
-      </button>);
+        {isHovered && (
+          <span className="ml-3 text-sm font-medium whitespace-nowrap opacity-100 transition-opacity duration-200">
+            {item.label}
+          </span>
+        )}
+      </button>
+    );
 
   };
   return (
@@ -115,7 +121,7 @@ export function LeftRail({
       <motion.nav
         initial={false}
         animate={{
-          width: 44
+          width: isHovered ? 160 : 44
         }}
         transition={{
           duration: 0.18,
@@ -124,8 +130,10 @@ export function LeftRail({
         onKeyDown={handleKeyDown}
         className="fixed left-0 top-0 h-screen bg-white border-r border-neutral-200 z-20 flex flex-col py-2 overflow-visible"
         role="navigation"
-        aria-label="Main navigation">
-        
+        aria-label="Main navigation"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         {/* Profile Avatar */}
         <div className="px-1 mb-3">
           <button
@@ -137,9 +145,15 @@ export function LeftRail({
               focus:ring-2 focus:ring-[#0461BA] focus:ring-offset-1
               transition-shadow mx-auto
             `}
-            aria-label="Profile">
-            
+            aria-label="Profile"
+            style={{ marginLeft: isHovered ? 8 : 'auto', transition: 'margin 0.18s' }}
+          >
             <UserIcon size={14} />
+            {isHovered && (
+              <span className="ml-3 text-sm font-medium whitespace-nowrap opacity-100 transition-opacity duration-200">
+                Profile
+              </span>
+            )}
           </button>
         </div>
 

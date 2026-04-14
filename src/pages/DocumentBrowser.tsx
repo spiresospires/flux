@@ -748,6 +748,52 @@ export function DocumentBrowser() {
                 </div>
               </header>
 
+              {/* Filter Pills */}
+              {leftPanelMode === 'filter' && (selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || searchTerm) && (
+                <div className="flex flex-wrap gap-2 px-4 pt-3 pb-1 border-b border-neutral-100 bg-white shrink-0">
+                  {searchTerm && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 text-xs font-medium">
+                      Search: <span className="font-semibold">{searchTerm}</span>
+                      <button onClick={() => setSearchTerm('')} className="ml-1 hover:text-red-500 transition-colors" aria-label="Clear search">
+                        <XIcon size={12} />
+                      </button>
+                    </span>
+                  )}
+                  {selectedStatus.map((s) => (
+                    <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+                      Status: <span className="font-semibold">{s}</span>
+                      <button onClick={() => setSelectedStatus((prev) => prev.filter((x) => x !== s))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${s} filter`}>
+                        <XIcon size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  {selectedDocType.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+                      Type: <span className="font-semibold">{t}</span>
+                      <button onClick={() => setSelectedDocType((prev) => prev.filter((x) => x !== t))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${t} filter`}>
+                        <XIcon size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  {selectedProject.map((p) => (
+                    <span key={p} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+                      Project: <span className="font-semibold">{p}</span>
+                      <button onClick={() => setSelectedProject((prev) => prev.filter((x) => x !== p))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${p} filter`}>
+                        <XIcon size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  {(selectedStatus.length > 1 || selectedDocType.length > 1 || selectedProject.length > 1 || (selectedStatus.length + selectedDocType.length + selectedProject.length > 1)) && (
+                    <button
+                      onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSearchTerm(''); }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
+                      Clear all
+                      <XIcon size={12} />
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Content Area */}
               <div className="flex-1 overflow-y-auto p-4">
                 {filteredDocuments.length === 0 ?
