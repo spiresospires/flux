@@ -65,7 +65,23 @@ The Packages area includes:
   - Pinned and Recent sections
   - Per-chat context menu: Pin / Unpin, Rename (inline), Delete
   - Collapsible — collapses to a thin 40px rail with New-chat and expand buttons
-- **Seeded EDMS-flavoured example conversations** — TAG ↔ document associations, latest revisions, where-used queries, vendor datasheets, transmittal counts, hold points, redlines, etc. Selecting a conversation loads its history into the right pane and the user can continue typing.
+  - **Resizable** — drag the right edge of the sidebar to widen it (240–560px)
+- **Chat scope switcher** at the top of the sidebar — choose between **Enterprise chat** (spans every project the user has access to) or **Project chat** (scoped to a single project workspace).
+  - Each scope has its own conversation history (pinned + recent filter by scope).
+  - A persistent banner above the chat content reinforces the active scope (violet for enterprise, brand blue for project).
+  - Default scope follows the project currently selected in the Documents view.
+- **Seeded EDMS-flavoured example conversations** — TAG ↔ document associations, latest revisions, where-used queries, vendor datasheets, transmittal counts, hold points, redlines, etc. Each is tagged to a project or to enterprise scope.
+- **Inline "Ask Flint" entry points**
+  - Hovering a folder in the folder tree reveals a sparkle button that opens the chat pre-prompted with *"What do you want to ask Flint about the **&lt;folder&gt;** folder?"*.
+  - Hovering a document (in grid, list, or table view) reveals a sparkle button that opens the chat pre-prompted with *"What do you want to ask Flint about the **&lt;DOC-ID — Title&gt;** document?"*.
+  - Suggestion chips adapt to the chosen subject (Summarise, Who is responsible, Latest activity, Open issues/holds, Recent changes).
+
+### Multi-project workspace
+- Selecting a different project from the Documents project picker now refreshes the workspace:
+  - Folder document counts rescale per project (Shard 100%, Empire State 85%, Skyline 70%, Tower 45%).
+  - The document grid is reseeded — each project shows a different deterministic mix of documents.
+  - Selected folder and pagination reset on switch.
+  - The active project persists in `localStorage` and is read by the chat scope picker.
 
 ## Tech
 

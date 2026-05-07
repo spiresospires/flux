@@ -186,7 +186,60 @@ const samplePackages: PackageObject[] = [
   documents: [],
   versions: [],
   changeLog: []
-}];
+},
+// --- Additional sample packages ---
+mkPkg('WP-PROC-PID-RELEASE-A', 'Process P&ID Release A', 'Approved', 'C04', 'Priya Natarajan', '2026-05-04', 54, 'Up to date', 'Issue Pack', 'Process', 'Phase 3', '2026-05-15'),
+mkPkg('WP-MECH-ISO-AREA02', 'Mechanical Isometrics — Area 02', 'In Review', 'B02', 'Sarah Chen', '2026-05-03', 88, 'Up to date', 'IFR Bundle', 'Mechanical', 'Area 02', '2026-05-22'),
+mkPkg('WP-ELEC-LIGHTING-PH3', 'Lighting Layouts Phase 3', 'Issued', 'C01', 'Daniel Park', '2026-04-26', 22, 'Up to date', 'IFC Bundle', 'Electrical', 'Phase 3', '2026-05-10'),
+mkPkg('WP-INST-DCS-IO-LIST', 'DCS I/O Schedule Bundle', 'Approved', 'C02', 'Aisha Khan', '2026-04-18', 14, 'Up to date', 'Submission', 'Instrumentation', 'Site-wide', '2026-04-30'),
+mkPkg('WP-CIV-DRAINAGE', 'Civil Drainage Drawings', 'Draft', 'A02', 'Marco Rossi', '2026-05-05', 19, 'New', 'IFR Bundle', 'Civil', 'Area 03', '2026-06-10'),
+mkPkg('WP-STR-STEEL-ERECTION', 'Structural Steel Erection Pack', 'Issued', 'C03', 'Marco Rossi', '2026-04-22', 47, 'Changes detected', 'IFC Bundle', 'Structural', 'Area 01', '2026-05-08'),
+mkPkg('WP-HVAC-AHU-COMM', 'HVAC AHU Commissioning Pack', 'In Review', 'B01', 'Lukas Weber', '2026-05-01', 36, 'Up to date', 'Commissioning', 'HVAC', 'Building B', '2026-05-25'),
+mkPkg('WP-PIPE-ISO-CW', 'Cooling Water Piping Isometrics', 'Issued', 'C05', 'Sarah Chen', '2026-04-29', 102, 'Up to date', 'IFC Bundle', 'Piping', 'Area 01', '2026-05-12'),
+mkPkg('WP-PIPE-CLASS-150CS', 'Piping Class 150# CS Update', 'Approved', 'B04', 'Hugo Martinez', '2026-04-12', 8, 'Up to date', 'Specification', 'Piping', 'Site-wide', '2026-04-20'),
+mkPkg('WP-PROC-HAZOP-CLOSE', 'HAZOP Closeout Documentation', 'Approved', 'C01', 'Priya Natarajan', '2026-04-10', 27, 'Up to date', 'Submission', 'Process', 'Site-wide', '2026-04-30'),
+mkPkg('WP-ELEC-MCC03-CABLES', 'MCC-03 Cable Schedule Pack', 'Out of Date', 'B02', 'Daniel Park', '2026-03-30', 18, 'Changes detected', 'Issue Pack', 'Electrical', 'Building C', '2026-05-18'),
+mkPkg('WP-INST-FAT-SUBSEA', 'Subsea Instruments FAT Pack', 'In Review', 'B01', 'Aisha Khan', '2026-05-04', 12, 'Up to date', 'Vendor', 'Instrumentation', 'Subsea', '2026-05-28'),
+mkPkg('WP-MECH-VENDOR-PUMPS', 'Pump Vendor Documentation', 'Approved', 'C02', 'Sarah Chen', '2026-04-15', 31, 'Up to date', 'Vendor', 'Mechanical', 'Area 01', '2026-04-25'),
+mkPkg('WP-HSE-PERMIT-PACK', 'Site Permit-to-Work Pack', 'Issued', 'C06', 'Aisha Khan', '2026-05-02', 9, 'Up to date', 'Submission', 'HSE', 'Site-wide', '2026-05-09'),
+mkPkg('WP-QA-NDT-RECORDS', 'NDT Records Bundle', 'Approved', 'C01', 'Mark Doyle', '2026-04-20', 64, 'Up to date', 'Quality', 'QA/QC', 'Area 01', '2026-05-01'),
+mkPkg('WP-COMM-LOOP-AREA02', 'Area 02 Loop Commissioning', 'Draft', 'A01', 'Aisha Khan', '2026-05-05', 41, 'New', 'Commissioning', 'Instrumentation', 'Area 02', '2026-06-15'),
+mkPkg('WP-PROC-IFC-BUNDLE-04', 'Process IFC Bundle 04', 'In Review', 'B01', 'Priya Natarajan', '2026-05-06', 73, 'Up to date', 'IFC Bundle', 'Process', 'Phase 4', '2026-06-20'),
+mkPkg('WP-CIV-ROADS-EARTHWORK', 'Roads & Earthworks Submission', 'Approved', 'C02', 'Marco Rossi', '2026-03-28', 33, 'Up to date', 'Submission', 'Civil', 'Site-wide', '2026-04-05'),
+mkPkg('WP-STR-CONCRETE-FOUND', 'Concrete Foundations Detail Pack', 'Issued', 'C04', 'Marco Rossi', '2026-04-08', 58, 'Up to date', 'IFC Bundle', 'Structural', 'Area 02', '2026-04-18'),
+mkPkg('WP-ELEC-EARTHING-LV', 'LV Earthing & Bonding Pack', 'Draft', 'A01', 'Daniel Park', '2026-05-06', 11, 'New', 'IFR Bundle', 'Electrical', 'Substation B', '2026-06-05'),
+mkPkg('WP-HVAC-DUCT-LAYOUT', 'HVAC Duct Layout Drawings', 'In Review', 'B02', 'Lukas Weber', '2026-04-25', 26, 'Changes detected', 'IFR Bundle', 'HVAC', 'Building A', '2026-05-15'),
+mkPkg('WP-PIPE-STRESS-ANAL', 'Piping Stress Analysis Reports', 'Approved', 'C03', 'Hugo Martinez', '2026-04-14', 17, 'Up to date', 'Specification', 'Piping', 'Area 01', '2026-04-26'),
+mkPkg('WP-TELECOM-FIBRE', 'Telecom Fibre Routing Pack', 'In Review', 'B01', 'Lukas Weber', '2026-05-02', 23, 'Up to date', 'Issue Pack', 'Telecom', 'Site-wide', '2026-05-20'),
+mkPkg('WP-FIRE-DETECT-DESIGN', 'Fire Detection Design Pack', 'Approved', 'C02', 'Aisha Khan', '2026-04-18', 19, 'Up to date', 'Submission', 'HSE', 'Building B', '2026-05-01'),
+mkPkg('WP-MECH-LIFTING-PLAN', 'Lifting & Rigging Plan Pack', 'Issued', 'C01', 'Sarah Chen', '2026-04-30', 14, 'Up to date', 'Submission', 'Mechanical', 'Area 01', '2026-05-08'),
+mkPkg('WP-PROC-VENDOR-COL', 'Distillation Column Vendor Pack', 'Out of Date', 'B03', 'Priya Natarajan', '2026-03-15', 88, 'Changes detected', 'Vendor', 'Process', 'Phase 3', '2026-05-25'),
+mkPkg('WP-QA-WPS-PQR', 'Welding WPS / PQR Records', 'Approved', 'C04', 'Mark Doyle', '2026-04-02', 42, 'Up to date', 'Quality', 'QA/QC', 'Site-wide', '2026-04-15'),
+mkPkg('WP-COMM-PRECOMM', 'Pre-Commissioning Records', 'Draft', 'A03', 'Aisha Khan', '2026-05-05', 56, 'New', 'Commissioning', 'Multidiscipline', 'Phase 3', '2026-06-30')];
+
+
+
+function mkPkg(reference: string, title: string, status: PackageStatus, revision: string, owner: string, lastUpdated: string, documentCount: number, changeState: ChangeState, type: string, discipline: string, area: string, dueDate: string): PackageObject {
+  return {
+    reference,
+    title,
+    description: `${title} — generated for ${area}.`,
+    status,
+    revision,
+    owner,
+    lastUpdated,
+    documentCount,
+    changeState,
+    type,
+    discipline,
+    area,
+    dueDate,
+    lastGenerated: status === 'Draft' ? '—' : `${lastUpdated} 10:00`,
+    documents: [],
+    versions: status === 'Draft' ? [] : [{ version: revision, generatedDate: lastUpdated, generatedBy: owner, summary: 'Generated' }],
+    changeLog: changeState === 'Changes detected' ? [{ type: 'Revision changed', doc: '—', detail: 'Source documents updated' }] : []
+  };
+}
 
 
 const statusStyles: Record<PackageStatus, string> = {
@@ -342,8 +395,55 @@ function PackageLibrary({
 
 
 }: {packages: PackageObject[];onOpen: (ref: string) => void;onNew: () => void;onRepackage: (ref: string) => void;onAction: (msg: string) => void;}) {
-  const [filter, setFilter] = useState<'All' | PackageStatus>('All');
-  const filtered = filter === 'All' ? packages : packages.filter((p) => p.status === filter);
+  const [statusFilter, setStatusFilter] = useState<Set<PackageStatus>>(new Set());
+  const [disciplineFilter, setDisciplineFilter] = useState<Set<string>>(new Set());
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
+  const [ownerFilter, setOwnerFilter] = useState<Set<string>>(new Set());
+  const [changeFilter, setChangeFilter] = useState<Set<ChangeState>>(new Set());
+  const [search, setSearch] = useState('');
+
+  const allStatuses: PackageStatus[] = ['Draft', 'In Review', 'Approved', 'Issued', 'Out of Date'];
+  const allChange: ChangeState[] = ['Up to date', 'Changes detected', 'New'];
+  const allDisciplines = Array.from(new Set(packages.map((p) => p.discipline))).sort();
+  const allTypes = Array.from(new Set(packages.map((p) => p.type))).sort();
+  const allOwners = Array.from(new Set(packages.map((p) => p.owner))).sort();
+
+  const filtered = packages.filter((p) => {
+    if (statusFilter.size > 0 && !statusFilter.has(p.status)) return false;
+    if (disciplineFilter.size > 0 && !disciplineFilter.has(p.discipline)) return false;
+    if (typeFilter.size > 0 && !typeFilter.has(p.type)) return false;
+    if (ownerFilter.size > 0 && !ownerFilter.has(p.owner)) return false;
+    if (changeFilter.size > 0 && !changeFilter.has(p.changeState)) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      if (
+      !p.reference.toLowerCase().includes(s) &&
+      !p.title.toLowerCase().includes(s) &&
+      !p.description.toLowerCase().includes(s))
+      return false;
+    }
+    return true;
+  });
+
+  const toggle = <T,>(set: Set<T>, val: T, setter: (s: Set<T>) => void) => {
+    const n = new Set(set);
+    if (n.has(val)) n.delete(val);else
+    n.add(val);
+    setter(n);
+  };
+
+  const clearAll = () => {
+    setStatusFilter(new Set());
+    setDisciplineFilter(new Set());
+    setTypeFilter(new Set());
+    setOwnerFilter(new Set());
+    setChangeFilter(new Set());
+    setSearch('');
+  };
+
+  const activeCount =
+  statusFilter.size + disciplineFilter.size + typeFilter.size +
+  ownerFilter.size + changeFilter.size + (search ? 1 : 0);
 
   return (
     <div>
@@ -363,25 +463,116 @@ function PackageLibrary({
         </button>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex items-center gap-2 mb-4">
-        {(['All', 'Draft', 'In Review', 'Approved', 'Issued', 'Out of Date'] as const).map((s) =>
-        <button
-          key={s}
-          onClick={() => setFilter(s)}
-          className={`h-7 px-3 text-xs rounded-full border transition-colors ${
-          filter === s ?
-          'bg-[#0461BA] text-white border-[#0461BA]' :
-          'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`
-          }>
+      <div className="flex gap-4 items-start">
+        {/* Left filter panel */}
+        <aside className="w-64 shrink-0 bg-white border border-neutral-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-neutral-900">Filters</h3>
+            {activeCount > 0 &&
+            <button onClick={clearAll} className="text-xs text-[#0461BA] hover:underline">
+                Clear ({activeCount})
+              </button>
+            }
+          </div>
+          <div className="p-3">
+            <div className="relative mb-3">
+              <SearchIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search packages"
+                className="w-full h-8 pl-8 pr-2 rounded-md border border-neutral-200 bg-neutral-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white" />
 
-            {s}
-          </button>
-        )}
-      </div>
+            </div>
+            <FilterGroup label="Status">
+              {allStatuses.map((s) =>
+              <CheckRow
+                key={s}
+                checked={statusFilter.has(s)}
+                onChange={() => toggle(statusFilter, s, setStatusFilter)}
+                label={
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border ${statusStyles[s]}`}>
+                      {s}
+                    </span>
+                } />
 
-      {/* Table */}
-      <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+              )}
+            </FilterGroup>
+            <FilterGroup label="Change state">
+              {allChange.map((c) =>
+              <CheckRow
+                key={c}
+                checked={changeFilter.has(c)}
+                onChange={() => toggle(changeFilter, c, setChangeFilter)}
+                label={<span className={`text-xs ${changeStateStyles[c]}`}>{c}</span>} />
+
+              )}
+            </FilterGroup>
+            <FilterGroup label="Discipline">
+              {allDisciplines.map((d) =>
+              <CheckRow
+                key={d}
+                checked={disciplineFilter.has(d)}
+                onChange={() => toggle(disciplineFilter, d, setDisciplineFilter)}
+                label={<span className="text-sm text-neutral-700">{d}</span>} />
+
+              )}
+            </FilterGroup>
+            <FilterGroup label="Type">
+              {allTypes.map((t) =>
+              <CheckRow
+                key={t}
+                checked={typeFilter.has(t)}
+                onChange={() => toggle(typeFilter, t, setTypeFilter)}
+                label={<span className="text-sm text-neutral-700">{t}</span>} />
+
+              )}
+            </FilterGroup>
+            <FilterGroup label="Owner" last>
+              {allOwners.map((o) =>
+              <CheckRow
+                key={o}
+                checked={ownerFilter.has(o)}
+                onChange={() => toggle(ownerFilter, o, setOwnerFilter)}
+                label={<span className="text-sm text-neutral-700">{o}</span>} />
+
+              )}
+            </FilterGroup>
+          </div>
+        </aside>
+
+        {/* Right: table */}
+        <div className="flex-1 min-w-0">
+          {activeCount > 0 &&
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+              {search &&
+              <FilterPill label={`Search: "${search}"`} onClear={() => setSearch('')} />
+              }
+              {[...statusFilter].map((v) =>
+              <FilterPill key={`s-${v}`} label={`Status: ${v}`} onClear={() => toggle(statusFilter, v, setStatusFilter)} />
+              )}
+              {[...changeFilter].map((v) =>
+              <FilterPill key={`c-${v}`} label={`Change: ${v}`} onClear={() => toggle(changeFilter, v, setChangeFilter)} />
+              )}
+              {[...disciplineFilter].map((v) =>
+              <FilterPill key={`d-${v}`} label={`Discipline: ${v}`} onClear={() => toggle(disciplineFilter, v, setDisciplineFilter)} />
+              )}
+              {[...typeFilter].map((v) =>
+              <FilterPill key={`t-${v}`} label={`Type: ${v}`} onClear={() => toggle(typeFilter, v, setTypeFilter)} />
+              )}
+              {[...ownerFilter].map((v) =>
+              <FilterPill key={`o-${v}`} label={`Owner: ${v}`} onClear={() => toggle(ownerFilter, v, setOwnerFilter)} />
+              )}
+              <button
+                onClick={clearAll}
+                className="ml-1 text-xs text-rose-600 hover:underline">
+
+                Clear all
+              </button>
+            </div>
+          }
+          <div className="text-xs text-neutral-500 mb-2">{filtered.length} packages</div>
+          <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-600">
             <tr>
@@ -439,6 +630,8 @@ function PackageLibrary({
         {filtered.length === 0 &&
         <div className="p-10 text-center text-neutral-500 text-sm">No packages match this filter.</div>
         }
+          </div>
+        </div>
       </div>
 
       {/* Concept callout */}
@@ -451,6 +644,35 @@ function PackageLibrary({
         </div>
       </div>
     </div>);
+
+}
+
+function FilterGroup({ label, children, last }: {label: string;children: React.ReactNode;last?: boolean;}) {
+  return (
+    <div className={last ? '' : 'mb-3 pb-3 border-b border-neutral-100'}>
+      <div className="text-[10px] uppercase tracking-wide text-neutral-500 font-semibold mb-1.5">{label}</div>
+      <div className="space-y-1">{children}</div>
+    </div>);
+
+}
+
+function CheckRow({ checked, onChange, label }: {checked: boolean;onChange: () => void;label: React.ReactNode;}) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer hover:bg-neutral-50 px-1 py-0.5 rounded">
+      <input type="checkbox" checked={checked} onChange={onChange} className="accent-[#0461BA]" />
+      {label}
+    </label>);
+
+}
+
+function FilterPill({ label, onClear }: {label: string;onClear: () => void;}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+      {label}
+      <button onClick={onClear} className="hover:text-rose-600 transition-colors" aria-label={`Clear ${label}`}>
+        <XIcon size={12} />
+      </button>
+    </span>);
 
 }
 

@@ -26,7 +26,8 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   XIcon,
-  LoaderIcon } from
+  LoaderIcon,
+  SparklesIcon } from
 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,9 +46,11 @@ interface ColumnFilter {
   sortDirection: SortDirection;
 }
 type ViewMode = 'grid' | 'list' | 'table' | 'compact-table';
-function ProjectDropdown() {
+function ProjectDropdown({
+  selectedProject,
+  onProjectChange
+}: {selectedProject: string;onProjectChange: (p: string) => void;}) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState('The Shard, London');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const projects = ['The Shard, London', 'Skyline', 'Tower', 'Empire State'];
   useEffect(() => {
@@ -100,7 +103,7 @@ function ProjectDropdown() {
             <button
               key={project}
               onClick={() => {
-                setSelectedProject(project);
+                onProjectChange(project);
                 setIsOpen(false);
               }}
               className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${selectedProject === project ? 'bg-[#E8F1FB] text-[#2A5FB8] font-medium' : 'text-neutral-700 hover:bg-neutral-50'}`}>
@@ -369,6 +372,54 @@ export function DocumentBrowser() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [isChatMode, setIsChatMode] = useState(false);
   const [activeRailItem, setActiveRailItem] = useState('dashboard');
+  const [currentProject, setCurrentProject] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'The Shard, London';
+    return localStorage.getItem('flux.currentProject') || 'The Shard, London';
+  });
+  useEffect(() => {
+    localStorage.setItem('flux.currentProject', currentProject);
+  }, [currentProject]);
+  const handleProjectChange = (p: string) => {
+    setCurrentProject(p);
+    setSelectedFolderId(null);
+    setDisplayedCount(ITEMS_PER_PAGE);
+  };
+  const projectScale: Record<string, number> = {
+    'The Shard, London': 1,
+    'Skyline': 0.7,
+    'Tower': 0.45,
+    'Empire State': 0.85
+  };
+  const projectFolders = useMemo(() => {
+    const factor = projectScale[currentProject] ?? 1;
+    const scale = (n: number) => Math.max(0, Math.round(n * factor));
+    const walk = (list: typeof mockFolders): typeof mockFolders =>
+    list.map((f) => ({
+      ...f,
+      documentCount: scale(f.documentCount),
+      children: f.children ? walk(f.children) : []
+    }));
+    return walk(mockFolders);
+  }, [currentProject]);
+  const projectDocuments = useMemo(() => {
+    const factor = projectScale[currentProject] ?? 1;
+    // Deterministic shuffle seeded by project name so each workspace shows a different mix
+    let seed = 0;
+    for (let i = 0; i < currentProject.length; i++) {
+      seed = (seed * 31 + currentProject.charCodeAt(i)) >>> 0;
+    }
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0xffffffff;
+    };
+    const shuffled = [...mockDocuments];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const count = Math.max(1, Math.round(mockDocuments.length * factor));
+    return shuffled.slice(0, count);
+  }, [currentProject]);
   const location = useLocation();
   const navigate = useNavigate();
   useEffect(() => {
@@ -435,7 +486,7 @@ export function DocumentBrowser() {
     setDisplayedCount(ITEMS_PER_PAGE);
   };
   const filteredDocuments = useMemo(() => {
-    let filtered = mockDocuments;
+    let filtered = projectDocuments;
     if (leftPanelMode === 'folder' && selectedFolderId !== null) {
       filtered = filtered.filter((doc) => doc.folderId === selectedFolderId);
     }
@@ -512,7 +563,8 @@ export function DocumentBrowser() {
   sortBy,
   leftPanelMode,
   selectedFolderId,
-  columnFilters]
+  columnFilters,
+  projectDocuments]
   );
   // Reset displayed count when filters change
   useEffect(() => {
@@ -644,7 +696,9 @@ export function DocumentBrowser() {
         {isChatMode &&
         <ChatInterface
           onExit={handleExitChat}
-          onDocumentSelect={handleDocumentSelectFromChat} />
+          onDocumentSelect={handleDocumentSelectFromChat}
+          askAbout={new URLSearchParams(location.search).get('ask')}
+          askKind={new URLSearchParams(location.search).get('askKind') as 'folder' | 'document' | null} />
 
         }
       </AnimatePresence>
@@ -680,7 +734,7 @@ export function DocumentBrowser() {
             onToggle={() => setIsFilterExpanded(!isFilterExpanded)}
             mode={leftPanelMode}
             onModeChange={setLeftPanelMode}
-            topSlot={<ProjectDropdown />}>
+            topSlot={<ProjectDropdown selectedProject={currentProject} onProjectChange={handleProjectChange} />}>
             
               {leftPanelMode === 'filter' ?
             <FilterPanel
@@ -695,7 +749,7 @@ export function DocumentBrowser() {
 
 
             <FolderTree
-              folders={mockFolders}
+              folders={projectFolders}
               selectedFolderId={selectedFolderId}
               onFolderSelect={setSelectedFolderId} />
 
@@ -836,11 +890,24 @@ export function DocumentBrowser() {
                                 <h3 className="font-semibold text-neutral-900 text-sm group-hover:text-[#0461BA] transition-colors truncate">
                                   {doc.title}
                                 </h3>
-                                <span
-                            className={`text-[10px] font-medium px-2 py-0.5 rounded-md border whitespace-nowrap flex-shrink-0 ${statusColors[doc.status]}`}>
-                            
-                                  {doc.status}
-                                </span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate(`/chat?ask=${encodeURIComponent(`${doc.id} — ${doc.title}`)}&askKind=document`);
+                              }}
+                              title={`Ask Flint about ${doc.id}`}
+                              aria-label={`Ask Flint about ${doc.id}`}
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
+                                    <SparklesIcon size={13} />
+                                  </button>
+                                  <span
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-md border whitespace-nowrap ${statusColors[doc.status]}`}>
+                              
+                                    {doc.status}
+                                  </span>
+                                </div>
                               </div>
                               <p className="text-xs font-medium text-neutral-500 mb-2">
                                 {doc.id}{' '}
@@ -919,6 +986,7 @@ export function DocumentBrowser() {
                             
                                 </th>
                           )}
+                              <th className={viewMode === 'compact-table' ? 'p-2 w-10' : 'p-4 w-12'} aria-label="Actions" />
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-neutral-100">
@@ -981,6 +1049,20 @@ export function DocumentBrowser() {
                             className={`${viewMode === 'compact-table' ? 'p-2' : 'p-4'} text-neutral-600`}>
                             
                                   {doc.dateModified}
+                                </td>
+                                <td
+                            className={`${viewMode === 'compact-table' ? 'p-2' : 'p-4'} text-right`}>
+                                  <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate(`/chat?ask=${encodeURIComponent(`${doc.id} — ${doc.title}`)}&askKind=document`);
+                              }}
+                              title={`Ask Flint about ${doc.id}`}
+                              aria-label={`Ask Flint about ${doc.id}`}
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-7 h-7 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
+                                    <SparklesIcon size={14} />
+                                  </button>
                                 </td>
                               </tr>
                         )}

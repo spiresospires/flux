@@ -14,7 +14,11 @@ import {
   PanelLeftOpenIcon,
   MoreHorizontalIcon,
   MessageSquareIcon,
-  SearchIcon } from
+  SearchIcon,
+  Building2Icon,
+  Globe2Icon,
+  ChevronDownIcon,
+  CheckIcon } from
 'lucide-react';
 import { mockDocuments } from '../data/mockDocuments';
 import { statusColors } from './DocumentCard';
@@ -22,6 +26,8 @@ import { LeftRail } from './LeftRail';
 interface ChatInterfaceProps {
   onExit: () => void;
   onDocumentSelect: (docId: string) => void;
+  askAbout?: string | null;
+  askKind?: 'folder' | 'document' | null;
 }
 interface ChatMessage {
   id: string;
@@ -29,12 +35,34 @@ interface ChatMessage {
   sender: 'user' | 'flint';
   timestamp: string;
 }
+type ChatScope =
+  | { kind: 'enterprise' }
+  | { kind: 'project'; id: string; name: string };
+
+interface ProjectOption { id: string; name: string }
+
+const PROJECTS: ProjectOption[] = [
+  { id: 'shard', name: 'The Shard, London' },
+  { id: 'skyline', name: 'Skyline' },
+  { id: 'tower', name: 'Tower' },
+  { id: 'empire', name: 'Empire State' }
+];
+
+const ENTERPRISE_SCOPE: ChatScope = { kind: 'enterprise' };
+const projectScope = (id: string): ChatScope => {
+  const p = PROJECTS.find((x) => x.id === id) ?? PROJECTS[0];
+  return { kind: 'project', id: p.id, name: p.name };
+};
+const scopesEqual = (a: ChatScope, b: ChatScope) =>
+  a.kind === b.kind && (a.kind === 'enterprise' || (b.kind === 'project' && a.id === b.id));
+
 interface Conversation {
   id: string;
   title: string;
   pinned: boolean;
   updatedAt: number;
   messages: ChatMessage[];
+  scope: ChatScope;
 }
 // Pick real documents from mock data for AI responses
 const getSpecDocuments = () => {
@@ -59,7 +87,9 @@ const getSafetyDocuments = () => {
 };
 export function ChatInterface({
   onExit,
-  onDocumentSelect
+  onDocumentSelect,
+  askAbout,
+  askKind
 }: ChatInterfaceProps) {
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const day = 86400000;
@@ -72,7 +102,7 @@ export function ChatInterface({
 
     return [
     {
-      id: 'c-tag-pv101', title: 'Documents associated with TAG PV-101', pinned: true, updatedAt: now - 2 * 3600000,
+      id: 'c-tag-pv101', title: 'Documents associated with TAG PV-101', pinned: true, scope: projectScope('shard'), updatedAt: now - 2 * 3600000,
       messages: [
       mk('m1', 'user', 'What documents are associated with TAG PV-101?', 2 * 3600000),
       mk('m2', 'flint',
@@ -93,7 +123,7 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-latest-pid', title: 'Latest revision of P&ID P-1001-PID-001', pinned: true, updatedAt: now - 5 * 3600000,
+      id: 'c-latest-pid', title: 'Latest revision of P&ID P-1001-PID-001', pinned: true, scope: projectScope('shard'), updatedAt: now - 5 * 3600000,
       messages: [
       mk('m1', 'user', "What's the latest revision of P-1001-PID-001?", 5 * 3600000),
       mk('m2', 'flint', 'The latest released revision is Rev C (Approved on 28 Apr 2026 by Sarah Chen). Rev D is currently in review with the lead process engineer.', 5 * 3600000 - 90000),
@@ -102,7 +132,7 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-pumps-dwg', title: 'Pumps shown on drawing M-3012-GA-006', pinned: false, updatedAt: now - 1 * day,
+      id: 'c-pumps-dwg', title: 'Pumps shown on drawing M-3012-GA-006', pinned: false, scope: projectScope('shard'), updatedAt: now - 1 * day,
       messages: [
       mk('m1', 'user', 'List the pumps on drawing M-3012-GA-006.', 1 * day),
       mk('m2', 'flint',
@@ -118,14 +148,14 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-supersede', title: 'Which drawings supersede DWG-MECH-027-R3?', pinned: false, updatedAt: now - 1 * day - 4 * 3600000,
+      id: 'c-supersede', title: 'Which drawings supersede DWG-MECH-027-R3?', pinned: false, scope: projectScope('skyline'), updatedAt: now - 1 * day - 4 * 3600000,
       messages: [
       mk('m1', 'user', 'Which drawings supersede DWG-MECH-027-R3?', 1 * day + 4 * 3600000),
       mk('m2', 'flint', 'DWG-MECH-027-R3 has been superseded by DWG-MECH-027-R4 (released 02 May 2026). The R4 revision incorporates the structural support modifications from RFI-2026-118.', 1 * day + 4 * 3600000 - 60000)]
 
     },
     {
-      id: 'c-loop-101', title: 'Loop sheet for instrument FT-205', pinned: false, updatedAt: now - 2 * day,
+      id: 'c-loop-101', title: 'Loop sheet for instrument FT-205', pinned: false, scope: projectScope('skyline'), updatedAt: now - 2 * day,
       messages: [
       mk('m1', 'user', 'Find the loop sheet for FT-205.', 2 * day),
       mk('m2', 'flint', 'Loop sheet INST-LOOP-205-R2 covers FT-205 (Coriolis flow transmitter on cooling water return). Linked instruments: FY-205, FV-205, FAH-205. Located in /Instrumentation/Loop Sheets.', 2 * day - 60000),
@@ -134,70 +164,70 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-vendor-pump', title: 'Vendor datasheets for centrifugal pump P-204A', pinned: false, updatedAt: now - 2 * day - 5 * 3600000,
+      id: 'c-vendor-pump', title: 'Vendor datasheets for centrifugal pump P-204A', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 2 * day - 5 * 3600000,
       messages: [
       mk('m1', 'user', 'Show vendor datasheets for P-204A.', 2 * day + 5 * 3600000),
       mk('m2', 'flint', 'Two vendor datasheets are linked to P-204A: VEN-DS-003-R1 (Sulzer mechanical) and VEN-DS-016-R1 (motor). Both Approved, current revision.', 2 * day + 5 * 3600000 - 60000)]
 
     },
     {
-      id: 'c-outstanding', title: 'Documents pending review on Substation A', pinned: false, updatedAt: now - 3 * day,
+      id: 'c-outstanding', title: 'Documents pending review on Substation A', pinned: false, scope: projectScope('tower'), updatedAt: now - 3 * day,
       messages: [
       mk('m1', 'user', 'Any documents pending review on Substation A?', 3 * day),
       mk('m2', 'flint', '3 documents are in review: E-2004-SLD-015 (415V SLD, Rev B), E-2004-PRT-008 (Protection Schematic, Draft), and SPEC-ELEC-022-R1. Reviewer: Daniel Park, due 12 May.', 3 * day - 60000)]
 
     },
     {
-      id: 'c-mech-area01', title: 'All IFC documents for Mechanical Area 01', pinned: false, updatedAt: now - 4 * day,
+      id: 'c-mech-area01', title: 'All IFC documents for Mechanical Area 01', pinned: false, scope: projectScope('shard'), updatedAt: now - 4 * day,
       messages: [
       mk('m1', 'user', 'List IFC documents for Mechanical Area 01.', 4 * day),
       mk('m2', 'flint', 'Workpack WP-MECH-AREA-01 (Rev C02) contains 42 IFC-status documents across GA, P&IDs, isometrics and civil layouts. Want me to open the package?', 4 * day - 60000)]
 
     },
     {
-      id: 'c-piping-class', title: 'Piping class 150# CS service comparison', pinned: false, updatedAt: now - 5 * day,
+      id: 'c-piping-class', title: 'Piping class 150# CS service comparison', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 5 * day,
       messages: [
       mk('m1', 'user', 'Compare piping class 150# CS for cooling water vs utility air.', 5 * day),
       mk('m2', 'flint', 'Per PIPING-CLASS-150CS-R3: cooling water service uses A106 Gr B SMLS, schedule 40, 1/16" CA. Utility air uses A53 Gr B ERW, schedule 40, no CA. Both are limited to 200°F at 285 psig.', 5 * day - 60000)]
 
     },
     {
-      id: 'c-safety-200', title: 'Confined space procedures for Unit 200', pinned: false, updatedAt: now - 6 * day,
+      id: 'c-safety-200', title: 'Confined space procedures for Unit 200', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 6 * day,
       messages: [
       mk('m1', 'user', 'Summarise confined space procedures for Unit 200.', 6 * day),
       mk('m2', 'flint', 'PROC-SAFE-003-R3 covers Unit 200 confined space entry. Key points: gas test before entry, continuous monitoring, attendant + entry permit, rescue plan ref RES-PLAN-200.', 6 * day - 60000)]
 
     },
     {
-      id: 'c-cable-sched', title: 'Cable schedule for MCC-03 feeders', pinned: false, updatedAt: now - 7 * day,
+      id: 'c-cable-sched', title: 'Cable schedule for MCC-03 feeders', pinned: false, scope: projectScope('skyline'), updatedAt: now - 7 * day,
       messages: [
       mk('m1', 'user', 'Cable schedule for MCC-03 feeders?', 7 * day),
       mk('m2', 'flint', 'CAB-SCH-MCC03-R2 lists 28 feeders. Largest is FDR-03-12 (P-204A motor, 4-core 95mm² XLPE, 124 m). Schedule last updated 30 Apr 2026.', 7 * day - 60000)]
 
     },
     {
-      id: 'c-where-used', title: 'Where is valve tag XV-3402 referenced?', pinned: false, updatedAt: now - 8 * day,
+      id: 'c-where-used', title: 'Where is valve tag XV-3402 referenced?', pinned: false, scope: projectScope('shard'), updatedAt: now - 8 * day,
       messages: [
       mk('m1', 'user', 'Where is XV-3402 referenced?', 8 * day),
       mk('m2', 'flint', 'XV-3402 appears in: P-1001-PID-001 (Rev C), VAL-LIST-AREA01-R5, INST-LOOP-3402-R1, and SPEC-VAL-014-R2. It is also called up in commissioning procedure CMS-PRC-018.', 8 * day - 60000)]
 
     },
     {
-      id: 'c-redline', title: 'Open redlines on Civil Foundations package', pinned: false, updatedAt: now - 9 * day,
+      id: 'c-redline', title: 'Open redlines on Civil Foundations package', pinned: false, scope: projectScope('empire'), updatedAt: now - 9 * day,
       messages: [
       mk('m1', 'user', 'Any open redlines on Civil Foundations?', 9 * day),
       mk('m2', 'flint', 'WP-CIV-FOUND-PKG has 2 open redlines: C-4401-LAY-002 (footing depth comment) and C-4401-LAY-005 (rebar spacing query). Both raised by Marco Rossi.', 9 * day - 60000)]
 
     },
     {
-      id: 'c-transmittals', title: 'Transmittals issued to Contractor X this month', pinned: false, updatedAt: now - 11 * day,
+      id: 'c-transmittals', title: 'Transmittals issued to Contractor X this month', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 11 * day,
       messages: [
       mk('m1', 'user', 'How many transmittals went to Contractor X this month?', 11 * day),
       mk('m2', 'flint', '7 transmittals to Contractor X in May 2026, totalling 184 documents. 3 are awaiting acknowledgement: TR-2026-118, TR-2026-122, TR-2026-127.', 11 * day - 60000)]
 
     },
     {
-      id: 'c-hold-points', title: 'Hold points on Commissioning Pack 03', pinned: false, updatedAt: now - 14 * day,
+      id: 'c-hold-points', title: 'Hold points on Commissioning Pack 03', pinned: false, scope: projectScope('shard'), updatedAt: now - 14 * day,
       messages: [
       mk('m1', 'user', 'List the hold points on Commissioning Pack 03.', 14 * day),
       mk('m2', 'flint', 'CMS-PCK-03 has 4 hold points: H1 hydrotest sign-off, H2 NDT acceptance, H3 instrument loop check, H4 client witnessed run-in. H1 and H2 cleared; H3 in progress.', 14 * day - 60000)]
@@ -207,7 +237,62 @@ export function ChatInterface({
   });
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [scope, setScope] = useState<ChatScope>(() => {
+    if (typeof window === 'undefined') return ENTERPRISE_SCOPE;
+    const saved = localStorage.getItem('flux.currentProject');
+    const match = PROJECTS.find((p) => p.name === saved);
+    return match ? { kind: 'project', id: match.id, name: match.name } : ENTERPRISE_SCOPE;
+  });
+  const askAboutRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (askAbout && askAbout !== askAboutRef.current) {
+      askAboutRef.current = askAbout;
+      setActiveId(null);
+      setInputValue('');
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('flux.currentProject') : null;
+      const match = PROJECTS.find((p) => p.name === saved);
+      if (match) setScope({ kind: 'project', id: match.id, name: match.name });
+    }
+  }, [askAbout]);
+  const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+  const scopedConversations = conversations.filter((c) => scopesEqual(c.scope, scope));
+  const handleScopeChange = (next: ChatScope) => {
+    setScope(next);
+    setScopeMenuOpen(false);
+    setActiveId((prev) => {
+      if (!prev) return null;
+      const found = conversations.find((c) => c.id === prev);
+      return found && scopesEqual(found.scope, next) ? prev : null;
+    });
+  };
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyWidth, setHistoryWidth] = useState(288);
+  const resizingRef = useRef(false);
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const next = Math.min(560, Math.max(240, e.clientX - 56));
+      setHistoryWidth(next);
+    };
+    const onUp = () => {
+      if (resizingRef.current) {
+        resizingRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+  const startResize = () => {
+    resizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [historySearch, setHistorySearch] = useState('');
@@ -220,7 +305,7 @@ export function ChatInterface({
       let list = prev;
       if (!id) {
         id = 'c-' + Date.now();
-        list = [{ id, title: 'New chat', pinned: false, updatedAt: Date.now(), messages: [] }, ...prev];
+        list = [{ id, title: 'New chat', pinned: false, scope, updatedAt: Date.now(), messages: [] }, ...prev];
         setActiveId(id);
       }
       return list.map((c) =>
@@ -430,7 +515,7 @@ export function ChatInterface({
       let list = prev;
       if (!id) {
         id = 'c-' + Date.now();
-        list = [{ id, title: text.slice(0, 40), pinned: false, updatedAt: Date.now(), messages: [] }, ...prev];
+        list = [{ id, title: text.slice(0, 40), pinned: false, scope, updatedAt: Date.now(), messages: [] }, ...prev];
         setActiveId(id);
       }
       return list.map((c) => {
@@ -466,7 +551,18 @@ export function ChatInterface({
       handleSend();
     }
   };
-  const suggestions = [
+  const suggestions = askAbout ?
+  (() => {
+    const subject = askKind === 'folder' ? `the ${askAbout} folder` : askKind === 'document' ? `the ${askAbout} document` : askAbout;
+    return [
+    `Summarise ${subject}`,
+    `Who is responsible for ${subject}?`,
+    `What is the latest activity on ${subject}?`,
+    `Are there any open issues or holds on ${subject}?`,
+    `Show recent changes to ${subject}`];
+  })() :
+
+  [
   'What documents are associated with TAG PV-101?',
   'Show the latest revision of P-1001-PID-001',
   'List pumps shown on drawing M-3012-GA-006',
@@ -497,8 +593,14 @@ export function ChatInterface({
       {/* Chat history sidebar */}
       <ChatHistorySidebar
         open={historyOpen}
+        width={historyWidth}
+        onResizeStart={startResize}
         onToggle={() => setHistoryOpen((v) => !v)}
-        conversations={conversations}
+        conversations={scopedConversations}
+        scope={scope}
+        scopeMenuOpen={scopeMenuOpen}
+        onScopeMenuToggle={() => setScopeMenuOpen((v) => !v)}
+        onScopeChange={handleScopeChange}
         activeId={activeId}
         search={historySearch}
         onSearchChange={setHistorySearch}
@@ -526,6 +628,26 @@ export function ChatInterface({
 
       {/* Right side: chat content */}
       <div className="flex-1 flex flex-col min-w-0">
+      {/* Scope banner */}
+      <div className="h-11 shrink-0 border-b border-neutral-100 px-4 flex items-center bg-white">
+        <div
+          className={`w-full h-8 px-3 rounded-md border inline-flex items-center gap-2 text-xs font-medium ${scope.kind === 'enterprise' ? 'border-violet-200 bg-violet-50 text-violet-900' : 'border-[#0461BA]/30 bg-[#E8F1FB] text-[#0461BA]'}`}
+          role="status"
+          aria-live="polite">
+          {scope.kind === 'enterprise' ?
+          <>
+            <Globe2Icon size={14} className="shrink-0" />
+            <span className="font-semibold uppercase tracking-wide">Enterprise chat</span>
+            <span className="text-violet-700/80 font-normal">— responses span every project you have access to</span>
+          </> :
+          <>
+            <Building2Icon size={14} className="shrink-0" />
+            <span className="font-semibold uppercase tracking-wide">Project chat</span>
+            <span className="text-[#0461BA]/80 font-normal">— scoped to <span className="font-semibold">{scope.name}</span></span>
+          </>
+          }
+        </div>
+      </div>
       {/* Messages Area / Empty State */}
       <div
         className="flex-1 overflow-y-auto flex flex-col"
@@ -538,13 +660,25 @@ export function ChatInterface({
             <div className="w-16 h-16 bg-[#E8F1FB] rounded-full flex items-center justify-center mb-4 shadow-sm">
               <SparklesIcon size={32} className="text-[#0461BA]" />
             </div>
-            <h2 className="text-3xl font-bold text-neutral-900 mb-2">
-              Ask Flint
-            </h2>
-            <p className="text-neutral-500 mb-6 text-center text-lg">
-              Your AI engineering assistant. Ask about document specifications,
-              project details, or compliance requirements.
-            </p>
+            {askAbout ?
+          <>
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2 text-center">
+                What do you want to ask Flint about {askKind === 'folder' ? 'the ' : ''}<span className="text-[#0461BA]">{askAbout}</span>{askKind === 'folder' ? ' folder' : askKind === 'document' ? ' document' : ''}?
+              </h2>
+              <p className="text-neutral-500 mb-6 text-center text-base">
+                Type a question below or pick a suggestion.
+              </p>
+            </> :
+          <>
+              <h2 className="text-3xl font-bold text-neutral-900 mb-2">
+                Ask Flint
+              </h2>
+              <p className="text-neutral-500 mb-6 text-center text-lg">
+                Your AI engineering assistant. Ask about document specifications,
+                project details, or compliance requirements.
+              </p>
+            </>
+          }
 
             {/* Centered Input for Empty State */}
             <div className="w-full relative shadow-sm rounded-full bg-white border border-neutral-200 focus-within:ring-2 focus-within:ring-[#0461BA] focus-within:border-transparent transition-all">
@@ -708,8 +842,14 @@ export function ChatInterface({
 // ---------- Chat history sidebar ----------
 interface SidebarProps {
   open: boolean;
+  width: number;
+  onResizeStart: () => void;
   onToggle: () => void;
   conversations: Conversation[];
+  scope: ChatScope;
+  scopeMenuOpen: boolean;
+  onScopeMenuToggle: () => void;
+  onScopeChange: (s: ChatScope) => void;
   activeId: string | null;
   search: string;
   onSearchChange: (v: string) => void;
@@ -755,7 +895,60 @@ function ChatHistorySidebar(p: SidebarProps) {
   }
 
   return (
-    <aside className="w-72 shrink-0 border-r border-neutral-200 bg-white flex flex-col">
+    <aside
+      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col relative"
+      style={{ width: p.width }}>
+      {/* Scope switcher */}
+      <div className="h-11 shrink-0 px-3 flex items-center border-b border-neutral-100 relative">
+        <button
+          onClick={p.onScopeMenuToggle}
+          aria-haspopup="listbox"
+          aria-expanded={p.scopeMenuOpen}
+          className={`w-full h-8 px-2.5 rounded-md border inline-flex items-center gap-2 text-sm font-medium transition-colors ${p.scope.kind === 'enterprise' ? 'border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100' : 'border-[#0461BA]/30 bg-[#E8F1FB] text-[#0461BA] hover:bg-[#d6e7f8]'}`}>
+          {p.scope.kind === 'enterprise' ?
+          <Globe2Icon size={14} className="shrink-0" /> :
+          <Building2Icon size={14} className="shrink-0" />
+          }
+          <span className="flex-1 text-left truncate">
+            {p.scope.kind === 'enterprise' ? 'Enterprise chat' : p.scope.name}
+          </span>
+          <ChevronDownIcon size={14} className={`shrink-0 transition-transform ${p.scopeMenuOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {p.scopeMenuOpen &&
+        <div
+          role="listbox"
+          className="absolute left-3 right-3 top-full mt-1 z-20 bg-white border border-neutral-200 rounded-md shadow-lg overflow-hidden">
+            <button
+            onClick={() => p.onScopeChange({ kind: 'enterprise' })}
+            role="option"
+            aria-selected={p.scope.kind === 'enterprise'}
+            className="w-full px-3 py-2 inline-flex items-center gap-2 text-sm hover:bg-violet-50 text-left">
+              <Globe2Icon size={14} className="text-violet-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-neutral-900">Enterprise chat</div>
+                <div className="text-[11px] text-neutral-500 truncate">All projects you can access</div>
+              </div>
+              {p.scope.kind === 'enterprise' && <CheckIcon size={14} className="text-violet-600 shrink-0" />}
+            </button>
+            <div className="border-t border-neutral-100 px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Projects</div>
+            {PROJECTS.map((proj) => {
+            const selected = p.scope.kind === 'project' && p.scope.id === proj.id;
+            return (
+              <button
+                key={proj.id}
+                onClick={() => p.onScopeChange({ kind: 'project', id: proj.id, name: proj.name })}
+                role="option"
+                aria-selected={selected}
+                className="w-full px-3 py-2 inline-flex items-center gap-2 text-sm hover:bg-[#E8F1FB] text-left">
+                <Building2Icon size={14} className="text-[#0461BA] shrink-0" />
+                <span className="flex-1 truncate text-neutral-900">{proj.name}</span>
+                {selected && <CheckIcon size={14} className="text-[#0461BA] shrink-0" />}
+              </button>);
+          })}
+          </div>
+        }
+      </div>
+
       <div className="px-3 py-3 flex items-center gap-2 border-b border-neutral-100">
         <button
           onClick={p.onNew}
@@ -796,6 +989,16 @@ function ChatHistorySidebar(p: SidebarProps) {
         {filtered.length === 0 &&
         <div className="px-3 py-6 text-center text-xs text-neutral-400">No chats found</div>
         }
+      </div>
+      {/* Resize handle */}
+      <div
+        onMouseDown={(e) => { e.preventDefault(); p.onResizeStart(); }}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize chat history"
+        title="Drag to resize"
+        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize group z-10">
+        <div className="absolute inset-y-0 right-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] group-active:bg-[#0461BA] transition-colors" />
       </div>
     </aside>);
 

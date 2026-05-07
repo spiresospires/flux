@@ -1,7 +1,7 @@
 import React from 'react';
-import { FileIcon, CalendarIcon, UserIcon, HardDriveIcon } from 'lucide-react';
+import { FileIcon, CalendarIcon, UserIcon, HardDriveIcon, SparklesIcon } from 'lucide-react';
 import { Document } from '../types/document';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 interface DocumentCardProps {
   document: Document;
@@ -15,6 +15,7 @@ export const statusColors = {
   Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200'
 };
 export function DocumentCard({ document, isHighlighted }: DocumentCardProps) {
+  const navigate = useNavigate();
   return (
     <Link to={`/document/${document.id}`} className="block h-full group">
       <motion.div
@@ -33,7 +34,17 @@ export function DocumentCard({ document, isHighlighted }: DocumentCardProps) {
             src={document.thumbnail}
             alt={document.title}
             className="w-full h-full object-cover" />
-          
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigate(`/chat?ask=${encodeURIComponent(`${document.id} — ${document.title}`)}&askKind=document`);
+            }}
+            title={`Ask Flint about ${document.id}`}
+            aria-label={`Ask Flint about ${document.id}`}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity absolute top-2 right-2 w-7 h-7 rounded-md inline-flex items-center justify-center bg-white/95 backdrop-blur-sm text-[#0461BA] border border-neutral-200 shadow-sm hover:bg-[#E8F1FB] hover:border-[#0461BA]/40">
+            <SparklesIcon size={14} />
+          </button>
         </div>
         <div className="p-3 flex flex-col flex-1">
           <div className="flex items-start justify-between gap-2 mb-2">

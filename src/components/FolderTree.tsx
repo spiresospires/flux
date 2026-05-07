@@ -4,8 +4,10 @@ import {
   ChevronDownIcon,
   FolderIcon,
   FolderOpenIcon,
-  SearchIcon } from
+  SearchIcon,
+  SparklesIcon } from
 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Folder } from '../types/document';
 interface FolderTreeProps {
   folders: Folder[];
@@ -17,6 +19,7 @@ export function FolderTree({
   selectedFolderId,
   onFolderSelect
 }: FolderTreeProps) {
+  const navigate = useNavigate();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const toggleFolder = (folderId: string) => {
@@ -113,6 +116,16 @@ export function FolderTree({
           <span className="text-sm flex-1 truncate font-medium">
             {folder.name}
           </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/chat?ask=${encodeURIComponent(folder.name)}&askKind=folder`);
+            }}
+            title={`Ask Flint about ${folder.name}`}
+            aria-label={`Ask Flint about ${folder.name}`}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB] flex-shrink-0">
+            <SparklesIcon size={13} />
+          </button>
           <span
             className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0 transition-colors ${isSelected ? 'bg-[#0461BA] text-white' : 'bg-neutral-100 text-neutral-500 group-hover:bg-neutral-200'}`}>
             
