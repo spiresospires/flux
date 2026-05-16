@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { DocumentRelationship } from '../types/document';
+import { useLocalization } from '../contexts/LocalizationContext';
 import {
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -11,6 +12,7 @@ interface RelationshipsPanelProps {
   relationships: DocumentRelationship[];
 }
 export function RelationshipsPanel({ relationships }: RelationshipsPanelProps) {
+  const { t } = useLocalization();
   const getIcon = (type: string) => {
     switch (type) {
       case 'parent':
@@ -30,15 +32,15 @@ export function RelationshipsPanel({ relationships }: RelationshipsPanelProps) {
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'parent':
-        return 'Previous Revision';
+        return t('relationships.previousRevision');
       case 'child':
-        return 'Next Revision';
+        return t('relationships.nextRevision');
       case 'reference':
-        return 'References';
+        return t('relationships.references');
       case 'referenced-by':
-        return 'Referenced By';
+        return t('relationships.referencedBy');
       case 'grouped-with':
-        return 'Related Documents';
+        return t('relationships.relatedDocuments');
       default:
         return type;
     }
@@ -55,13 +57,13 @@ export function RelationshipsPanel({ relationships }: RelationshipsPanelProps) {
     <div className="border border-neutral-200 bg-white rounded-lg shadow-sm overflow-hidden">
       <div className="border-b border-neutral-200 px-4 py-2.5 bg-[#F0F4F8]">
         <h2 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">
-          Relationships
+          {t('relationships.title')}
         </h2>
       </div>
       <div className="p-4">
         {relationships.length === 0 ?
         <p className="text-sm text-neutral-500 italic">
-            No relationships defined
+            {t('relationships.none')}
           </p> :
 
         <div className="space-y-4">

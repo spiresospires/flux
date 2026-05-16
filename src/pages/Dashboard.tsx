@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { useScope } from '../contexts/ScopeContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 import {
   AlertCircleIcon,
   BellIcon,
@@ -44,18 +45,22 @@ import {
 type DashboardSection = 'overview' | 'todo' | 'notifications' | 'recent' | 'shared' | 'favourites';
 
 function relativeTime(ts: string): string {
-  const diff = Date.now() - new Date(ts).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return ts;
 }
 
-function formatDate(ds: string): string {
-  return new Date(ds).toLocaleDateString('en-GB', {
+function relativeTimeLocalized(ts: string, t: (key: string, variables?: Record<string, string | number>) => string): string {
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return t('common.justNow');
+  if (mins < 60) return t('common.minutesAgo', { count: mins });
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return t('common.hoursAgo', { count: hrs });
+  const days = Math.floor(hrs / 24);
+  return t('common.daysAgo', { count: days });
+}
+
+function formatDate(ds: string, locale: string): string {
+  return new Date(ds).toLocaleDateString(locale, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -177,6 +182,7 @@ function OverviewPane({
   sharedItems,
   favourites,
   onSelectSection,
+  t,
 }: {
   overdueTodos: number;
   unreadNotifs: number;
@@ -185,6 +191,7 @@ function OverviewPane({
   sharedItems: SharedItem[];
   favourites: FavouriteItem[];
   onSelectSection: (section: DashboardSection) => void;
+  t: (key: string, variables?: Record<string, string | number>) => string;
 }) {
   const dueToday = todos.filter((t) => t.status === 'Due Today').length;
   const sharedCount = sharedItems.length;
@@ -193,8 +200,8 @@ function OverviewPane({
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-4 border-b border-neutral-100">
-        <h2 className="text-base font-semibold text-neutral-900">Highlights</h2>
-        <p className="text-xs text-neutral-500 mt-0.5">Your key actions and updates at a glance</p>
+        <h2 className="text-base font-semibold text-neutral-900">{t('dashboard.highlights')}</h2>
+        <p className="text-xs text-neutral-500 mt-0.5">{t('dashboard.highlightsSubtitle')}</p>
       </div>
 
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 border-b border-neutral-100">
@@ -204,10 +211,10 @@ function OverviewPane({
         >
           <div className="flex items-center gap-2 text-red-700 text-xs font-semibold uppercase tracking-wide">
             <AlertCircleIcon size={12} />
-            Overdue
+            {t('statuses.overdue')}
           </div>
           <div className="mt-1 text-2xl font-bold text-red-800">{overdueTodos}</div>
-          <p className="text-xs text-red-700">Actions need attention</p>
+          <p className="text-xs text-red-700">{t('dashboard.overdueHelp')}</p>
         </button>
         <button
           onClick={() => onSelectSection('notifications')}
@@ -215,10 +222,10 @@ function OverviewPane({
         >
           <div className="flex items-center gap-2 text-[#0461BA] text-xs font-semibold uppercase tracking-wide">
             <BellIcon size={12} />
-            Unread
+            {t('dashboard.unread')}
           </div>
           <div className="mt-1 text-2xl font-bold text-[#035299]">{unreadNotifs}</div>
-          <p className="text-xs text-[#0461BA]">New notifications</p>
+          <p className="text-xs text-[#0461BA]">{t('dashboard.newNotifications')}</p>
         </button>
         <button
           onClick={() => onSelectSection('todo')}
@@ -226,10 +233,10 @@ function OverviewPane({
         >
           <div className="flex items-center gap-2 text-amber-700 text-xs font-semibold uppercase tracking-wide">
             <CalendarIcon size={12} />
-            Due Today
+            {t('statuses.dueToday')}
           </div>
           <div className="mt-1 text-2xl font-bold text-amber-800">{dueToday}</div>
-          <p className="text-xs text-amber-700">Tasks scheduled for today</p>
+          <p className="text-xs text-amber-700">{t('dashboard.dueTodayHelp')}</p>
         </button>
         <button
           onClick={() => onSelectSection('shared')}
@@ -237,18 +244,18 @@ function OverviewPane({
         >
           <div className="flex items-center gap-2 text-neutral-600 text-xs font-semibold uppercase tracking-wide">
             <Share2Icon size={12} />
-            Shared With Me
+            {t('dashboard.sharedWithMe')}
           </div>
           <div className="mt-1 text-2xl font-bold text-neutral-800">{sharedCount}</div>
-          <p className="text-xs text-neutral-500">Recent shared content</p>
+          <p className="text-xs text-neutral-500">{t('dashboard.sharedContent')}</p>
         </button>
       </div>
 
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <section className="rounded-lg border border-neutral-200 bg-white overflow-hidden">
           <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-            <span className="text-sm font-semibold text-neutral-800">Top To Do Items</span>
-            <button onClick={() => onSelectSection('todo')} className="text-xs text-[#0461BA] font-medium">View all</button>
+            <span className="text-sm font-semibold text-neutral-800">{t('dashboard.topTodo')}</span>
+            <button onClick={() => onSelectSection('todo')} className="text-xs text-[#0461BA] font-medium">{t('common.viewAll')}</button>
           </div>
           <div className="divide-y divide-neutral-50">
             {todos.slice(0, 3).map((t) => (
@@ -262,8 +269,8 @@ function OverviewPane({
 
         <section className="rounded-lg border border-neutral-200 bg-white overflow-hidden">
           <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-            <span className="text-sm font-semibold text-neutral-800">Recent Notifications</span>
-            <button onClick={() => onSelectSection('notifications')} className="text-xs text-[#0461BA] font-medium">View all</button>
+            <span className="text-sm font-semibold text-neutral-800">{t('dashboard.recentNotifications')}</span>
+            <button onClick={() => onSelectSection('notifications')} className="text-xs text-[#0461BA] font-medium">{t('common.viewAll')}</button>
           </div>
           <div className="divide-y divide-neutral-50">
             {notifications.slice(0, 3).map((n) => (
@@ -277,8 +284,8 @@ function OverviewPane({
 
         <section className="rounded-lg border border-neutral-200 bg-white overflow-hidden lg:col-span-2">
           <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-            <span className="text-sm font-semibold text-neutral-800">Favourite Items</span>
-            <button onClick={() => onSelectSection('favourites')} className="text-xs text-[#0461BA] font-medium">View all</button>
+            <span className="text-sm font-semibold text-neutral-800">{t('dashboard.favouriteItems')}</span>
+            <button onClick={() => onSelectSection('favourites')} className="text-xs text-[#0461BA] font-medium">{t('common.viewAll')}</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-neutral-50">
             {favourites.slice(0, 3).map((f) => (
@@ -292,7 +299,7 @@ function OverviewPane({
       </div>
 
       <div className="px-4 pb-4">
-        <p className="text-xs text-neutral-500">You currently have {favCount} favourites saved across projects.</p>
+        <p className="text-xs text-neutral-500">{t('dashboard.savedAcrossProjects', { count: favCount })}</p>
       </div>
     </div>
   );
@@ -315,6 +322,7 @@ function DashboardContent({
   sharedItems: SharedItem[];
   favourites: FavouriteItem[];
 }) {
+  const { t, locale } = useLocalization();
   const [todoFilter, setTodoFilter] = useState('All');
   const [notifFilter, setNotifFilter] = useState('All');
   const [recentFilter, setRecentFilter] = useState('All');
@@ -388,7 +396,7 @@ function DashboardContent({
     description: t.description,
     dueDate: t.dueDate,
     assignedBy: t.assignedBy,
-    assignedTo: 'You',
+    assignedTo: t('dashboard.assignedToYou'),
   });
 
   const toNotifDetail = (n: NotificationItem): DetailPanelData => ({
@@ -431,7 +439,8 @@ function DashboardContent({
       <div className="h-full flex flex-col">
         <SectionHeader
           title="To Do"
-          subtitle={`${todoFiltered.length} actions in view`}
+          title={t('dashboard.todoTitle')}
+          subtitle={t('dashboard.todoSubtitle', { count: todoFiltered.length })}
           filters={TODO_FILTERS}
           activeFilter={todoFilter}
           onFilterChange={setTodoFilter}
@@ -447,13 +456,13 @@ function DashboardContent({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-neutral-800 group-hover:text-[#0461BA] line-clamp-1">{t.title}</p>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${todoStatusColors[t.status]}`}>{t.status}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${todoStatusColors[t.status]}`}>{({Overdue:t('statuses.overdue'),'Due Today':t('statuses.dueToday'),'Due Soon':t('statuses.dueSoon'),Pending:t('statuses.pending')} as Record<string,string>)[t.status] ?? t.status}</span>
                   <span className="text-xs text-neutral-400">{t.category}</span>
                   <span className="text-xs text-neutral-400">·</span>
                   <span className="text-xs text-neutral-400">{t.project}</span>
                 </div>
               </div>
-              <span className="text-xs text-neutral-400 mt-0.5">{formatDate(t.dueDate)}</span>
+              <span className="text-xs text-neutral-400 mt-0.5">{formatDate(t.dueDate, locale)}</span>
             </button>
           ))}
         </div>
@@ -465,8 +474,8 @@ function DashboardContent({
     return (
       <div className="h-full flex flex-col">
         <SectionHeader
-          title="Notifications"
-          subtitle={`${notifFiltered.length} notifications in view`}
+          title={t('dashboard.notificationsTitle')}
+          subtitle={t('dashboard.notificationsSubtitle', { count: notifFiltered.length })}
           filters={NOTIF_FILTERS}
           activeFilter={notifFilter}
           onFilterChange={setNotifFilter}
@@ -490,7 +499,7 @@ function DashboardContent({
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-neutral-400">{n.project}</span>
                     <span className="text-xs text-neutral-400">·</span>
-                    <span className="text-xs text-neutral-400">{relativeTime(n.timestamp)}</span>
+                    <span className="text-xs text-neutral-400">{relativeTimeLocalized(n.timestamp, t)}</span>
                   </div>
                 </div>
               </button>
@@ -505,8 +514,8 @@ function DashboardContent({
     return (
       <div className="h-full flex flex-col">
         <SectionHeader
-          title="Recent Notifications"
-          subtitle={`${recentFiltered.length} recent updates in view`}
+          title={t('dashboard.recentTitle')}
+          subtitle={t('dashboard.recentSubtitle', { count: recentFiltered.length })}
           filters={ACTIVITY_FILTERS}
           activeFilter={recentFilter}
           onFilterChange={setRecentFilter}
@@ -532,7 +541,7 @@ function DashboardContent({
                     <span className="text-xs text-neutral-400">·</span>
                     <span className="text-xs text-neutral-400">{a.project}</span>
                     <span className="text-xs text-neutral-400">·</span>
-                    <span className="text-xs text-neutral-400">{relativeTime(a.timestamp)}</span>
+                    <span className="text-xs text-neutral-400">{relativeTimeLocalized(a.timestamp, t)}</span>
                   </div>
                 </div>
               </button>
@@ -547,8 +556,8 @@ function DashboardContent({
     return (
       <div className="h-full flex flex-col">
         <SectionHeader
-          title="Shared With Me"
-          subtitle={`${sharedFiltered.length} shared items in view`}
+          title={t('dashboard.sharedTitle')}
+          subtitle={t('dashboard.sharedSubtitle', { count: sharedFiltered.length })}
           filters={SHARED_FILTERS}
           activeFilter={sharedFilter}
           onFilterChange={setSharedFilter}
@@ -575,7 +584,7 @@ function DashboardContent({
                     <span className="text-xs text-neutral-400">·</span>
                     <span className="text-xs text-neutral-400">{s.project}</span>
                     <span className="text-xs text-neutral-400">·</span>
-                    <span className="text-xs text-neutral-400">{relativeTime(s.sharedAt)}</span>
+                    <span className="text-xs text-neutral-400">{relativeTimeLocalized(s.sharedAt, t)}</span>
                   </div>
                 </div>
               </button>
@@ -590,8 +599,8 @@ function DashboardContent({
     return (
       <div className="h-full flex flex-col">
         <SectionHeader
-          title="Favourites"
-          subtitle={`${favFiltered.length} favourite items in view`}
+          title={t('dashboard.favouritesTitle')}
+          subtitle={t('dashboard.favouritesSubtitle', { count: favFiltered.length })}
           filters={FAV_FILTERS}
           activeFilter={favFilter}
           onFilterChange={setFavFilter}
@@ -637,6 +646,7 @@ function DashboardContent({
 }
 
 export function Dashboard() {
+  const { t } = useLocalization();
   const location = useLocation();
   const { scope } = useScope();
   const [activeItem, setActiveItem] = useState('dashboard');
@@ -667,36 +677,36 @@ export function Dashboard() {
   const sectionItems = [
     {
       id: 'todo' as DashboardSection,
-      label: 'To Do Actions',
-      summary: `${overdueTodos} overdue, ${filteredTodos.filter((t) => t.status === 'Due Today').length} due today`,
+      label: t('dashboard.todoActions'),
+      summary: t('dashboard.overdueSummary', { overdue: overdueTodos, dueToday: filteredTodos.filter((t) => t.status === 'Due Today').length }),
       count: filteredTodos.length,
       icon: CheckSquareIcon,
     },
     {
       id: 'notifications' as DashboardSection,
-      label: 'Notifications',
-      summary: `${unreadNotifs} new notifications`,
+      label: t('dashboard.notificationsLabel'),
+      summary: t('dashboard.newNotificationsSummary', { count: unreadNotifs }),
       count: filteredNotifications.length,
       icon: BellIcon,
     },
     {
       id: 'recent' as DashboardSection,
-      label: 'Recent Notifications',
-      summary: `${filteredRecentActivity.length} recent updates`,
+      label: t('dashboard.recentLabel'),
+      summary: t('dashboard.recentUpdatesSummary', { count: filteredRecentActivity.length }),
       count: filteredRecentActivity.length,
       icon: ClockIcon,
     },
     {
       id: 'shared' as DashboardSection,
-      label: 'Shared With Me',
-      summary: `${filteredSharedItems.length} shared items`,
+      label: t('dashboard.sharedLabel'),
+      summary: t('dashboard.sharedItemsSummary', { count: filteredSharedItems.length }),
       count: filteredSharedItems.length,
       icon: Share2Icon,
     },
     {
       id: 'favourites' as DashboardSection,
-      label: 'Favourites',
-      summary: `${filteredFavourites.length} saved favourites`,
+      label: t('dashboard.favouritesLabel'),
+      summary: t('dashboard.savedFavouritesSummary', { count: filteredFavourites.length }),
       count: filteredFavourites.length,
       icon: StarIcon,
     },
@@ -720,18 +730,18 @@ export function Dashboard() {
       <main className="ml-[var(--left-rail-width,88px)]">
         <div className="mb-5">
           <p className="text-sm text-neutral-500 mt-0.5">
-            Welcome back. {overdueTodos > 0 && <span className="text-red-600 font-medium">{overdueTodos} overdue action{overdueTodos > 1 ? 's' : ''}</span>}
-            {overdueTodos > 0 && unreadNotifs > 0 && ' and '}
-            {unreadNotifs > 0 && <span className="text-[#0461BA] font-medium">{unreadNotifs} unread notification{unreadNotifs > 1 ? 's' : ''}</span>}
-            {overdueTodos === 0 && unreadNotifs === 0 && ' everything is up to date.'}
+            {t('dashboard.welcomeBack')} {overdueTodos > 0 && <span className="text-red-600 font-medium">{overdueTodos === 1 ? t('dashboard.overdueActions', { count: overdueTodos }) : t('dashboard.overdueActions_other', { count: overdueTodos })}</span>}
+            {overdueTodos > 0 && unreadNotifs > 0 && ` ${t('dashboard.and')} `}
+            {unreadNotifs > 0 && <span className="text-[#0461BA] font-medium">{unreadNotifs === 1 ? t('dashboard.unreadNotifications', { count: unreadNotifs }) : t('dashboard.unreadNotifications_other', { count: unreadNotifs })}</span>}
+            {overdueTodos === 0 && unreadNotifs === 0 && ` ${t('dashboard.everythingUpToDate')}`}
           </p>
         </div>
 
         <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-3 min-h-[calc(100vh-95px)]">
           <section className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden h-fit sticky top-3">
             <div className="px-4 py-3 border-b border-neutral-100">
-              <h2 className="text-sm font-semibold text-neutral-800">Home Sections</h2>
-              <p className="text-xs text-neutral-500 mt-0.5">Select a section to view details</p>
+              <h2 className="text-sm font-semibold text-neutral-800">{t('dashboard.homeSections')}</h2>
+              <p className="text-xs text-neutral-500 mt-0.5">{t('dashboard.homeSectionsSubtitle')}</p>
             </div>
 
             <div className="divide-y divide-neutral-100">
@@ -739,8 +749,8 @@ export function Dashboard() {
                 onClick={() => setSelectedSection('overview')}
                 className={`w-full text-left px-4 py-3 transition-colors ${selectedSection === 'overview' ? 'bg-[#E8F1FB]' : 'hover:bg-neutral-50'}`}
               >
-                <p className="text-sm font-semibold text-neutral-800">Highlights Overview</p>
-                <p className="text-xs text-neutral-500 mt-0.5">Key updates and attention items</p>
+                <p className="text-sm font-semibold text-neutral-800">{t('dashboard.highlightsOverview')}</p>
+                <p className="text-xs text-neutral-500 mt-0.5">{t('dashboard.highlightsOverviewSubtitle')}</p>
               </button>
 
               {sectionItems.map((item) => {
@@ -774,7 +784,7 @@ export function Dashboard() {
             className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden min-h-[480px]"
           >
             {selectedSection === 'overview' ? (
-              <OverviewPane overdueTodos={overdueTodos} unreadNotifs={unreadNotifs} todos={filteredTodos} notifications={filteredNotifications} sharedItems={filteredSharedItems} favourites={filteredFavourites} onSelectSection={setSelectedSection} />
+              <OverviewPane overdueTodos={overdueTodos} unreadNotifs={unreadNotifs} todos={filteredTodos} notifications={filteredNotifications} sharedItems={filteredSharedItems} favourites={filteredFavourites} onSelectSection={setSelectedSection} t={t} />
             ) : (
               <DashboardContent section={selectedSection} openPanel={setPanelData} todos={filteredTodos} notifications={filteredNotifications} recentActivity={filteredRecentActivity} sharedItems={filteredSharedItems} favourites={filteredFavourites} />
             )}

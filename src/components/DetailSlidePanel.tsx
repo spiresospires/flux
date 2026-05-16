@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, AlertCircleIcon, CheckCircleIcon, InfoIcon } from 'lucide-react';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 export type DetailPanelObjectType = 'document' | 'transmittal' | 'review' | 'workflow' | 'package' | 'folder' | 'search' | 'report';
 
@@ -71,6 +72,24 @@ const statusColors: Record<string, string> = {
   Returned: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
+function translateStatusLabel(t: (key: string, variables?: Record<string, string | number>) => string, status: string) {
+  const key = ({
+    Draft: 'statuses.draft',
+    'In Review': 'statuses.inReview',
+    Approved: 'statuses.approved',
+    Superseded: 'statuses.superseded',
+    Archived: 'statuses.archived',
+    Overdue: 'statuses.overdue',
+    'Due Today': 'statuses.dueToday',
+    'Due Soon': 'statuses.dueSoon',
+    Pending: 'statuses.pending',
+    Issued: 'statuses.issued',
+    Returned: 'statuses.returned',
+  } as Record<string, string>)[status];
+
+  return key ? t(key) : status;
+}
+
 function Field({ label, value, icon: Icon }: { label: string; value?: string | number | null; icon?: React.ElementType }) {
   if (!value && value !== 0) return null;
   return (
@@ -85,26 +104,27 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string | n
 }
 
 function DocumentDetail({ data }: { data: DetailPanelData }) {
+  const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Document ID" value={data.docId || data.objectId} icon={FileIcon} />
-        <Field label="Revision" value={data.revision} />
-        <Field label="Author" value={data.author} icon={UserIcon} />
-        <Field label="File Type" value={data.fileType} />
-        <Field label="File Size" value={data.fileSize} />
-        <Field label="Date Created" value={data.dateCreated ? new Date(data.dateCreated).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
-        <Field label="Last Modified" value={data.dateModified ? new Date(data.dateModified).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={ClockIcon} />
+        <Field label={t('detailPanel.documentId')} value={data.docId || data.objectId} icon={FileIcon} />
+        <Field label={t('detailPanel.revision')} value={data.revision} />
+        <Field label={t('detailPanel.author')} value={data.author} icon={UserIcon} />
+        <Field label={t('detailPanel.fileType')} value={data.fileType} />
+        <Field label={t('detailPanel.fileSize')} value={data.fileSize} />
+        <Field label={t('detailPanel.dateCreated')} value={data.dateCreated ? new Date(data.dateCreated).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
+        <Field label={t('detailPanel.lastModified')} value={data.dateModified ? new Date(data.dateModified).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={ClockIcon} />
       </div>
       {data.description && (
         <div>
-          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">Description</span>
+          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{t('detailPanel.description')}</span>
           <p className="text-sm text-neutral-700 mt-1 leading-relaxed">{data.description}</p>
         </div>
       )}
       {data.tags && data.tags.length > 0 && (
         <div>
-          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide flex items-center gap-1"><TagIcon size={11} /> Tags</span>
+          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide flex items-center gap-1"><TagIcon size={11} /> {t('detailPanel.tags')}</span>
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             {data.tags.map(t => (
               <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200">{t}</span>
@@ -113,79 +133,82 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">Open Document</button>
-        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">Download</button>
+        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openDocument')}</button>
+        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.download')}</button>
       </div>
     </div>
   );
 }
 
 function TransmittalDetail({ data }: { data: DetailPanelData }) {
+  const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Transmittal Ref" value={data.objectId.toUpperCase()} icon={SendIcon} />
-        <Field label="Recipient" value={data.recipient} icon={UserIcon} />
-        <Field label="Issue Date" value={data.issueDate ? new Date(data.issueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
-        <Field label="Return Date" value={data.returnDate ? new Date(data.returnDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={ClockIcon} />
-        <Field label="Documents" value={data.docCount} />
-        <Field label="Project" value={data.project} />
+        <Field label={t('detailPanel.transmittalRef')} value={data.objectId.toUpperCase()} icon={SendIcon} />
+        <Field label={t('detailPanel.recipient')} value={data.recipient} icon={UserIcon} />
+        <Field label={t('detailPanel.issueDate')} value={data.issueDate ? new Date(data.issueDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
+        <Field label={t('detailPanel.returnDate')} value={data.returnDate ? new Date(data.returnDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={ClockIcon} />
+        <Field label={t('detailPanel.documents')} value={data.docCount} />
+        <Field label={t('detailPanel.project')} value={data.project} />
       </div>
       {data.description && (
         <div>
-          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">Notes</span>
+          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{t('detailPanel.notes')}</span>
           <p className="text-sm text-neutral-700 mt-1 leading-relaxed">{data.description}</p>
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">Open Transmittal</button>
-        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">Download PDF</button>
+        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openTransmittal')}</button>
+        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.downloadPdf')}</button>
       </div>
     </div>
   );
 }
 
 function ReviewDetail({ data }: { data: DetailPanelData }) {
+  const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Review Ref" value={data.objectId.toUpperCase()} icon={CheckCircleIcon} />
-        <Field label="Assigned To" value={data.assignedTo} icon={UserIcon} />
-        <Field label="Assigned By" value={data.assignedBy} icon={UserIcon} />
-        <Field label="Due Date" value={data.dueDate ? new Date(data.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
-        <Field label="Comments" value={data.commentCount} />
-        <Field label="Project" value={data.project} />
+        <Field label={t('detailPanel.reviewRef')} value={data.objectId.toUpperCase()} icon={CheckCircleIcon} />
+        <Field label={t('detailPanel.assignedTo')} value={data.assignedTo} icon={UserIcon} />
+        <Field label={t('detailPanel.assignedBy')} value={data.assignedBy} icon={UserIcon} />
+        <Field label={t('detailPanel.dueDate')} value={data.dueDate ? new Date(data.dueDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
+        <Field label={t('detailPanel.comments')} value={data.commentCount} />
+        <Field label={t('detailPanel.project')} value={data.project} />
       </div>
       {data.description && (
         <div>
-          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">Details</span>
+          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{t('detailPanel.details')}</span>
           <p className="text-sm text-neutral-700 mt-1 leading-relaxed">{data.description}</p>
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">Open Review</button>
-        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">Add Comment</button>
+        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openReview')}</button>
+        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.addComment')}</button>
       </div>
     </div>
   );
 }
 
 function WorkflowDetail({ data }: { data: DetailPanelData }) {
+  const { t } = useLocalization();
   const progress = data.totalSteps && data.completedSteps != null
     ? Math.round((data.completedSteps / data.totalSteps) * 100)
     : null;
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Workflow Ref" value={data.objectId.toUpperCase()} icon={GitBranchIcon} />
-        <Field label="Current Step" value={data.currentStep} />
-        <Field label="Progress" value={progress != null ? `${data.completedSteps} / ${data.totalSteps} steps` : undefined} />
-        <Field label="Project" value={data.project} />
+        <Field label={t('detailPanel.workflowRef')} value={data.objectId.toUpperCase()} icon={GitBranchIcon} />
+        <Field label={t('detailPanel.currentStep')} value={data.currentStep} />
+        <Field label={t('detailPanel.progress')} value={progress != null ? t('detailPanel.stepsProgress', { completed: data.completedSteps ?? 0, total: data.totalSteps ?? 0 }) : undefined} />
+        <Field label={t('detailPanel.project')} value={data.project} />
       </div>
       {progress != null && (
         <div>
           <div className="flex justify-between text-xs text-neutral-500 mb-1">
-            <span>Progress</span>
+            <span>{t('detailPanel.progress')}</span>
             <span>{progress}%</span>
           </div>
           <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
@@ -200,41 +223,44 @@ function WorkflowDetail({ data }: { data: DetailPanelData }) {
       )}
       {data.description && (
         <div>
-          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">Description</span>
+          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{t('detailPanel.description')}</span>
           <p className="text-sm text-neutral-700 mt-1 leading-relaxed">{data.description}</p>
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">Open Workflow</button>
+        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openWorkflow')}</button>
       </div>
     </div>
   );
 }
 
 function GenericDetail({ data }: { data: DetailPanelData }) {
+  const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
-        <Field label="ID" value={data.objectId} />
-        <Field label="Project" value={data.project} />
-        {data.sharedBy && <Field label="Shared By" value={data.sharedBy} icon={UserIcon} />}
-        {data.sharedAt && <Field label="Shared" value={new Date(data.sharedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} icon={ClockIcon} />}
+        <Field label={t('detailPanel.id')} value={data.objectId} />
+        <Field label={t('detailPanel.project')} value={data.project} />
+        {data.sharedBy && <Field label={t('detailPanel.sharedBy')} value={data.sharedBy} icon={UserIcon} />}
+        {data.sharedAt && <Field label={t('detailPanel.shared')} value={new Date(data.sharedAt).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })} icon={ClockIcon} />}
       </div>
       {data.description && (
         <div>
-          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">Description</span>
+          <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{t('detailPanel.description')}</span>
           <p className="text-sm text-neutral-700 mt-1 leading-relaxed">{data.description}</p>
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4">
-        <button className="w-full text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">Open</button>
+        <button className="w-full text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.open')}</button>
       </div>
     </div>
   );
 }
 
 export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
+  const { t } = useLocalization();
   const isOpen = data !== null;
+  const typeLabel = data ? t(`detailPanel.types.${data.objectType}`) : '';
 
   return (
     <AnimatePresence>
@@ -261,7 +287,7 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
             className="fixed top-[45px] right-0 bottom-0 w-1/2 min-w-[380px] max-w-[640px] bg-white border-l border-neutral-200 shadow-2xl z-50 flex flex-col overflow-hidden"
             role="dialog"
             aria-modal="true"
-            aria-label={`${data.title} details`}
+            aria-label={t('detailPanel.detailsAria', { title: data.title })}
           >
             {/* Header */}
             <div className="flex items-start gap-3 px-6 py-4 border-b border-neutral-100 bg-[#F0F4F8]">
@@ -277,11 +303,11 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                    {typeConfig[data.objectType].label}
+                    {typeLabel}
                   </span>
                   {data.status && (
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${statusColors[data.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
-                      {data.status}
+                      {translateStatusLabel(t, data.status)}
                     </span>
                   )}
                 </div>
@@ -295,7 +321,7 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
               <button
                 onClick={onClose}
                 className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
-                aria-label="Close panel"
+                aria-label={t('detailPanel.closePanel')}
               >
                 <XIcon size={16} />
               </button>

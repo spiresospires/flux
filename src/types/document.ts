@@ -36,6 +36,7 @@ export interface DocumentRelationship {
 export interface Document extends DocumentMetadata {
   relationships: DocumentRelationship[];
   content?: string;
+  [key: string]: string | string[] | DocumentRelationship[] | undefined;
 }
 
 export interface Folder {

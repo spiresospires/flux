@@ -3,7 +3,9 @@ import { ColorSwatch } from '../components/design-system/ColorSwatch';
 import { ContrastChecker } from '../components/design-system/ContrastChecker';
 import { ArrowLeftIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLocalization } from '../contexts/LocalizationContext';
 export function DesignSystem() {
+  const { t } = useLocalization();
   const primaryColors = [
   {
     name: '25',
@@ -177,36 +179,36 @@ export function DesignSystem() {
 
   const semanticColors = [
   {
-    name: 'Error',
+    name: t('designSystem.colorNames.error'),
     variable: '--color-error-500',
     hex: '#EF4444'
   },
   {
-    name: 'Warning',
+    name: t('designSystem.colorNames.warning'),
     variable: '--color-warning-500',
     hex: '#F59E0B'
   },
   {
-    name: 'Success',
+    name: t('designSystem.colorNames.success'),
     variable: '--color-success-500',
     hex: '#10B981'
   }];
 
   const whiteColors = [
   {
-    name: 'White',
+    name: t('designSystem.colorNames.white'),
     variable: '--color-white',
     hex: '#FFFFFF'
   },
   {
-    name: 'Ice White',
+    name: t('designSystem.colorNames.iceWhite'),
     variable: '--color-ice-white',
     hex: '#FCFCFD'
   }];
 
   const supportingColors = [
   {
-    name: 'Plum',
+    name: t('designSystem.colorNames.plum'),
     variable: '--color-plum-500',
     hex: '#8D477C'
   }];
@@ -225,10 +227,10 @@ export function DesignSystem() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-neutral-900">
-                Colour Foundation
+                {t('designSystem.title')}
               </h1>
               <p className="text-sm text-neutral-500">
-                System documentation v1.0
+                {t('designSystem.subtitle')}
               </p>
             </div>
           </div>
@@ -237,31 +239,31 @@ export function DesignSystem() {
               href="#primary"
               className="hover:text-primary-500 transition-colors">
               
-              Primary
+              {t('designSystem.nav.primary')}
             </a>
             <a
               href="#secondary"
               className="hover:text-primary-500 transition-colors">
               
-              Secondary
+              {t('designSystem.nav.secondary')}
             </a>
             <a
               href="#neutral"
               className="hover:text-primary-500 transition-colors">
               
-              Neutral
+              {t('designSystem.nav.neutral')}
             </a>
             <a
               href="#semantic"
               className="hover:text-primary-500 transition-colors">
               
-              Semantic
+              {t('designSystem.nav.semantic')}
             </a>
             <a
               href="#accessibility"
               className="hover:text-primary-500 transition-colors">
               
-              Accessibility
+              {t('designSystem.nav.accessibility')}
             </a>
           </nav>
         </div>
@@ -270,24 +272,21 @@ export function DesignSystem() {
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-20">
         {/* Intro */}
         <section className="max-w-3xl">
-          <h2 className="text-3xl font-bold text-neutral-900 mb-6">Overview</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 mb-6">{t('designSystem.overview.title')}</h2>
           <p className="text-lg text-neutral-600 leading-relaxed mb-4">
-            Our color system is built on a foundation of accessibility and
-            flexibility. We use abstract naming conventions (Primary, Secondary,
-            Neutral) to ensure the system remains resilient to future
-            rebranding.
+            {t('designSystem.overview.body')}
           </p>
           <div className="flex gap-4 mt-6">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-success-500"></span>
               <span className="text-sm text-neutral-600">
-                WCAG 2.2 AA Compliant
+                {t('designSystem.overview.wcag')}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-primary-500"></span>
               <span className="text-sm text-neutral-600">
-                Themable via CSS Variables
+                {t('designSystem.overview.themeable')}
               </span>
             </div>
           </div>
@@ -298,10 +297,10 @@ export function DesignSystem() {
           <div className="flex items-baseline justify-between mb-8 border-b border-neutral-200 pb-4">
             <div>
               <h3 className="text-2xl font-bold text-neutral-900">
-                Primary Palette
+                {t('designSystem.primary.title')}
               </h3>
               <p className="text-neutral-500 mt-1">
-                Cobalt Blue • Brand Identity & Action
+                {t('designSystem.primary.subtitle')}
               </p>
             </div>
             <code className="text-xs bg-neutral-100 px-2 py-1 rounded text-neutral-600">
@@ -317,40 +316,37 @@ export function DesignSystem() {
 
           <div className="bg-white border border-neutral-200 rounded-xl p-6">
             <h4 className="font-semibold text-neutral-900 mb-4">
-              Usage Guidelines
+              {t('designSystem.primary.guidelines')}
             </h4>
             <div className="grid md:grid-cols-2 gap-8">
               <div>
                 <h5 className="text-sm font-medium text-success-700 mb-2 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-success-500"></span>{' '}
-                  Do
+                  {t('designSystem.primary.do')}
                 </h5>
                 <ul className="space-y-2 text-sm text-neutral-600 list-disc list-inside">
                   <li>
-                    Use <strong>Primary 500</strong> for main navigation
-                    backgrounds
+                    {t('designSystem.primary.do1')}
                   </li>
                   <li>
-                    Use <strong>Primary 500</strong> for primary call-to-action
-                    buttons
+                    {t('designSystem.primary.do2')}
                   </li>
                   <li>
-                    Use <strong>Primary 600/700</strong> for hover states
+                    {t('designSystem.primary.do3')}
                   </li>
                   <li>
-                    Use <strong>Primary 50-100</strong> for subtle backgrounds
-                    in active states
+                    {t('designSystem.primary.do4')}
                   </li>
                 </ul>
               </div>
               <div>
                 <h5 className="text-sm font-medium text-error-700 mb-2 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-error-500"></span>{' '}
-                  Don't
+                  {t('designSystem.primary.dont')}
                 </h5>
                 <ul className="space-y-2 text-sm text-neutral-600 list-disc list-inside">
-                  <li>Don't use for destructive actions (use Error)</li>
-                  <li>Don't use for body text (use Neutral)</li>
+                  <li>{t('designSystem.primary.dont1')}</li>
+                  <li>{t('designSystem.primary.dont2')}</li>
                 </ul>
               </div>
             </div>
@@ -362,10 +358,10 @@ export function DesignSystem() {
           <div className="flex items-baseline justify-between mb-8 border-b border-neutral-200 pb-4">
             <div>
               <h3 className="text-2xl font-bold text-neutral-900">
-                Secondary Palette
+                {t('designSystem.secondary.title')}
               </h3>
               <p className="text-neutral-500 mt-1">
-                Sky Blue • Decoration & Accents
+                {t('designSystem.secondary.subtitle')}
               </p>
             </div>
             <code className="text-xs bg-neutral-100 px-2 py-1 rounded text-neutral-600">
@@ -377,12 +373,10 @@ export function DesignSystem() {
             <span className="text-warning-600 mt-0.5">⚠️</span>
             <div>
               <h4 className="text-sm font-bold text-warning-800">
-                Usage Constraint
+                {t('designSystem.secondary.constraintTitle')}
               </h4>
               <p className="text-sm text-warning-700 mt-1">
-                Never use Secondary colors for text content. These shades are
-                reserved for decorative elements, icons, and background states
-                only.
+                {t('designSystem.secondary.constraintBody')}
               </p>
             </div>
           </div>
@@ -399,10 +393,10 @@ export function DesignSystem() {
           <div className="flex items-baseline justify-between mb-8 border-b border-neutral-200 pb-4">
             <div>
               <h3 className="text-2xl font-bold text-neutral-900">
-                Neutral Palette
+                {t('designSystem.neutral.title')}
               </h3>
               <p className="text-neutral-500 mt-1">
-                Stone Grey • Structure & Typography
+                {t('designSystem.neutral.subtitle')}
               </p>
             </div>
             <code className="text-xs bg-neutral-100 px-2 py-1 rounded text-neutral-600">
@@ -419,11 +413,11 @@ export function DesignSystem() {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-white border border-neutral-200 rounded-xl p-6">
               <h4 className="font-semibold text-neutral-900 mb-4">
-                Typography Mapping
+                {t('designSystem.neutral.typographyMapping')}
               </h4>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-neutral-500">Headings</span>
+                  <span className="text-sm text-neutral-500">{t('designSystem.neutral.headings')}</span>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-neutral-900 rounded border border-neutral-200"></span>
                     <code className="text-xs text-neutral-700">
@@ -432,7 +426,7 @@ export function DesignSystem() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-neutral-500">Body Text</span>
+                  <span className="text-sm text-neutral-500">{t('designSystem.neutral.bodyText')}</span>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-neutral-700 rounded border border-neutral-200"></span>
                     <code className="text-xs text-neutral-700">
@@ -442,7 +436,7 @@ export function DesignSystem() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-500">
-                    Subtitles / Hints
+                    {t('designSystem.neutral.subtitlesHints')}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-[#F0F4F8]0 rounded border border-neutral-200"></span>
@@ -455,12 +449,12 @@ export function DesignSystem() {
             </div>
             <div className="bg-white border border-neutral-200 rounded-xl p-6">
               <h4 className="font-semibold text-neutral-900 mb-4">
-                Structure Mapping
+                {t('designSystem.neutral.structureMapping')}
               </h4>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-500">
-                    Page Background
+                    {t('designSystem.neutral.pageBackground')}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-neutral-25 rounded border border-neutral-200"></span>
@@ -469,7 +463,7 @@ export function DesignSystem() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-500">
-                    Borders / Dividers
+                    {t('designSystem.neutral.bordersDividers')}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-neutral-200 rounded border border-neutral-200"></span>
@@ -486,20 +480,19 @@ export function DesignSystem() {
         {/* Whites & Supporting */}
         <section className="grid md:grid-cols-2 gap-12">
           <div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-6">Whites</h3>
+            <h3 className="text-xl font-bold text-neutral-900 mb-6">{t('designSystem.whites.title')}</h3>
             <div className="grid grid-cols-2 gap-4">
               {whiteColors.map((color) =>
               <ColorSwatch key={color.name} {...color} />
               )}
             </div>
             <p className="text-sm text-neutral-500 mt-4">
-              Use <strong>Ice White</strong> for containers to subtly
-              differentiate from the main <strong>White</strong> background.
+              {t('designSystem.whites.body')}
             </p>
           </div>
           <div>
             <h3 className="text-xl font-bold text-neutral-900 mb-6">
-              Supporting
+              {t('designSystem.supporting.title')}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               {supportingColors.map((color) =>
@@ -514,16 +507,16 @@ export function DesignSystem() {
           <div className="flex items-baseline justify-between mb-8 border-b border-neutral-200 pb-4">
             <div>
               <h3 className="text-2xl font-bold text-neutral-900">
-                Semantic Palette
+                {t('designSystem.semantic.title')}
               </h3>
-              <p className="text-neutral-500 mt-1">Feedback & States</p>
+              <p className="text-neutral-500 mt-1">{t('designSystem.semantic.subtitle')}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Error */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-error-700">Error</h4>
+              <h4 className="font-semibold text-error-700">{t('designSystem.semantic.error')}</h4>
               <div className="grid gap-2">
                 <ColorSwatch
                   name="500"
@@ -537,14 +530,13 @@ export function DesignSystem() {
                 
               </div>
               <p className="text-xs text-neutral-500">
-                Used for critical errors, destructive actions, and validation
-                failures.
+                {t('designSystem.semantic.errorBody')}
               </p>
             </div>
 
             {/* Warning */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-warning-700">Warning</h4>
+              <h4 className="font-semibold text-warning-700">{t('designSystem.semantic.warning')}</h4>
               <div className="grid gap-2">
                 <ColorSwatch
                   name="500"
@@ -558,14 +550,13 @@ export function DesignSystem() {
                 
               </div>
               <p className="text-xs text-neutral-500">
-                Used for non-critical warnings, attention needed, and pending
-                states.
+                {t('designSystem.semantic.warningBody')}
               </p>
             </div>
 
             {/* Success */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-success-700">Success</h4>
+              <h4 className="font-semibold text-success-700">{t('designSystem.semantic.success')}</h4>
               <div className="grid gap-2">
                 <ColorSwatch
                   name="500"
@@ -579,7 +570,7 @@ export function DesignSystem() {
                 
               </div>
               <p className="text-xs text-neutral-500">
-                Used for completion, valid states, and positive feedback.
+                {t('designSystem.semantic.successBody')}
               </p>
             </div>
           </div>
@@ -590,10 +581,10 @@ export function DesignSystem() {
           <div className="flex items-baseline justify-between mb-8 border-b border-neutral-200 pb-4">
             <div>
               <h3 className="text-2xl font-bold text-neutral-900">
-                Accessibility Matrix
+                {t('designSystem.accessibility.title')}
               </h3>
               <p className="text-neutral-500 mt-1">
-                WCAG 2.2 AA Compliance Check
+                {t('designSystem.accessibility.subtitle')}
               </p>
             </div>
           </div>
@@ -649,7 +640,7 @@ export function DesignSystem() {
                 variable: '--color-primary-500'
               },
               {
-                name: 'White',
+                name: t('designSystem.colorNames.white'),
                 hex: '#FFFFFF',
                 variable: '--color-white'
               }]
@@ -657,8 +648,7 @@ export function DesignSystem() {
             
           </div>
           <p className="text-sm text-neutral-500 mt-4">
-            <strong>Note:</strong> We aim for AA Large (3.0:1) for
-            graphics/large text and AA (4.5:1) for normal text.
+            <strong>{t('designSystem.accessibility.note')}</strong> {t('designSystem.accessibility.noteBody')}
           </p>
         </section>
       </main>

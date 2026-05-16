@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, Settings2Icon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocalization } from '../contexts/LocalizationContext';
 import { useShellLayout } from '../contexts/ShellLayoutContext';
 import { useScope } from '../contexts/ScopeContext';
 import { mockNotifications } from '../data/mockDashboard';
@@ -14,6 +15,7 @@ const PROJECTS = [
 ];
 
 export function BrandBanner() {
+  const { t } = useLocalization();
   const { isLeftRailVisible, toggleLeftRail } = useShellLayout();
   const { scope, setScope } = useScope();
   const LEFT_RAIL_WIDTH = 88;
@@ -30,12 +32,12 @@ export function BrandBanner() {
   const formatRelativeTime = (timestamp: string) => {
     const diffMs = Date.now() - new Date(timestamp).getTime();
     const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t('common.justNow');
+    if (mins < 60) return t('common.minutesAgo', { count: mins });
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
+    if (hrs < 24) return t('common.hoursAgo', { count: hrs });
     const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
+    return t('common.daysAgo', { count: days });
   };
 
   useEffect(() => {
@@ -72,7 +74,7 @@ export function BrandBanner() {
           <button
             onClick={toggleLeftRail}
             className="h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-[#F0F4F8] transition-colors flex items-center justify-center"
-            aria-label={isLeftRailVisible ? 'Hide navigation rail' : 'Show navigation rail'}
+            aria-label={isLeftRailVisible ? t('banner.hideNavigation') : t('banner.showNavigation')}
           >
             {isLeftRailVisible ? <PanelLeftCloseIcon size={15} /> : <PanelLeftOpenIcon size={15} />}
           </button>
@@ -96,7 +98,7 @@ export function BrandBanner() {
               <Building2Icon size={14} className="shrink-0" />
             )}
             <span className="truncate">
-              {scope.kind === 'enterprise' ? 'All workspaces' : scope.name}
+              {scope.kind === 'enterprise' ? t('banner.homeScope') : scope.name}
             </span>
             <ChevronDownIcon
               size={12}
@@ -120,14 +122,14 @@ export function BrandBanner() {
               >
                 <Globe2Icon size={14} className="text-violet-600 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-neutral-900">All workspaces</div>
+                  <div className="font-medium text-neutral-900">{t('banner.homeScope')}</div>
                 </div>
                 {scope.kind === 'enterprise' && (
                   <CheckIcon size={14} className="text-violet-600 shrink-0" />
                 )}
               </button>
               <div className="border-t border-neutral-100 px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
-                Projects
+                {t('banner.projects')}
               </div>
               {PROJECTS.map((proj) => {
                 const selected = scope.kind === 'project' && scope.id === proj.id;
@@ -160,8 +162,8 @@ export function BrandBanner() {
           <div className="relative">
             <SearchIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
-              aria-label="Search"
-              placeholder="Search..."
+              aria-label={t('banner.searchLabel')}
+              placeholder={t('banner.searchPlaceholder')}
               className="w-full h-7 pl-8 pr-2 rounded-md border border-neutral-200 bg-[#F0F4F8] text-xs text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white"
             />
           </div>
@@ -177,7 +179,7 @@ export function BrandBanner() {
           <button
             onClick={openNotificationsArea}
             className="relative h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-[#F0F4F8] transition-colors flex items-center justify-center"
-            aria-label="Notifications"
+            aria-label={t('banner.notifications')}
           >
             <BellIcon size={15} />
             <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E10613] text-white text-[10px] leading-4 text-center font-semibold">
@@ -188,8 +190,8 @@ export function BrandBanner() {
           {showNotifMenu && (
             <div className="absolute top-full right-0 mt-1.5 w-80 bg-white border border-neutral-200 rounded-md shadow-lg overflow-hidden">
               <div className="px-3 py-2 border-b border-neutral-100">
-                <p className="text-xs font-semibold text-neutral-800">Notifications</p>
-                <p className="text-[11px] text-neutral-500">{unreadCount} unread updates</p>
+                <p className="text-xs font-semibold text-neutral-800">{t('banner.notifications')}</p>
+                <p className="text-[11px] text-neutral-500">{t('banner.unreadUpdates', { count: unreadCount })}</p>
               </div>
               <div className="max-h-72 overflow-y-auto">
                 {notifPreview.map((notif) => (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SearchIcon, ChevronDownIcon } from 'lucide-react';
+import { useLocalization } from '../contexts/LocalizationContext';
 interface FilterPanelProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
@@ -9,6 +10,8 @@ interface FilterPanelProps {
   onDocTypeChange: (types: string[]) => void;
   selectedProject: string[];
   onProjectChange: (projects: string[]) => void;
+  selectedCategories: string[];
+  onCategoryChange: (categories: string[]) => void;
 }
 export function FilterPanel({
   searchTerm,
@@ -18,14 +21,16 @@ export function FilterPanel({
   selectedDocType,
   onDocTypeChange,
   selectedProject,
-  onProjectChange
+  onProjectChange,
+  selectedCategories,
+  onCategoryChange
 }: FilterPanelProps) {
+  const { t } = useLocalization();
   const [includePlaceholders, setIncludePlaceholders] = useState(false);
   const [selectedFileType, setSelectedFileType] = useState('');
   const [currentVersionOnly, setCurrentVersionOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
   const statuses = ['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'];
@@ -106,13 +111,13 @@ export function FilterPanel({
     onStatusChange([]);
     onDocTypeChange([]);
     onProjectChange([]);
+    onCategoryChange([]);
     onSearchChange('');
     setIncludePlaceholders(false);
     setSelectedFileType('');
     setCurrentVersionOnly(false);
     setDateFrom('');
     setDateTo('');
-    setSelectedCategories([]);
     setSelectedCompany('');
     setSelectedUser('');
   };
@@ -127,6 +132,39 @@ export function FilterPanel({
       onChange([...current, value]);
     }
   };
+  const statusLabelKeys: Record<string, string> = {
+    Draft: 'filters.statusOptions.draft',
+    'In Review': 'filters.statusOptions.inReview',
+    Approved: 'filters.statusOptions.approved',
+    Superseded: 'filters.statusOptions.superseded',
+    Archived: 'filters.statusOptions.archived'
+  };
+  const docTypeLabelKeys: Record<string, string> = {
+    Drawing: 'filters.documentTypeOptions.drawing',
+    Specification: 'filters.documentTypeOptions.specification',
+    'Technical Report': 'filters.documentTypeOptions.technicalReport',
+    Manual: 'filters.documentTypeOptions.manual',
+    Procedure: 'filters.documentTypeOptions.procedure'
+  };
+  const fileTypeLabelKeys: Record<string, string> = {
+    Word: 'filters.fileTypeOptions.word',
+    Excel: 'filters.fileTypeOptions.excel',
+    PowerPoint: 'filters.fileTypeOptions.powerpoint',
+    AutoCAD: 'filters.fileTypeOptions.autocad',
+    MicroStation: 'filters.fileTypeOptions.microstation',
+    Images: 'filters.fileTypeOptions.images',
+    Movie: 'filters.fileTypeOptions.movie',
+    PDF: 'filters.fileTypeOptions.pdf'
+  };
+  const categoryLabelKeys: Record<string, string> = {
+    Structural: 'filters.categories.structural',
+    Electrical: 'filters.categories.electrical',
+    Mechanical: 'filters.categories.mechanical',
+    Civil: 'filters.categories.civil',
+    Architectural: 'filters.categories.architectural',
+    Plumbing: 'filters.categories.plumbing',
+    HVAC: 'filters.categories.hvac'
+  };
   return (
     <div className="w-full h-full px-4 pb-4 overflow-y-auto custom-scrollbar">
       {/* Search */}
@@ -138,7 +176,7 @@ export function FilterPanel({
           
           <input
             type="text"
-            placeholder="Search documents..."
+            placeholder={t('filters.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             className="
@@ -163,7 +201,7 @@ export function FilterPanel({
       {/* Status */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Status
+          {t('filters.status')}
         </h3>
         <div className="space-y-1.5">
           {statuses.map((status) =>
@@ -207,7 +245,7 @@ export function FilterPanel({
                 </svg>
               </div>
               <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
-                {status}
+                {t(statusLabelKeys[status])}
               </span>
             </label>
           )}
@@ -217,7 +255,7 @@ export function FilterPanel({
       {/* Document Type */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Document Type
+          {t('filters.documentType')}
         </h3>
         <div className="space-y-1.5">
           {docTypes.map((type) =>
@@ -261,7 +299,7 @@ export function FilterPanel({
                 </svg>
               </div>
               <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
-                {type}
+                {t(docTypeLabelKeys[type])}
               </span>
             </label>
           )}
@@ -271,7 +309,7 @@ export function FilterPanel({
       {/* Project */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Project
+          {t('filters.project')}
         </h3>
         <div className="space-y-1.5">
           {projects.map((project) =>
@@ -325,7 +363,7 @@ export function FilterPanel({
       {/* Placeholders */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Placeholders
+          {t('filters.placeholders')}
         </h3>
         <label className="flex items-center gap-3 text-sm cursor-pointer group">
           <div className="relative flex items-center">
@@ -362,7 +400,7 @@ export function FilterPanel({
             </svg>
           </div>
           <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
-            Include Document Placeholders
+            {t('filters.includeDocumentPlaceholders')}
           </span>
         </label>
       </div>
@@ -370,7 +408,7 @@ export function FilterPanel({
       {/* File Type */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          File Type
+          {t('filters.fileType')}
         </h3>
         <div className="relative">
           <select
@@ -394,10 +432,10 @@ export function FilterPanel({
 
 
             
-            <option value="">All file types</option>
+            <option value="">{t('filters.allFileTypes')}</option>
             {fileTypes.map((type) =>
             <option key={type} value={type}>
-                {type}
+                {t(fileTypeLabelKeys[type])}
               </option>
             )}
           </select>
@@ -411,7 +449,7 @@ export function FilterPanel({
       {/* Version Control */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Version Control
+          {t('filters.versionControl')}
         </h3>
         <label className="flex items-center gap-3 text-sm cursor-pointer group">
           <div className="relative flex items-center">
@@ -448,7 +486,7 @@ export function FilterPanel({
             </svg>
           </div>
           <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
-            Current version only
+            {t('filters.currentVersionOnly')}
           </span>
         </label>
       </div>
@@ -456,11 +494,11 @@ export function FilterPanel({
       {/* Date Range */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Uploaded Date
+          {t('filters.uploadedDate')}
         </h3>
         <div className="space-y-2">
           <div>
-            <label className="text-xs text-neutral-500 mb-1 block">From</label>
+            <label className="text-xs text-neutral-500 mb-1 block">{t('filters.from')}</label>
             <input
               type="date"
               value={dateFrom}
@@ -483,7 +521,7 @@ export function FilterPanel({
             
           </div>
           <div>
-            <label className="text-xs text-neutral-500 mb-1 block">To</label>
+            <label className="text-xs text-neutral-500 mb-1 block">{t('filters.to')}</label>
             <input
               type="date"
               value={dateTo}
@@ -510,25 +548,25 @@ export function FilterPanel({
               onClick={() => setQuickDateRange('day')}
               className="text-xs px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded transition-colors">
               
-              Last 24h
+              {t('filters.last24h')}
             </button>
             <button
               onClick={() => setQuickDateRange('week')}
               className="text-xs px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded transition-colors">
               
-              Last 7 days
+              {t('filters.last7Days')}
             </button>
             <button
               onClick={() => setQuickDateRange('month')}
               className="text-xs px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded transition-colors">
               
-              Last 30 days
+              {t('filters.last30Days')}
             </button>
             <button
               onClick={() => setQuickDateRange('sixmonths')}
               className="text-xs px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded transition-colors">
               
-              Last 6 months
+              {t('filters.last6Months')}
             </button>
           </div>
         </div>
@@ -537,7 +575,7 @@ export function FilterPanel({
       {/* Category */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Category
+          {t('filters.category')}
         </h3>
         <div className="space-y-1.5">
           {categories.map((category) =>
@@ -551,9 +589,9 @@ export function FilterPanel({
                 checked={selectedCategories.includes(category)}
                 onChange={(e) => {
                   if (e.target.checked) {
-                    setSelectedCategories([...selectedCategories, category]);
+                    onCategoryChange([...selectedCategories, category]);
                   } else {
-                    setSelectedCategories(
+                    onCategoryChange(
                       selectedCategories.filter((c) => c !== category)
                     );
                   }
@@ -587,7 +625,7 @@ export function FilterPanel({
                 </svg>
               </div>
               <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
-                {category}
+                {t(categoryLabelKeys[category])}
               </span>
             </label>
           )}
@@ -597,12 +635,12 @@ export function FilterPanel({
       {/* Uploaded By */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          Uploaded By
+          {t('filters.uploadedBy')}
         </h3>
         <div className="space-y-2">
           <div>
             <label className="text-xs text-neutral-500 mb-1 block">
-              Company
+              {t('filters.company')}
             </label>
             <div className="relative">
               <select
@@ -626,7 +664,7 @@ export function FilterPanel({
 
 
                 
-                <option value="">All companies</option>
+                <option value="">{t('filters.allCompanies')}</option>
                 {companies.map((company) =>
                 <option key={company} value={company}>
                     {company}
@@ -640,7 +678,7 @@ export function FilterPanel({
             </div>
           </div>
           <div>
-            <label className="text-xs text-neutral-500 mb-1 block">User</label>
+            <label className="text-xs text-neutral-500 mb-1 block">{t('filters.user')}</label>
             <div className="relative">
               <select
                 value={selectedUser}
@@ -663,7 +701,7 @@ export function FilterPanel({
 
 
                 
-                <option value="">All users</option>
+                <option value="">{t('filters.allUsers')}</option>
                 {users.map((user) =>
                 <option key={user} value={user}>
                     {user}
@@ -699,7 +737,7 @@ export function FilterPanel({
 
 
           
-          Save Filter
+          {t('filters.saveFilter')}
         </button>
         <button
           onClick={handleClearAll}
@@ -721,7 +759,7 @@ export function FilterPanel({
 
 
           
-          Clear All
+          {t('filters.clearAll')}
         </button>
       </div>
     </div>);

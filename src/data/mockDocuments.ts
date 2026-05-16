@@ -57,6 +57,110 @@ new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime())).
 toISOString().
 split('T')[0];
 
+const categoryCycle = [
+'Structural',
+'Electrical',
+'Mechanical',
+'Civil',
+'Architectural',
+'Plumbing',
+'HVAC'] as const;
+
+const inferPrimaryCategory = (doc: Document, index: number) => {
+  const haystack = `${doc.title} ${doc.description} ${doc.tags.join(' ')}`.toLowerCase();
+
+  if (haystack.includes('electrical') || haystack.includes('power') || haystack.includes('cable') || haystack.includes('lighting') || haystack.includes('control panel')) {
+    return 'Electrical';
+  }
+  if (haystack.includes('mechanical') || haystack.includes('pump') || haystack.includes('compressor') || haystack.includes('heat exchanger') || haystack.includes('piping')) {
+    return 'Mechanical';
+  }
+  if (haystack.includes('civil') || haystack.includes('site') || haystack.includes('grading') || haystack.includes('concrete')) {
+    return 'Civil';
+  }
+  if (haystack.includes('structural') || haystack.includes('steel') || haystack.includes('stress') || haystack.includes('fatigue') || haystack.includes('foundation')) {
+    return 'Structural';
+  }
+  if (haystack.includes('architectural') || haystack.includes('room') || haystack.includes('finish') || haystack.includes('as-built')) {
+    return 'Architectural';
+  }
+  if (haystack.includes('plumbing') || haystack.includes('fixture') || haystack.includes('sanitary') || haystack.includes('drainage')) {
+    return 'Plumbing';
+  }
+  if (haystack.includes('hvac') || haystack.includes('ventilation') || haystack.includes('air') || haystack.includes('cooling') || haystack.includes('duct')) {
+    return 'HVAC';
+  }
+
+  return categoryCycle[index % categoryCycle.length];
+};
+
+const buildCategoryFields = (category: string, index: number) => {
+  switch (category) {
+    case 'Structural':
+      return {
+        beamSize: ['203x133 UB', '254x146 UB', '305x165 UC', '356x171 UC'][index % 4],
+        materialGrade: ['S275', 'S355', 'A572 Gr 50', 'A992'][index % 4],
+        loadRating: ['25 kN', '40 kN', '60 kN', '85 kN'][index % 4],
+        connectionType: ['Bolted', 'Welded', 'Moment', 'Pinned'][index % 4],
+      };
+    case 'Electrical':
+      return {
+        voltage: ['230 V', '400 V', '690 V', '11 kV'][index % 4],
+        circuitNumber: `CCT-${String(index + 1).padStart(3, '0')}`,
+        panel: ['PANEL-A', 'PANEL-B', 'MCC-1', 'SWBD-2'][index % 4],
+        protectionType: ['MCB', 'MCCB', 'RCBO', 'Relay'][index % 4],
+      };
+    case 'Mechanical':
+      return {
+        equipmentTag: `EQ-${String(index + 101).padStart(4, '0')}`,
+        powerRating: ['5 kW', '11 kW', '22 kW', '45 kW'][index % 4],
+        manufacturer: ['Sulzer', 'Flowserve', 'Grundfos', 'KSB'][index % 4],
+        serviceMedium: ['Steam', 'Cooling Water', 'Condensate', 'Process Gas'][index % 4],
+      };
+    case 'Civil':
+      return {
+        concreteType: ['C30/37', 'C35/45', 'C40/50', 'C50/60'][index % 4],
+        rebarSize: ['T12', 'T16', 'T20', 'T25'][index % 4],
+        soilClass: ['Class 2', 'Class 3', 'Class 4', 'Rock'][index % 4],
+        foundationType: ['Strip Footing', 'Pad Footing', 'Raft', 'Pile Cap'][index % 4],
+      };
+    case 'Architectural':
+      return {
+        finishType: ['Painted', 'Epoxy', 'Ceramic Tile', 'Acoustic Panel'][index % 4],
+        roomNumber: `R-${String((index % 60) + 1).padStart(3, '0')}`,
+        ceilingHeight: ['2.7 m', '3.0 m', '3.3 m', '4.2 m'][index % 4],
+        fireRating: ['30 min', '60 min', '90 min', '120 min'][index % 4],
+      };
+    case 'Plumbing':
+      return {
+        pipeSize: ['25 mm', '50 mm', '80 mm', '150 mm'][index % 4],
+        fixtureType: ['Floor Drain', 'Sink', 'Valve Set', 'Pump Skid'][index % 4],
+        flowRate: ['0.8 L/s', '1.5 L/s', '3.2 L/s', '6.0 L/s'][index % 4],
+        pressureClass: ['PN10', 'PN16', 'PN25', 'PN40'][index % 4],
+      };
+    case 'HVAC':
+      return {
+        ductSize: ['300x200', '500x300', '800x400', '1000x500'][index % 4],
+        airflow: ['500 L/s', '1200 L/s', '2500 L/s', '4000 L/s'][index % 4],
+        unitType: ['AHU', 'FCU', 'Exhaust Fan', 'Chiller'][index % 4],
+        zone: ['North Wing', 'South Wing', 'Plant Room', 'Control Suite'][index % 4],
+      };
+    default:
+      return {};
+  }
+};
+
+const withCategoryAttributes = (doc: Document, index: number): Document => {
+  const category = inferPrimaryCategory(doc, index);
+  const normalizedCategory = category.toLowerCase();
+
+  return {
+    ...doc,
+    tags: doc.tags.includes(normalizedCategory) ? doc.tags : [...doc.tags, normalizedCategory],
+    ...buildCategoryFields(category, index),
+  };
+};
+
 // Mechanical Drawings
 const mechDrawings: Document[] = Array.from({ length: 30 }, (_, i) => ({
   id: `DWG-MECH-${String(i + 1).padStart(3, '0')}-R${i % 3 + 1}`,
@@ -558,4 +662,4 @@ export const mockDocuments: Document[] = [
 ...pmDocs,
 ...asBuiltRecords,
 ...trainingMats,
-...archivedDocs];
+...archivedDocs].map(withCategoryAttributes);

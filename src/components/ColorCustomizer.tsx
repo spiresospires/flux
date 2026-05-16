@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SunIcon, MoonIcon, CheckIcon } from 'lucide-react';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 interface ColorCustomizerProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ function applyTheme(theme: Theme) {
 }
 
 export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
+  const { t } = useLocalization();
   const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
@@ -29,8 +31,8 @@ export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
   };
 
   const options: { id: Theme; label: string; desc: string; icon: React.ElementType }[] = [
-  { id: 'light', label: 'Light', desc: 'Original bright theme', icon: SunIcon },
-  { id: 'dark', label: 'Dark', desc: 'Easy on the eyes', icon: MoonIcon }];
+  { id: 'light', label: t('appearance.light'), desc: t('appearance.lightDesc'), icon: SunIcon },
+  { id: 'dark', label: t('appearance.dark'), desc: t('appearance.darkDesc'), icon: MoonIcon }];
 
 
   return (
@@ -53,7 +55,7 @@ export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
           className="fixed left-12 bottom-4 z-50 bg-white border border-neutral-200 rounded-lg shadow-2xl w-64">
 
             <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-100">
-              <h3 className="text-sm font-semibold text-neutral-900">Appearance</h3>
+              <h3 className="text-sm font-semibold text-neutral-900">{t('appearance.title')}</h3>
             </div>
             <div className="p-2 space-y-1">
               {options.map((opt) => {

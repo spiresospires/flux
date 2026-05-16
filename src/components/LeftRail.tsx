@@ -8,6 +8,7 @@ import {
   FolderIcon } from
 'lucide-react';
 import { ColorCustomizer } from './ColorCustomizer';
+import { useLocalization } from '../contexts/LocalizationContext';
 import { useShellLayout } from '../contexts/ShellLayoutContext';
 interface LeftRailProps {
   activeItem: string;
@@ -25,6 +26,7 @@ export function LeftRail({
   onItemClick,
   onChatClick
 }: LeftRailProps) {
+  const { t } = useLocalization();
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [showColorCustomizer, setShowColorCustomizer] = useState(false);
   const { isLeftRailVisible } = useShellLayout();
@@ -34,25 +36,25 @@ export function LeftRail({
   {
     id: 'dashboard',
     icon: LayoutDashboardIcon,
-    label: 'Home',
+    label: t('navigation.home'),
     onClick: () => navigate('/')
   },
   {
     id: 'documents',
     icon: FolderIcon,
-    label: 'Documents',
+    label: t('navigation.documents'),
     onClick: () => navigate('/documents')
   },
   {
     id: 'packages',
     icon: PackageIcon,
-    label: 'Packages',
+    label: t('navigation.packages'),
     onClick: () => navigate('/packages')
   },
   {
     id: 'chat',
     icon: MessageCircleIcon,
-    label: 'Chat',
+    label: t('navigation.chat'),
     onClick: () => navigate('/chat')
   }];
 
@@ -60,7 +62,7 @@ export function LeftRail({
   {
     id: 'settings',
     icon: SettingsIcon,
-    label: 'Settings'
+    label: t('navigation.settings')
   }];
 
   const allItems = [...navItems, ...bottomItems];
@@ -130,7 +132,7 @@ export function LeftRail({
         className="fixed left-0 top-[45px] h-[calc(100vh-45px)] bg-white border-r border-neutral-200 z-20 flex flex-col py-2 overflow-hidden"
         style={{ width: 88 }}
         role="navigation"
-        aria-label="Main navigation"
+        aria-label={t('navigation.main')}
       >
         {/* Customer logo area */}
         <div className="px-2 mb-3">

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { XIcon, FileIcon, CheckIcon, TrashIcon } from 'lucide-react';
 import { Document } from '../types/document';
 import { useClipboard } from '../contexts/ClipboardContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 interface ClipboardPanelProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const docStatusColors: Record<string, string> = {
 };
 
 export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProps) {
+  const { t } = useLocalization();
   const { clipboard, removeFromClipboard, clearClipboard } = useClipboard();
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -72,13 +74,13 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
               <div>
                 <h2 className="text-lg font-semibold text-neutral-900">Add from Clipboard</h2>
                 <p className="text-sm text-neutral-500 mt-0.5">
-                  {clipboard.length} document{clipboard.length !== 1 ? 's' : ''} saved
+                  {clipboard.length === 1 ? t('common.documentsCount', { count: clipboard.length }) : t('common.documentsCount_other', { count: clipboard.length })}
                 </p>
               </div>
               <button
                 onClick={onClose}
                 className="w-8 h-8 rounded-md flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <XIcon size={16} />
               </button>
@@ -90,8 +92,8 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
                   <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mx-auto mb-3">
                     <FileIcon size={20} className="text-neutral-400" />
                   </div>
-                  <p className="text-sm font-medium text-neutral-700">No documents in clipboard</p>
-                  <p className="text-xs text-neutral-500 mt-1">Add documents using the copy icon on any document</p>
+                  <p className="text-sm font-medium text-neutral-700">{t('clipboard.noDocuments')}</p>
+                  <p className="text-xs text-neutral-500 mt-1">{t('clipboard.noDocumentsHelp')}</p>
                 </div>
               </div>
             ) : (
@@ -115,10 +117,10 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
                       {selected.length > 0 && <CheckIcon size={12} className="text-white" />}
                     </div>
                     <span className="text-sm font-semibold text-neutral-800 flex-1">
-                      {selected.length === clipboard.length ? 'Deselect All' : 'Select All'}
+                      {selected.length === clipboard.length ? t('clipboard.deselectAll') : t('clipboard.selectAll')}
                     </span>
                     <span className="text-xs text-neutral-500">
-                      {selected.length} of {clipboard.length}
+                      {t('clipboard.selectionCount', { selected: selected.length, total: clipboard.length })}
                     </span>
                   </button>
 
@@ -162,7 +164,7 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
                             setSelected((prev) => prev.filter((id) => id !== doc.id));
                           }}
                           className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          aria-label={`Remove ${doc.id} from clipboard`}
+                          aria-label={t('clipboard.removeFromClipboard', { id: doc.id })}
                         >
                           <TrashIcon size={13} />
                         </button>
@@ -180,14 +182,14 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
                     }}
                     className="text-sm text-neutral-600 font-medium hover:text-red-600 transition-colors"
                   >
-                    Clear All
+                    {t('common.clearAll')}
                   </button>
                   <div className="flex-1" />
                   <button
                     onClick={onClose}
                     className="text-sm px-3 py-1.5 rounded-lg text-neutral-700 border border-neutral-200 hover:bg-[#F0F4F8] transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleAddToPrompt}
@@ -198,7 +200,7 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
                         : 'bg-[#0461BA] text-white hover:bg-[#035299]'
                     }`}
                   >
-                    Add {selected.length > 0 ? `(${selected.length})` : ''} to Prompt
+                    {selected.length > 0 ? t('clipboard.addCountToPrompt', { count: selected.length }) : t('clipboard.addToPrompt')}
                   </button>
                 </div>
               </>

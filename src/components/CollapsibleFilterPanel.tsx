@@ -5,6 +5,7 @@ import {
   FilterIcon,
   FolderIcon } from
 'lucide-react';
+import { useLocalization } from '../contexts/LocalizationContext';
 interface CollapsibleFilterPanelProps {
   isExpanded?: boolean;
   onToggle?: () => void;
@@ -23,6 +24,7 @@ export function CollapsibleFilterPanel({
   children,
   topSlot
 }: CollapsibleFilterPanelProps) {
+  const { t } = useLocalization();
   const panelExpanded = showCollapseToggle ? isExpanded : true;
 
   return (
@@ -80,7 +82,7 @@ export function CollapsibleFilterPanel({
                     size={16}
                     strokeWidth={mode === 'folder' ? 2.5 : 2} />
                   
-                    Folders
+                    {t('panel.folders')}
                   </button>
                   <button
                   onClick={() => onModeChange('filter')}
@@ -90,7 +92,7 @@ export function CollapsibleFilterPanel({
                     size={16}
                     strokeWidth={mode === 'filter' ? 2.5 : 2} />
                   
-                    Filters
+                    {t('panel.filters')}
                   </button>
                 </div>
               </div>
@@ -119,7 +121,7 @@ export function CollapsibleFilterPanel({
             width: '18px',
             marginLeft: '-1px'
           }}
-          aria-label={panelExpanded ? 'Collapse panel' : 'Expand panel'}>
+          aria-label={panelExpanded ? t('panel.collapse') : t('panel.expand')}>
           <motion.div
             animate={{
               rotate: panelExpanded ? 0 : 180

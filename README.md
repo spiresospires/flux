@@ -1,6 +1,6 @@
 # FusionLive FLUX — UX Wireframe Prototype
 
-A clickable wireframe / prototype exploring a redesigned UX for the FusionLive engineering document management system. This is a **UX mockup**, not production code — there is no real backend, auth, or persistence beyond `localStorage` for the theme.
+A clickable wireframe / prototype exploring a redesigned UX for the FusionLive engineering document management system. This is a **UX mockup**, not production code — there is no real backend or auth, and prototype persistence is currently limited to local client storage for selected UI preferences and workspace state.
 
 ## Getting Started
 
@@ -31,6 +31,9 @@ A clickable wireframe / prototype exploring a redesigned UX for the FusionLive e
 - **Removed redundant "Sort by" control** — the column headers already sort.
 - **Compact grid header** — single-line "X documents found • Showing N" plus a smaller View button.
 - **Aligned gutters** — equal narrow gap between left rail / folder panel / grid.
+- **Table personalization** — Comfy Table and Compact Table support column sorting, filtering, drag reordering, show/hide columns, and single-column grouping by dragging a supported header into the whitespace grouping bar above the table.
+- **Grouping persistence** — the active table grouping currently persists locally in `localStorage` as a prototype stand-in for future server-side preferences.
+- **Table row selection fix** — row selection and select-all now use a single checkbox-style hit target so the clickable area aligns with the visual control.
 
 ### Packages — new mental model
 The biggest functional concept change. Today, FusionLive Work Packs are tightly coupled to a single folder (the folder is the source of truth, the pack is stored inside it, and contents are inferred from folder membership).

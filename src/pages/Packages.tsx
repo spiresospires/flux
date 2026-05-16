@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LeftRail } from '../components/LeftRail';
+import { useLocalization } from '../contexts/LocalizationContext';
 import {
   PlusIcon,
   SearchIcon,
@@ -256,10 +257,41 @@ const changeStateStyles: Record<ChangeState, string> = {
   'New': 'text-neutral-500'
 };
 
+function translatePackageStatus(t: (key: string, variables?: Record<string, string | number>) => string, status: PackageStatus | string) {
+  switch (status) {
+    case 'Draft':
+      return t('statuses.draft');
+    case 'In Review':
+      return t('statuses.inReview');
+    case 'Approved':
+      return t('statuses.approved');
+    case 'Issued':
+      return t('statuses.issued');
+    case 'Out of Date':
+      return t('statuses.outOfDate');
+    default:
+      return status;
+  }
+}
+
+function translateChangeState(t: (key: string, variables?: Record<string, string | number>) => string, state: ChangeState | string) {
+  switch (state) {
+    case 'Up to date':
+      return t('statuses.upToDate');
+    case 'Changes detected':
+      return t('statuses.changesDetected');
+    case 'New':
+      return t('statuses.new');
+    default:
+      return state;
+  }
+}
+
 // ---------- Page ----------
 type View = 'library' | 'wizard' | 'detail';
 
 export function Packages() {
+  const { t } = useLocalization();
   const [activeRailItem, setActiveRailItem] = useState('packages');
   const [view, setView] = useState<View>('library');
   const [packages, setPackages] = useState<PackageObject[]>(samplePackages);
@@ -290,7 +322,7 @@ export function Packages() {
         version: nextRev,
         generatedDate: new Date().toISOString().slice(0, 10),
         generatedBy: 'You',
-        summary: 'Repackaged — change log refreshed'
+        summary: t('packages.repackagedSummary')
       };
       return {
         ...p,
@@ -303,7 +335,7 @@ export function Packages() {
       };
     })
     );
-    showToast('Repackaged — new version created');
+    showToast(t('packages.repackagedToast'));
   };
 
   return (
@@ -334,7 +366,7 @@ export function Packages() {
             setPackages((prev) => [pkg, ...prev]);
             setSelectedRef(pkg.reference);
             setView('detail');
-            showToast('Package generated');
+            showToast(t('packages.packageGenerated'));
           }} />
 
         }
@@ -376,6 +408,7 @@ function PackageLibrary({
 
 
 }: {packages: PackageObject[];onOpen: (ref: string) => void;onNew: () => void;onRepackage: (ref: string) => void;onAction: (msg: string) => void;}) {
+  const { t } = useLocalization();
   const [statusFilter, setStatusFilter] = useState<Set<PackageStatus>>(new Set());
   const [disciplineFilter, setDisciplineFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
@@ -432,10 +465,10 @@ function PackageLibrary({
         {/* Left filter panel */}
         <aside className="w-64 shrink-0 bg-white border border-neutral-200 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-neutral-900">Filters</h3>
+            <h3 className="text-sm font-semibold text-neutral-900">{t('packages.filters')}</h3>
             {activeCount > 0 &&
             <button onClick={clearAll} className="text-xs text-[#0461BA] hover:underline">
-                Clear ({activeCount})
+                {t('packages.clear', { count: activeCount })}
               </button>
             }
           </div>
@@ -445,11 +478,11 @@ function PackageLibrary({
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search packages"
+                placeholder={t('packages.searchPackages')}
                 className="w-full h-8 pl-8 pr-2 rounded-md border border-neutral-200 bg-neutral-50 text-sm focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white" />
 
             </div>
-            <FilterGroup label="Status">
+            <FilterGroup label={t('packages.status')}>
               {allStatuses.map((s) =>
               <CheckRow
                 key={s}
@@ -463,7 +496,7 @@ function PackageLibrary({
 
               )}
             </FilterGroup>
-            <FilterGroup label="Change state">
+            <FilterGroup label={t('packages.changeState')}>
               {allChange.map((c) =>
               <CheckRow
                 key={c}
@@ -473,7 +506,7 @@ function PackageLibrary({
 
               )}
             </FilterGroup>
-            <FilterGroup label="Discipline">
+            <FilterGroup label={t('packages.discipline')}>
               {allDisciplines.map((d) =>
               <CheckRow
                 key={d}
@@ -483,7 +516,7 @@ function PackageLibrary({
 
               )}
             </FilterGroup>
-            <FilterGroup label="Type">
+            <FilterGroup label={t('packages.type')}>
               {allTypes.map((t) =>
               <CheckRow
                 key={t}
@@ -493,7 +526,7 @@ function PackageLibrary({
 
               )}
             </FilterGroup>
-            <FilterGroup label="Owner" last>
+            <FilterGroup label={t('packages.owner')} last>
               {allOwners.map((o) =>
               <CheckRow
                 key={o}
@@ -510,25 +543,25 @@ function PackageLibrary({
         <div className="flex-1 min-w-0 bg-white border border-neutral-200 rounded-lg overflow-hidden flex flex-col">
           {/* Header */}
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between bg-white shrink-0">
-            <p className="text-xs font-medium text-neutral-600">{filtered.length} packages</p>
+            <p className="text-xs font-medium text-neutral-600">{t('packages.packagesCount', { count: filtered.length })}</p>
             <button
               onClick={onNew}
               className="inline-flex items-center gap-2 h-7 px-3 rounded-md bg-[#0461BA] text-white text-xs font-medium hover:bg-[#035299] transition-colors">
               <PlusIcon size={14} />
-              New Package
+              {t('packages.newPackage')}
             </button>
           </div>
 
           {activeCount > 0 &&
           <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-1 border-b border-neutral-100 bg-white shrink-0">
               {search &&
-              <FilterPill label={`Search: "${search}"`} onClear={() => setSearch('')} />
+              <FilterPill label={t('packages.searchFilter', { value: search })} onClear={() => setSearch('')} />
               }
               {[...statusFilter].map((v) =>
-              <FilterPill key={`s-${v}`} label={`Status: ${v}`} onClear={() => toggle(statusFilter, v, setStatusFilter)} />
+              <FilterPill key={`s-${v}`} label={t('packages.statusFilter', { value: v })} onClear={() => toggle(statusFilter, v, setStatusFilter)} />
               )}
               {[...changeFilter].map((v) =>
-              <FilterPill key={`c-${v}`} label={`Change: ${v}`} onClear={() => toggle(changeFilter, v, setChangeFilter)} />
+              <FilterPill key={`c-${v}`} label={t('packages.changeFilter', { value: v })} onClear={() => toggle(changeFilter, v, setChangeFilter)} />
               )}
               {[...disciplineFilter].map((v) =>
               <FilterPill key={`d-${v}`} label={`Discipline: ${v}`} onClear={() => toggle(disciplineFilter, v, setDisciplineFilter)} />
@@ -542,7 +575,7 @@ function PackageLibrary({
               <button
                 onClick={clearAll}
                 className="ml-1 text-xs text-rose-600 hover:underline">
-                Clear all
+                {t('packages.clearAllFilters')}
               </button>
             </div>
           }
@@ -552,15 +585,15 @@ function PackageLibrary({
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-600">
             <tr>
-              <th className="text-left px-4 py-2.5 font-medium">Reference</th>
-              <th className="text-left px-4 py-2.5 font-medium">Title</th>
-              <th className="text-left px-4 py-2.5 font-medium">Status</th>
-              <th className="text-left px-4 py-2.5 font-medium">Rev</th>
-              <th className="text-left px-4 py-2.5 font-medium">Owner</th>
-              <th className="text-left px-4 py-2.5 font-medium">Last updated</th>
-              <th className="text-right px-4 py-2.5 font-medium">Docs</th>
-              <th className="text-left px-4 py-2.5 font-medium">Change state</th>
-              <th className="text-right px-4 py-2.5 font-medium">Actions</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.reference')}</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.title')}</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.status')}</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.rev')}</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.owner')}</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.lastUpdated')}</th>
+              <th className="text-right px-4 py-2.5 font-medium">{t('packages.docs')}</th>
+              <th className="text-left px-4 py-2.5 font-medium">{t('packages.changeState')}</th>
+              <th className="text-right px-4 py-2.5 font-medium">{t('packages.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -576,7 +609,7 @@ function PackageLibrary({
                 <td className="px-4 py-3 text-neutral-900">{p.title}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border ${statusStyles[p.status]}`}>
-                    {p.status}
+                    {translatePackageStatus(t, p.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-neutral-700">{p.revision}</td>
@@ -586,16 +619,16 @@ function PackageLibrary({
                 <td className="px-4 py-3">
                   <span className={`text-xs ${changeStateStyles[p.changeState]}`}>
                     {p.changeState !== 'Up to date' && <AlertCircleIcon size={12} className="inline mr-1 -mt-0.5" />}
-                    {p.changeState}
+                    {translateChangeState(t, p.changeState)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     {/* Removed EyeIcon (Open) button */}
-                    <IconBtn title="Repackage" onClick={() => onRepackage(p.reference)}><RefreshCwIcon size={14} /></IconBtn>
-                    <IconBtn title="Issue / Transmit" onClick={() => onAction('Transmittal started')}><SendIcon size={14} /></IconBtn>
-                    <IconBtn title="Download PDF" onClick={() => onAction('Downloading PDF…')}><DownloadIcon size={14} /></IconBtn>
-                    <IconBtn title="Download ZIP" onClick={() => onAction('Downloading ZIP…')}><FileArchiveIcon size={14} /></IconBtn>
+                    <IconBtn title={t('packages.repackage')} onClick={() => onRepackage(p.reference)}><RefreshCwIcon size={14} /></IconBtn>
+                    <IconBtn title={t('packages.issueTransmit')} onClick={() => onAction(t('packages.transmittalStarted'))}><SendIcon size={14} /></IconBtn>
+                    <IconBtn title={t('packages.downloadPdf')} onClick={() => onAction(t('packages.downloadingPdf'))}><DownloadIcon size={14} /></IconBtn>
+                    <IconBtn title={t('packages.downloadZip')} onClick={() => onAction(t('packages.downloadingZip'))}><FileArchiveIcon size={14} /></IconBtn>
                   </div>
                 </td>
               </tr>
@@ -604,7 +637,7 @@ function PackageLibrary({
         </table>
           </div>
           {filtered.length === 0 &&
-          <div className="p-10 text-center text-neutral-500 text-sm flex items-center justify-center flex-1">No packages match this filter.</div>
+          <div className="p-10 text-center text-neutral-500 text-sm flex items-center justify-center flex-1">{t('packages.noPackagesMatch')}</div>
           }
         </div>
       </div>
@@ -613,9 +646,7 @@ function PackageLibrary({
       <div className="mt-8 p-4 bg-[#E8F1FB] border border-[#BAD4EE] rounded-lg text-sm text-[#0B3A6F] flex gap-3">
         <PackageIcon size={18} className="flex-shrink-0 mt-0.5" />
         <div>
-          <strong>Packages are independent of folders.</strong> A Package Object is a flexible collection
-          of documents pulled from anywhere in the project — folders, search results, saved views, or a
-          document register. Folders organise <em>source</em> documents; Packages organise <em>deliverables</em>.
+          <strong>{t('packages.packagesIndependent')}</strong> {t('packages.packagesConcept')}
         </div>
       </div>
     </div>);
@@ -641,10 +672,11 @@ function CheckRow({ checked, onChange, label }: {checked: boolean;onChange: () =
 }
 
 function FilterPill({ label, onClear }: {label: string;onClear: () => void;}) {
+  const { t } = useLocalization();
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
       {label}
-      <button onClick={onClear} className="hover:text-rose-600 transition-colors" aria-label={`Clear ${label}`}>
+      <button onClick={onClear} className="hover:text-rose-600 transition-colors" aria-label={t('packages.clearFilter', { label })}>
         <XIcon size={12} />
       </button>
     </span>);
@@ -671,6 +703,7 @@ function CreatePackageWizard({
 
 
 }: {onCancel: () => void;onCreate: (pkg: PackageObject) => void;}) {
+  const { t } = useLocalization();
   const [step, setStep] = useState(1);
   const [details, setDetails] = useState({
     reference: 'WP-MECH-AREA-02',
@@ -714,33 +747,33 @@ function CreatePackageWizard({
         onClick={onCancel}
         className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 mb-3">
 
-        <ArrowLeftIcon size={14} /> Back to Packages
+        <ArrowLeftIcon size={14} /> {t('packages.backToPackages')}
       </button>
-      <h1 className="text-2xl font-semibold text-neutral-900 mb-1">Create new package</h1>
-      <p className="text-sm text-neutral-500 mb-6">Build a flexible package that draws documents from anywhere in the project.</p>
+      <h1 className="text-2xl font-semibold text-neutral-900 mb-1">{t('packages.createTitle')}</h1>
+      <p className="text-sm text-neutral-500 mb-6">{t('packages.createSubtitle')}</p>
 
       {/* Stepper */}
-      <Stepper step={step} steps={['Details', 'Add documents', 'Organise', 'Review & generate']} />
+      <Stepper step={step} steps={[t('packages.steps.details'), t('packages.steps.addDocuments'), t('packages.steps.organise'), t('packages.steps.reviewGenerate')]} />
 
       <div className="bg-white border border-neutral-200 rounded-lg p-6 mt-6">
         {step === 1 &&
         <div className="grid grid-cols-2 gap-4 max-w-3xl">
-            <Field label="Package reference"><input value={details.reference} onChange={(e) => setDetails({ ...details, reference: e.target.value })} className={inputCls} /></Field>
-            <Field label="Title"><input value={details.title} onChange={(e) => setDetails({ ...details, title: e.target.value })} className={inputCls} /></Field>
-            <Field label="Description" full><textarea value={details.description} onChange={(e) => setDetails({ ...details, description: e.target.value })} rows={3} className={inputCls} /></Field>
-            <Field label="Package type">
+            <Field label={t('packages.packageReference')}><input value={details.reference} onChange={(e) => setDetails({ ...details, reference: e.target.value })} className={inputCls} /></Field>
+            <Field label={t('packages.title')}><input value={details.title} onChange={(e) => setDetails({ ...details, title: e.target.value })} className={inputCls} /></Field>
+            <Field label={t('packages.description')} full><textarea value={details.description} onChange={(e) => setDetails({ ...details, description: e.target.value })} rows={3} className={inputCls} /></Field>
+            <Field label={t('packages.packageType')}>
               <select value={details.type} onChange={(e) => setDetails({ ...details, type: e.target.value })} className={inputCls}>
                 <option>IFC Bundle</option><option>IFR Bundle</option><option>Submission</option><option>Commissioning</option><option>Issue Pack</option>
               </select>
             </Field>
-            <Field label="Discipline">
+            <Field label={t('packages.discipline')}>
               <select value={details.discipline} onChange={(e) => setDetails({ ...details, discipline: e.target.value })} className={inputCls}>
                 <option>Mechanical</option><option>Electrical</option><option>Process</option><option>Civil</option><option>Instrumentation</option>
               </select>
             </Field>
-            <Field label="Project area"><input value={details.area} onChange={(e) => setDetails({ ...details, area: e.target.value })} className={inputCls} /></Field>
-            <Field label="Owner"><input value={details.owner} onChange={(e) => setDetails({ ...details, owner: e.target.value })} className={inputCls} /></Field>
-            <Field label="Due date"><input type="date" value={details.dueDate} onChange={(e) => setDetails({ ...details, dueDate: e.target.value })} className={inputCls} /></Field>
+            <Field label={t('packages.projectArea')}><input value={details.area} onChange={(e) => setDetails({ ...details, area: e.target.value })} className={inputCls} /></Field>
+            <Field label={t('packages.owner')}><input value={details.owner} onChange={(e) => setDetails({ ...details, owner: e.target.value })} className={inputCls} /></Field>
+            <Field label={t('packages.dueDate')}><input type="date" value={details.dueDate} onChange={(e) => setDetails({ ...details, dueDate: e.target.value })} className={inputCls} /></Field>
           </div>
         }
 
@@ -748,8 +781,8 @@ function CreatePackageWizard({
         <div>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-semibold text-neutral-900">Add documents</h3>
-                <p className="text-xs text-neutral-500 mt-0.5">Add documents from any source. They don't need to live in the same folder.</p>
+                <h3 className="text-sm font-semibold text-neutral-900">{t('packages.addDocumentsTitle')}</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">{t('packages.addDocumentsSubtitle')}</p>
               </div>
               <button onClick={() => setShowAdd(true)} className="h-8 px-3 rounded-md bg-[#0461BA] text-white text-sm hover:bg-[#035299] inline-flex items-center gap-1.5">
                 <PlusIcon size={14} /> Add documents
@@ -759,9 +792,9 @@ function CreatePackageWizard({
             {docs.length === 0 ?
           <div className="border-2 border-dashed border-neutral-200 rounded-md p-10 text-center">
                 <PackageIcon size={32} className="mx-auto text-neutral-300 mb-2" />
-                <p className="text-sm text-neutral-600 mb-4">No documents yet. Pick from anywhere in the project.</p>
+                <p className="text-sm text-neutral-600 mb-4">{t('packages.noDocumentsYet')}</p>
                 <button onClick={() => setShowAdd(true)} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50">
-                  Add documents
+                  {t('packages.addDocumentsTitle')}
                 </button>
               </div> :
 
@@ -769,10 +802,10 @@ function CreatePackageWizard({
                 <table className="w-full text-sm">
                   <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-600">
                     <tr>
-                      <th className="text-left px-3 py-2 font-medium">Document #</th>
-                      <th className="text-left px-3 py-2 font-medium">Title</th>
-                      <th className="text-left px-3 py-2 font-medium">Rev</th>
-                      <th className="text-left px-3 py-2 font-medium">Source folder</th>
+                      <th className="text-left px-3 py-2 font-medium">{t('packages.documentNumber')}</th>
+                      <th className="text-left px-3 py-2 font-medium">{t('packages.title')}</th>
+                      <th className="text-left px-3 py-2 font-medium">{t('packages.rev')}</th>
+                      <th className="text-left px-3 py-2 font-medium">{t('packages.sourceFolder')}</th>
                       <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
@@ -809,12 +842,12 @@ function CreatePackageWizard({
 
         {step === 3 &&
         <div>
-            <h3 className="text-sm font-semibold text-neutral-900 mb-3">Organise contents</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 mb-3">{t('packages.organiseContents')}</h3>
             <div className="grid grid-cols-3 gap-6">
               <div className="col-span-2">
                 <div className="border border-neutral-200 rounded-md">
                   {docs.length === 0 &&
-                <div className="p-6 text-center text-sm text-neutral-500">No documents to organise.</div>
+                <div className="p-6 text-center text-sm text-neutral-500">{t('packages.noDocumentsToOrganise')}</div>
                 }
                   {docs.map((d, i) =>
                 <div key={i} className="flex items-center gap-2 px-3 py-2 border-b border-neutral-100 last:border-0 hover:bg-neutral-50">
@@ -826,13 +859,13 @@ function CreatePackageWizard({
                     onClick={() => setDocs(docs.map((x, j) => j === i ? { ...x, render: !x.render } : x))}
                     className={`text-xs px-2 py-0.5 rounded border ${d.render ? 'bg-[#E8F1FB] border-[#BAD4EE] text-[#0461BA]' : 'bg-white border-neutral-200 text-neutral-500'}`}>
 
-                        {d.render ? 'Render' : 'Link only'}
+                        {d.render ? t('packages.render') : t('packages.linkOnly')}
                       </button>
                       <button
                     onClick={() => setDocs(docs.map((x, j) => j === i ? { ...x, include: !x.include } : x))}
                     className={`text-xs px-2 py-0.5 rounded border ${d.include ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-neutral-50 border-neutral-200 text-neutral-400'}`}>
 
-                        {d.include ? 'Include' : 'Excluded'}
+                        {d.include ? t('packages.included') : t('packages.excluded')}
                       </button>
                       <div className="flex flex-col -space-y-px">
                         <button
@@ -846,16 +879,16 @@ function CreatePackageWizard({
                 )}
                 </div>
                 <button className="mt-3 text-sm text-[#0461BA] hover:underline inline-flex items-center gap-1">
-                  <PlusIcon size={14} /> Add section / separator page
+                  <PlusIcon size={14} /> {t('packages.addSection')}
                 </button>
               </div>
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold uppercase text-neutral-500 tracking-wide">Options</h4>
-                <Toggle label="Include attachments" checked={includeAttachments} onChange={setIncludeAttachments} />
-                <Toggle label="Include linked documents" checked={includeLinked} onChange={setIncludeLinked} />
-                <Toggle label="Render all documents to PDF" checked={renderAll} onChange={setRenderAll} />
+                <h4 className="text-xs font-semibold uppercase text-neutral-500 tracking-wide">{t('packages.options')}</h4>
+                <Toggle label={t('packages.includeAttachments')} checked={includeAttachments} onChange={setIncludeAttachments} />
+                <Toggle label={t('packages.includeLinkedDocuments')} checked={includeLinked} onChange={setIncludeLinked} />
+                <Toggle label={t('packages.renderAllPdf')} checked={renderAll} onChange={setRenderAll} />
                 <p className="text-xs text-neutral-500 leading-relaxed">
-                  Excluded documents stay attached as static links to the source document but are not rendered into the package PDF.
+                  {t('packages.excludedHelp')}
                 </p>
               </div>
             </div>
@@ -864,49 +897,48 @@ function CreatePackageWizard({
 
         {step === 4 &&
         <div>
-            <h3 className="text-sm font-semibold text-neutral-900 mb-4">Review & generate</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 mb-4">{t('packages.reviewGenerateTitle')}</h3>
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-3">
-                <SummaryRow k="Reference" v={details.reference} />
-                <SummaryRow k="Title" v={details.title} />
-                <SummaryRow k="Type" v={details.type} />
-                <SummaryRow k="Discipline" v={details.discipline} />
-                <SummaryRow k="Area" v={details.area} />
-                <SummaryRow k="Owner" v={details.owner} />
-                <SummaryRow k="Due date" v={details.dueDate} />
+                <SummaryRow k={t('packages.reference')} v={details.reference} />
+                <SummaryRow k={t('packages.title')} v={details.title} />
+                <SummaryRow k={t('packages.type')} v={details.type} />
+                <SummaryRow k={t('packages.discipline')} v={details.discipline} />
+                <SummaryRow k={t('packages.area')} v={details.area} />
+                <SummaryRow k={t('packages.owner')} v={details.owner} />
+                <SummaryRow k={t('packages.dueDate')} v={details.dueDate} />
               </div>
               <div className="space-y-3">
-                <SummaryRow k="Documents" v={`${docs.length} included`} />
-                <SummaryRow k="Render" v={renderAll ? 'All documents to PDF' : 'Selected only'} />
-                <SummaryRow k="Attachments" v={includeAttachments ? 'Included' : 'Excluded'} />
-                <SummaryRow k="Linked documents" v={includeLinked ? 'Included' : 'Excluded'} />
-                <SummaryRow k="Output" v="PDF + ZIP" />
+                <SummaryRow k={t('packages.documents')} v={t('packages.documentsIncluded', { count: docs.length })} />
+                <SummaryRow k={t('packages.render')} v={renderAll ? t('packages.renderSummaryAll') : t('packages.renderSummarySelected')} />
+                <SummaryRow k={t('packages.attachments')} v={includeAttachments ? t('packages.included') : t('packages.excluded')} />
+                <SummaryRow k={t('packages.linkedDocuments')} v={includeLinked ? t('packages.included') : t('packages.excluded')} />
+                <SummaryRow k={t('packages.output')} v={t('packages.outputPdfZip')} />
               </div>
             </div>
             <div className="mt-6 p-4 bg-neutral-50 rounded-md border border-neutral-200 text-sm text-neutral-600">
-              On generate, the coversheet is created immediately. Document rendering runs asynchronously and the package
-              becomes available in the Packages library. The package is <strong>not stored in any folder</strong> — it lives in the Packages library.
+              {t('packages.generateHelp')}
             </div>
           </div>
         }
 
         {/* Footer nav */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-neutral-200">
-          <button onClick={onCancel} className="text-sm text-neutral-500 hover:text-neutral-900">Cancel</button>
+          <button onClick={onCancel} className="text-sm text-neutral-500 hover:text-neutral-900">{t('common.cancel')}</button>
           <div className="flex items-center gap-2">
             {step > 1 &&
             <button onClick={prev} className="h-9 px-4 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
-                <ChevronLeftIcon size={14} /> Back
+                <ChevronLeftIcon size={14} /> {t('common.back')}
               </button>
             }
             {step < 4 &&
             <button onClick={next} className="h-9 px-4 rounded-md bg-[#0461BA] text-white text-sm hover:bg-[#035299] inline-flex items-center gap-1.5">
-                Next <ChevronRightIcon size={14} />
+                {t('packages.next')} <ChevronRightIcon size={14} />
               </button>
             }
             {step === 4 &&
             <button onClick={generate} className="h-9 px-4 rounded-md bg-[#0461BA] text-white text-sm hover:bg-[#035299] inline-flex items-center gap-1.5">
-                <PackageIcon size={14} /> Generate package
+                <PackageIcon size={14} /> {t('packages.generatePackage')}
               </button>
             }
           </div>
@@ -984,6 +1016,7 @@ function Stepper({ step, steps }: {step: number;steps: string[];}) {
 
 // ---------- Add Documents Modal ----------
 function AddDocumentsModal({ onClose, onAdd }: {onClose: () => void;onAdd: (docs: PackageDoc[]) => void;}) {
+  const { t } = useLocalization();
   const [tab, setTab] = useState<'folder' | 'search' | 'view' | 'register' | 'manual'>('folder');
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [manualNumbers, setManualNumbers] = useState('');
@@ -1017,18 +1050,18 @@ function AddDocumentsModal({ onClose, onAdd }: {onClose: () => void;onAdd: (docs
   };
 
   const tabs = [
-  { id: 'folder', label: 'Folder browser', icon: FolderIcon },
-  { id: 'search', label: 'Search results', icon: SearchIcon },
-  { id: 'view', label: 'Saved view', icon: BookmarkIcon },
-  { id: 'register', label: 'Document register', icon: ListIcon },
-  { id: 'manual', label: 'Enter numbers', icon: HashIcon }] as
+  { id: 'folder', label: t('packages.folderBrowser'), icon: FolderIcon },
+  { id: 'search', label: t('packages.searchResults'), icon: SearchIcon },
+  { id: 'view', label: t('packages.savedView'), icon: BookmarkIcon },
+  { id: 'register', label: t('packages.documentRegister'), icon: ListIcon },
+  { id: 'manual', label: t('packages.enterNumbers'), icon: HashIcon }] as
   const;
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-6">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-200">
-          <h3 className="text-base font-semibold text-neutral-900">Add documents to package</h3>
+          <h3 className="text-base font-semibold text-neutral-900">{t('packages.addToPackageTitle')}</h3>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700"><XIcon size={18} /></button>
         </div>
         <div className="flex border-b border-neutral-200">
@@ -1051,10 +1084,10 @@ function AddDocumentsModal({ onClose, onAdd }: {onClose: () => void;onAdd: (docs
           {tab !== 'manual' &&
           <>
               <p className="text-xs text-neutral-500 mb-3">
-                {tab === 'folder' && 'Browse the folder tree and pick documents from anywhere.'}
-                {tab === 'search' && 'Results for: "pump skid" — across all folders.'}
-                {tab === 'view' && 'Saved view: "Mechanical Area 02 — for IFR".'}
-                {tab === 'register' && 'Document register filtered by discipline and area.'}
+                {tab === 'folder' && t('packages.folderSourceHelp')}
+                {tab === 'search' && t('packages.searchSourceHelp')}
+                {tab === 'view' && t('packages.viewSourceHelp')}
+                {tab === 'register' && t('packages.registerSourceHelp')}
               </p>
               <div className="border border-neutral-200 rounded-md">
                 {sources.map((d) =>
@@ -1071,7 +1104,7 @@ function AddDocumentsModal({ onClose, onAdd }: {onClose: () => void;onAdd: (docs
           }
           {tab === 'manual' &&
           <div>
-              <p className="text-xs text-neutral-500 mb-2">Paste document numbers, one per line.</p>
+              <p className="text-xs text-neutral-500 mb-2">{t('packages.pasteNumbers')}</p>
               <textarea
               value={manualNumbers}
               onChange={(e) => setManualNumbers(e.target.value)}
@@ -1083,8 +1116,8 @@ function AddDocumentsModal({ onClose, onAdd }: {onClose: () => void;onAdd: (docs
           }
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-neutral-200">
-          <button onClick={onClose} className="h-9 px-4 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50">Cancel</button>
-          <button onClick={confirm} className="h-9 px-4 rounded-md bg-[#0461BA] text-white text-sm hover:bg-[#035299]">Add to package</button>
+          <button onClick={onClose} className="h-9 px-4 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50">{t('common.cancel')}</button>
+          <button onClick={confirm} className="h-9 px-4 rounded-md bg-[#0461BA] text-white text-sm hover:bg-[#035299]">{t('packages.addToPackage')}</button>
         </div>
       </div>
     </div>);
@@ -1102,6 +1135,7 @@ function PackageDetail({
 
 
 }: {pkg: PackageObject;onBack: () => void;onRepackage: () => void;onAction: (msg: string) => void;}) {
+  const { t } = useLocalization();
   const [tab, setTab] = useState<'overview' | 'contents' | 'versions' | 'changelog' | 'distribution' | 'activity'>('overview');
 
   return (
@@ -1110,7 +1144,7 @@ function PackageDetail({
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 mb-3">
 
-        <ArrowLeftIcon size={14} /> Packages
+        <ArrowLeftIcon size={14} /> {t('navigation.packages')}
       </button>
       <div className="flex items-start justify-between mb-2">
         <div>
@@ -1120,40 +1154,40 @@ function PackageDetail({
         </div>
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs border ${statusStyles[pkg.status]}`}>
-            {pkg.status}
+            {translatePackageStatus(t, pkg.status)}
           </span>
-          <span className="font-mono text-xs px-2 py-1 bg-neutral-100 rounded">Rev {pkg.revision}</span>
+          <span className="font-mono text-xs px-2 py-1 bg-neutral-100 rounded">{t('packages.rev')} {pkg.revision}</span>
         </div>
       </div>
 
       {/* Action bar */}
       <div className="flex items-center gap-2 mt-4 mb-4">
         <button onClick={onRepackage} className="h-8 px-3 rounded-md bg-[#0461BA] text-white text-sm hover:bg-[#035299] inline-flex items-center gap-1.5">
-          <RefreshCwIcon size={14} /> Repackage
+          <RefreshCwIcon size={14} /> {t('packages.repackage')}
         </button>
-        <button onClick={() => onAction('Transmittal started')} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
-          <SendIcon size={14} /> Issue / Transmit
+        <button onClick={() => onAction(t('packages.transmittalStarted'))} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
+          <SendIcon size={14} /> {t('packages.issueTransmit')}
         </button>
-        <button onClick={() => onAction('Downloading PDF…')} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
-          <DownloadIcon size={14} /> PDF
+        <button onClick={() => onAction(t('packages.downloadingPdf'))} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
+          <DownloadIcon size={14} /> {t('packages.downloadPdf')}
         </button>
-        <button onClick={() => onAction('Downloading ZIP…')} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
-          <FileArchiveIcon size={14} /> ZIP
+        <button onClick={() => onAction(t('packages.downloadingZip'))} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50 inline-flex items-center gap-1.5">
+          <FileArchiveIcon size={14} /> {t('packages.downloadZip')}
         </button>
-        <button onClick={() => onAction('Share link copied')} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50">
-          Share link
+        <button onClick={() => onAction(t('packages.shareLinkCopied'))} className="h-8 px-3 rounded-md border border-neutral-200 text-sm hover:bg-neutral-50">
+          {t('packages.shareLink')}
         </button>
       </div>
 
       {/* Tabs */}
       <div className="border-b border-neutral-200 flex gap-1 mb-4">
         {([
-        ['overview', 'Overview'],
-        ['contents', 'Contents'],
-        ['versions', 'Versions'],
-        ['changelog', 'Change Log'],
-        ['distribution', 'Distribution'],
-        ['activity', 'Activity']] as const).
+        ['overview', t('packages.tabs.overview')],
+        ['contents', t('packages.tabs.contents')],
+        ['versions', t('packages.tabs.versions')],
+        ['changelog', t('packages.tabs.changeLog')],
+        ['distribution', t('packages.tabs.distribution')],
+        ['activity', t('packages.tabs.activity')]] as const).
         map(([id, label]) =>
         <button
           key={id}
@@ -1172,16 +1206,16 @@ function PackageDetail({
       {tab === 'overview' &&
       <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2 bg-white border border-neutral-200 rounded-lg p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-900 mb-2">Metadata</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 mb-2">{t('packages.metadata')}</h3>
             <div className="grid grid-cols-2 gap-y-2.5 gap-x-6 text-sm">
-              <Meta k="Type" v={pkg.type} />
-              <Meta k="Discipline" v={pkg.discipline} />
-              <Meta k="Area" v={pkg.area} />
-              <Meta k="Owner" v={pkg.owner} />
-              <Meta k="Due date" v={pkg.dueDate} />
-              <Meta k="Documents" v={String(pkg.documentCount)} />
-              <Meta k="Last generated" v={pkg.lastGenerated} />
-              <Meta k="Change state" v={pkg.changeState} />
+              <Meta k={t('packages.type')} v={pkg.type} />
+              <Meta k={t('packages.discipline')} v={pkg.discipline} />
+              <Meta k={t('packages.area')} v={pkg.area} />
+              <Meta k={t('packages.owner')} v={pkg.owner} />
+              <Meta k={t('packages.dueDate')} v={pkg.dueDate} />
+              <Meta k={t('packages.documents')} v={String(pkg.documentCount)} />
+              <Meta k={t('packages.lastGenerated')} v={pkg.lastGenerated} />
+              <Meta k={t('packages.changeState')} v={translateChangeState(t, pkg.changeState)} />
             </div>
           </div>
           <div className="space-y-3">
@@ -1192,22 +1226,22 @@ function PackageDetail({
 
               <AlertCircleIcon size={16} className="text-amber-600" />
               }
-                {pkg.changeState}
+                {translateChangeState(t, pkg.changeState)}
               </div>
               <p className="text-xs text-neutral-600">
                 {pkg.changeState === 'Up to date' ?
-              'The package matches the latest source documents.' :
-              'Source documents have changed since this package was generated. Repackage to create a new version.'}
+              t('packages.overviewStatusUpToDateDesc') :
+              t('packages.overviewStatusOutOfDateDesc')}
               </p>
             </div>
             <div className="border border-neutral-200 rounded-lg p-4 bg-white text-sm">
               <div className="flex items-center gap-2 text-neutral-500 text-xs mb-2">
-                <ClockIcon size={12} /> Recent
+                <ClockIcon size={12} /> {t('packages.recent')}
               </div>
               <ul className="space-y-1.5 text-neutral-700 text-xs">
-                <li>{pkg.owner} generated {pkg.revision}</li>
-                <li>3 documents revised in source folders</li>
-                <li>Transmittal TR-2026-118 issued</li>
+                <li>{t('packages.generatedByOwner', { owner: pkg.owner, revision: pkg.revision })}</li>
+                <li>{t('packages.revisedInFolders')}</li>
+                <li>{t('packages.transmittalIssued')}</li>
               </ul>
             </div>
           </div>
@@ -1220,18 +1254,18 @@ function PackageDetail({
             <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-600">
               <tr>
                 <th className="w-8"></th>
-                <th className="text-left px-3 py-2.5 font-medium">Document #</th>
-                <th className="text-left px-3 py-2.5 font-medium">Title</th>
-                <th className="text-left px-3 py-2.5 font-medium">Rev</th>
-                <th className="text-left px-3 py-2.5 font-medium">Status</th>
-                <th className="text-left px-3 py-2.5 font-medium">Source folder</th>
-                <th className="text-left px-3 py-2.5 font-medium">Render</th>
-                <th className="text-left px-3 py-2.5 font-medium">Include</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.documentNumber')}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.title')}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.rev')}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.status')}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.sourceFolder')}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.render')}</th>
+                <th className="text-left px-3 py-2.5 font-medium">{t('packages.included')}</th>
               </tr>
             </thead>
             <tbody>
               {pkg.documents.length === 0 &&
-            <tr><td colSpan={8} className="p-8 text-center text-neutral-500">No documents in this package yet.</td></tr>
+            <tr><td colSpan={8} className="p-8 text-center text-neutral-500">{t('packages.noDocumentsInPackage')}</td></tr>
             }
               {pkg.documents.map((d, i) =>
             <tr key={i} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/60">
@@ -1239,16 +1273,16 @@ function PackageDetail({
                   <td className="px-3 py-2 font-mono text-xs">{d.number}</td>
                   <td className="px-3 py-2">{d.title}</td>
                   <td className="px-3 py-2 font-mono text-xs">{d.revision}</td>
-                  <td className="px-3 py-2 text-neutral-600">{d.status}</td>
+                  <td className="px-3 py-2 text-neutral-600">{translatePackageStatus(t, d.status)}</td>
                   <td className="px-3 py-2 text-xs text-neutral-500">{d.sourceFolder}</td>
                   <td className="px-3 py-2">
                     <span className={`text-xs px-2 py-0.5 rounded border ${d.render ? 'bg-[#E8F1FB] border-[#BAD4EE] text-[#0461BA]' : 'bg-white border-neutral-200 text-neutral-500'}`}>
-                      {d.render ? 'PDF' : 'Link only'}
+                      {d.render ? 'PDF' : t('packages.linkOnly')}
                     </span>
                   </td>
                   <td className="px-3 py-2">
                     <span className={`text-xs ${d.include ? 'text-emerald-700' : 'text-neutral-400'}`}>
-                      {d.include ? 'Included' : 'Excluded'}
+                      {d.include ? t('packages.included') : t('packages.excluded')}
                     </span>
                   </td>
                 </tr>
@@ -1263,16 +1297,16 @@ function PackageDetail({
           <table className="w-full text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-600">
               <tr>
-                <th className="text-left px-4 py-2.5 font-medium">Version</th>
-                <th className="text-left px-4 py-2.5 font-medium">Generated</th>
-                <th className="text-left px-4 py-2.5 font-medium">By</th>
-                <th className="text-left px-4 py-2.5 font-medium">Change summary</th>
-                <th className="text-right px-4 py-2.5 font-medium">Actions</th>
+                <th className="text-left px-4 py-2.5 font-medium">{t('packages.version')}</th>
+                <th className="text-left px-4 py-2.5 font-medium">{t('packages.generated')}</th>
+                <th className="text-left px-4 py-2.5 font-medium">{t('packages.by')}</th>
+                <th className="text-left px-4 py-2.5 font-medium">{t('packages.changeSummary')}</th>
+                <th className="text-right px-4 py-2.5 font-medium">{t('packages.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {pkg.versions.length === 0 &&
-            <tr><td colSpan={5} className="p-8 text-center text-neutral-500">No versions yet.</td></tr>
+            <tr><td colSpan={5} className="p-8 text-center text-neutral-500">{t('packages.noVersions')}</td></tr>
             }
               {pkg.versions.map((v, i) =>
             <tr key={i} className="border-b border-neutral-100 last:border-0">
@@ -1281,8 +1315,8 @@ function PackageDetail({
                   <td className="px-4 py-2.5 text-neutral-700">{v.generatedBy}</td>
                   <td className="px-4 py-2.5 text-neutral-600">{v.summary}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => onAction(`Downloading ${v.version}…`)} className="text-[#0461BA] hover:underline text-xs inline-flex items-center gap-1">
-                      <DownloadIcon size={12} /> Download
+                    <button onClick={() => onAction(t('packages.downloadingVersion', { version: v.version }))} className="text-[#0461BA] hover:underline text-xs inline-flex items-center gap-1">
+                      <DownloadIcon size={12} /> {t('packages.downloadVersion')}
                     </button>
                   </td>
                 </tr>
@@ -1294,9 +1328,9 @@ function PackageDetail({
 
       {tab === 'changelog' &&
       <div className="bg-white border border-neutral-200 rounded-lg p-5">
-          <h3 className="text-sm font-semibold text-neutral-900 mb-3">Changes since last generation</h3>
+          <h3 className="text-sm font-semibold text-neutral-900 mb-3">{t('packages.changesSinceLast')}</h3>
           {pkg.changeLog.length === 0 ?
-        <p className="text-sm text-neutral-500">No changes detected. The package is up to date with its source documents.</p> :
+        <p className="text-sm text-neutral-500">{t('packages.noChangesDetected')}</p> :
 
         <ul className="divide-y divide-neutral-100">
               {pkg.changeLog.map((c, i) =>
@@ -1317,38 +1351,38 @@ function PackageDetail({
       <div className="grid grid-cols-2 gap-4">
           <ActionCard
           icon={SendIcon}
-          title="Send via transmittal"
-          desc="Issue this package as a controlled transmittal to internal or external recipients."
-          cta="Start transmittal"
-          onClick={() => onAction('Transmittal started')} />
+          title={t('packages.sendViaTransmittal')}
+          desc={t('packages.sendViaTransmittalDesc')}
+          cta={t('packages.startTransmittal')}
+          onClick={() => onAction(t('packages.transmittalStarted'))} />
 
           <ActionCard
           icon={GitIconLike}
-          title="Start review workflow"
-          desc="Route this package through a multi-step review and approval workflow."
-          cta="Start workflow"
-          onClick={() => onAction('Workflow started')} />
+          title={t('packages.startWorkflow')}
+          desc={t('packages.startWorkflowDesc')}
+          cta={t('packages.startWorkflowCta')}
+          onClick={() => onAction(t('packages.workflowStarted'))} />
 
           <ActionCard
           icon={DownloadIcon}
-          title="Download as PDF"
-          desc="Single PDF with coversheet, sections and rendered documents in package order."
-          cta="Download PDF"
-          onClick={() => onAction('Downloading PDF…')} />
+          title={t('packages.downloadAsPdf')}
+          desc={t('packages.downloadAsPdfDesc')}
+          cta={t('packages.downloadPdf')}
+          onClick={() => onAction(t('packages.downloadingPdf'))} />
 
           <ActionCard
           icon={FileArchiveIcon}
-          title="Download as ZIP"
-          desc="ZIP archive containing the coversheet PDF and all included documents."
-          cta="Download ZIP"
-          onClick={() => onAction('Downloading ZIP…')} />
+          title={t('packages.downloadAsZip')}
+          desc={t('packages.downloadAsZipDesc')}
+          cta={t('packages.downloadZip')}
+          onClick={() => onAction(t('packages.downloadingZip'))} />
 
           <ActionCard
           icon={FileTextIcon}
-          title="Share package link"
-          desc="Generate a controlled link for stakeholders to view this package."
-          cta="Copy link"
-          onClick={() => onAction('Share link copied')} />
+          title={t('packages.sharePackageLink')}
+          desc={t('packages.sharePackageLinkDesc')}
+          cta={t('packages.copyLink')}
+          onClick={() => onAction(t('packages.shareLinkCopied'))} />
 
         </div>
       }
@@ -1356,10 +1390,10 @@ function PackageDetail({
       {tab === 'activity' &&
       <div className="bg-white border border-neutral-200 rounded-lg p-5">
           <ul className="space-y-3 text-sm">
-            <ActivityItem who={pkg.owner} what={`generated revision ${pkg.revision}`} when={pkg.lastGenerated} />
-            <ActivityItem who="System" what="detected 3 source document revisions" when="2 days ago" />
-            <ActivityItem who="Mark Doyle" what="added 2 documents to package" when="3 days ago" />
-            <ActivityItem who="Sarah Chen" what="created package" when="2026-02-02" />
+            <ActivityItem who={pkg.owner} what={t('packages.generatedRevision', { revision: pkg.revision })} when={pkg.lastGenerated} />
+            <ActivityItem who={t('packages.system')} what={t('packages.detectedRevisions')} when="2 days ago" />
+            <ActivityItem who="Mark Doyle" what={t('packages.addedDocuments')} when="3 days ago" />
+            <ActivityItem who="Sarah Chen" what={t('packages.createdPackage')} when="2026-02-02" />
           </ul>
         </div>
       }

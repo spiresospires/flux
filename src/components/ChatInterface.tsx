@@ -23,6 +23,7 @@ import { LeftRail } from './LeftRail';
 import { ClipboardPanel } from './ClipboardPanel';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useScope } from '../contexts/ScopeContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 import { Document } from '../types/document';
 interface ChatInterfaceProps {
   onExit: () => void;
@@ -93,6 +94,7 @@ export function ChatInterface({
   askAbout,
   askKind
 }: ChatInterfaceProps) {
+  const { t } = useLocalization();
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const day = 86400000;
     const now = Date.now();
@@ -104,7 +106,7 @@ export function ChatInterface({
 
     return [
     {
-      id: 'c-tag-pv101', title: 'Documents associated with TAG PV-101', pinned: true, scope: projectScope('shard'), updatedAt: now - 2 * 3600000,
+      id: 'c-tag-pv101', title: t('chat.conversations.tagPv101Title'), pinned: true, scope: projectScope('shard'), updatedAt: now - 2 * 3600000,
       messages: [
       mk('m1', 'user', 'What documents are associated with TAG PV-101?', 2 * 3600000),
       mk('m2', 'flint',
@@ -125,7 +127,7 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-latest-pid', title: 'Latest revision of P&ID P-1001-PID-001', pinned: true, scope: projectScope('shard'), updatedAt: now - 5 * 3600000,
+      id: 'c-latest-pid', title: t('chat.conversations.latestPidTitle'), pinned: true, scope: projectScope('shard'), updatedAt: now - 5 * 3600000,
       messages: [
       mk('m1', 'user', "What's the latest revision of P-1001-PID-001?", 5 * 3600000),
       mk('m2', 'flint', 'The latest released revision is Rev C (Approved on 28 Apr 2026 by Sarah Chen). Rev D is currently in review with the lead process engineer.', 5 * 3600000 - 90000),
@@ -134,7 +136,7 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-pumps-dwg', title: 'Pumps shown on drawing M-3012-GA-006', pinned: false, scope: projectScope('shard'), updatedAt: now - 1 * day,
+      id: 'c-pumps-dwg', title: t('chat.conversations.pumpsTitle'), pinned: false, scope: projectScope('shard'), updatedAt: now - 1 * day,
       messages: [
       mk('m1', 'user', 'List the pumps on drawing M-3012-GA-006.', 1 * day),
       mk('m2', 'flint',
@@ -150,14 +152,14 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-supersede', title: 'Which drawings supersede DWG-MECH-027-R3?', pinned: false, scope: projectScope('skyline'), updatedAt: now - 1 * day - 4 * 3600000,
+      id: 'c-supersede', title: t('chat.conversations.supersedeTitle'), pinned: false, scope: projectScope('skyline'), updatedAt: now - 1 * day - 4 * 3600000,
       messages: [
       mk('m1', 'user', 'Which drawings supersede DWG-MECH-027-R3?', 1 * day + 4 * 3600000),
       mk('m2', 'flint', 'DWG-MECH-027-R3 has been superseded by DWG-MECH-027-R4 (released 02 May 2026). The R4 revision incorporates the structural support modifications from RFI-2026-118.', 1 * day + 4 * 3600000 - 60000)]
 
     },
     {
-      id: 'c-loop-101', title: 'Loop sheet for instrument FT-205', pinned: false, scope: projectScope('skyline'), updatedAt: now - 2 * day,
+      id: 'c-loop-101', title: t('chat.conversations.loopSheetTitle'), pinned: false, scope: projectScope('skyline'), updatedAt: now - 2 * day,
       messages: [
       mk('m1', 'user', 'Find the loop sheet for FT-205.', 2 * day),
       mk('m2', 'flint', 'Loop sheet INST-LOOP-205-R2 covers FT-205 (Coriolis flow transmitter on cooling water return). Linked instruments: FY-205, FV-205, FAH-205. Located in /Instrumentation/Loop Sheets.', 2 * day - 60000),
@@ -166,70 +168,70 @@ export function ChatInterface({
 
     },
     {
-      id: 'c-vendor-pump', title: 'Vendor datasheets for centrifugal pump P-204A', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 2 * day - 5 * 3600000,
+      id: 'c-vendor-pump', title: t('chat.conversations.vendorPumpTitle'), pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 2 * day - 5 * 3600000,
       messages: [
       mk('m1', 'user', 'Show vendor datasheets for P-204A.', 2 * day + 5 * 3600000),
       mk('m2', 'flint', 'Two vendor datasheets are linked to P-204A: VEN-DS-003-R1 (Sulzer mechanical) and VEN-DS-016-R1 (motor). Both Approved, current revision.', 2 * day + 5 * 3600000 - 60000)]
 
     },
     {
-      id: 'c-outstanding', title: 'Documents pending review on Substation A', pinned: false, scope: projectScope('tower'), updatedAt: now - 3 * day,
+      id: 'c-outstanding', title: t('chat.conversations.pendingReviewTitle'), pinned: false, scope: projectScope('tower'), updatedAt: now - 3 * day,
       messages: [
       mk('m1', 'user', 'Any documents pending review on Substation A?', 3 * day),
       mk('m2', 'flint', '3 documents are in review: E-2004-SLD-015 (415V SLD, Rev B), E-2004-PRT-008 (Protection Schematic, Draft), and SPEC-ELEC-022-R1. Reviewer: Daniel Park, due 12 May.', 3 * day - 60000)]
 
     },
     {
-      id: 'c-mech-area01', title: 'All IFC documents for Mechanical Area 01', pinned: false, scope: projectScope('shard'), updatedAt: now - 4 * day,
+      id: 'c-mech-area01', title: t('chat.conversations.ifcTitle'), pinned: false, scope: projectScope('shard'), updatedAt: now - 4 * day,
       messages: [
       mk('m1', 'user', 'List IFC documents for Mechanical Area 01.', 4 * day),
       mk('m2', 'flint', 'Workpack WP-MECH-AREA-01 (Rev C02) contains 42 IFC-status documents across GA, P&IDs, isometrics and civil layouts. Want me to open the package?', 4 * day - 60000)]
 
     },
     {
-      id: 'c-piping-class', title: 'Piping class 150# CS service comparison', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 5 * day,
+      id: 'c-piping-class', title: t('chat.conversations.pipingClassTitle'), pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 5 * day,
       messages: [
       mk('m1', 'user', 'Compare piping class 150# CS for cooling water vs utility air.', 5 * day),
       mk('m2', 'flint', 'Per PIPING-CLASS-150CS-R3: cooling water service uses A106 Gr B SMLS, schedule 40, 1/16" CA. Utility air uses A53 Gr B ERW, schedule 40, no CA. Both are limited to 200°F at 285 psig.', 5 * day - 60000)]
 
     },
     {
-      id: 'c-safety-200', title: 'Confined space procedures for Unit 200', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 6 * day,
+      id: 'c-safety-200', title: t('chat.conversations.confinedSpaceTitle'), pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 6 * day,
       messages: [
       mk('m1', 'user', 'Summarise confined space procedures for Unit 200.', 6 * day),
       mk('m2', 'flint', 'PROC-SAFE-003-R3 covers Unit 200 confined space entry. Key points: gas test before entry, continuous monitoring, attendant + entry permit, rescue plan ref RES-PLAN-200.', 6 * day - 60000)]
 
     },
     {
-      id: 'c-cable-sched', title: 'Cable schedule for MCC-03 feeders', pinned: false, scope: projectScope('skyline'), updatedAt: now - 7 * day,
+      id: 'c-cable-sched', title: t('chat.conversations.cableScheduleTitle'), pinned: false, scope: projectScope('skyline'), updatedAt: now - 7 * day,
       messages: [
       mk('m1', 'user', 'Cable schedule for MCC-03 feeders?', 7 * day),
       mk('m2', 'flint', 'CAB-SCH-MCC03-R2 lists 28 feeders. Largest is FDR-03-12 (P-204A motor, 4-core 95mm² XLPE, 124 m). Schedule last updated 30 Apr 2026.', 7 * day - 60000)]
 
     },
     {
-      id: 'c-where-used', title: 'Where is valve tag XV-3402 referenced?', pinned: false, scope: projectScope('shard'), updatedAt: now - 8 * day,
+      id: 'c-where-used', title: t('chat.conversations.whereUsedTitle'), pinned: false, scope: projectScope('shard'), updatedAt: now - 8 * day,
       messages: [
       mk('m1', 'user', 'Where is XV-3402 referenced?', 8 * day),
       mk('m2', 'flint', 'XV-3402 appears in: P-1001-PID-001 (Rev C), VAL-LIST-AREA01-R5, INST-LOOP-3402-R1, and SPEC-VAL-014-R2. It is also called up in commissioning procedure CMS-PRC-018.', 8 * day - 60000)]
 
     },
     {
-      id: 'c-redline', title: 'Open redlines on Civil Foundations package', pinned: false, scope: projectScope('empire'), updatedAt: now - 9 * day,
+      id: 'c-redline', title: t('chat.conversations.redlinesTitle'), pinned: false, scope: projectScope('empire'), updatedAt: now - 9 * day,
       messages: [
       mk('m1', 'user', 'Any open redlines on Civil Foundations?', 9 * day),
       mk('m2', 'flint', 'WP-CIV-FOUND-PKG has 2 open redlines: C-4401-LAY-002 (footing depth comment) and C-4401-LAY-005 (rebar spacing query). Both raised by Marco Rossi.', 9 * day - 60000)]
 
     },
     {
-      id: 'c-transmittals', title: 'Transmittals issued to Contractor X this month', pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 11 * day,
+      id: 'c-transmittals', title: t('chat.conversations.transmittalsTitle'), pinned: false, scope: ENTERPRISE_SCOPE, updatedAt: now - 11 * day,
       messages: [
       mk('m1', 'user', 'How many transmittals went to Contractor X this month?', 11 * day),
       mk('m2', 'flint', '7 transmittals to Contractor X in May 2026, totalling 184 documents. 3 are awaiting acknowledgement: TR-2026-118, TR-2026-122, TR-2026-127.', 11 * day - 60000)]
 
     },
     {
-      id: 'c-hold-points', title: 'Hold points on Commissioning Pack 03', pinned: false, scope: projectScope('shard'), updatedAt: now - 14 * day,
+      id: 'c-hold-points', title: t('chat.conversations.holdPointsTitle'), pinned: false, scope: projectScope('shard'), updatedAt: now - 14 * day,
       messages: [
       mk('m1', 'user', 'List the hold points on Commissioning Pack 03.', 14 * day),
       mk('m2', 'flint', 'CMS-PCK-03 has 4 hold points: H1 hydrotest sign-off, H2 NDT acceptance, H3 instrument loop check, H4 client witnessed run-in. H1 and H2 cleared; H3 in progress.', 14 * day - 60000)]
@@ -289,7 +291,7 @@ export function ChatInterface({
       let list = prev;
       if (!id) {
         id = 'c-' + Date.now();
-        list = [{ id, title: 'New chat', pinned: false, scope, updatedAt: Date.now(), messages: [] }, ...prev];
+        list = [{ id, title: t('chat.newChat'), pinned: false, scope, updatedAt: Date.now(), messages: [] }, ...prev];
         setActiveId(id);
       }
       return list.map((c) =>
@@ -336,7 +338,7 @@ export function ChatInterface({
                     ? 'text-white/70 hover:text-white'
                     : 'text-[#0461BA]/60 hover:text-[#0461BA]'
                 }`}
-                aria-label={`Remove ${doc.id}`}>
+                aria-label={t('clipboard.removeFromClipboard', { id: doc.id })}>
                 <XIcon size={12} />
               </button>
             )}
@@ -348,9 +350,9 @@ export function ChatInterface({
   const renderClipboardTrigger = () => (
     <button
       onClick={() => setClipboardPanelOpen(true)}
-      title={`Add from clipboard (${clipboard.length})`}
+      title={`${t('chat.clipboardTriggerAria')} (${clipboard.length})`}
       className="w-12 h-12 rounded-full bg-white border border-neutral-200 hover:bg-[#F0F4F8] text-neutral-600 flex items-center justify-center transition-colors shrink-0 shadow-sm relative"
-      aria-label="Add from clipboard">
+      aria-label={t('chat.clipboardTriggerAria')}>
       <PlusIcon size={18} />
       {clipboard.length > 0 && (
         <span className="absolute top-0 right-0 w-5 h-5 rounded-full bg-[#0461BA] text-white text-[10px] font-bold flex items-center justify-center">
@@ -373,7 +375,7 @@ export function ChatInterface({
       return (
         <div>
           <p className="mb-3">
-            I have these attached documents in context now. Ask a question about them and I will answer from the selected set.
+            {t('chat.contextIntro')}
           </p>
           <div className="space-y-2 mb-3">
             {attachments.map((doc) =>
@@ -402,7 +404,7 @@ export function ChatInterface({
             )}
           </div>
           <p className="text-sm text-neutral-600">
-            Ask for a summary, comparison, revision history, or action list for these attachments.
+            {t('chat.attachmentsHelp')}
           </p>
         </div>);
 
@@ -417,8 +419,7 @@ export function ChatInterface({
       return (
         <div>
           <p className="mb-3">
-            Based on the project documents, here are the relevant
-            specifications:
+            {t('chat.specsIntro')}
           </p>
           <div className="space-y-2 mb-3">
             {docs.map((doc) =>
@@ -447,7 +448,7 @@ export function ChatInterface({
             )}
           </div>
           <p className="text-sm text-neutral-600">
-            Click any document above to view it in the document grid.
+            {t('chat.openInGrid')}
           </p>
         </div>);
 
@@ -461,8 +462,7 @@ export function ChatInterface({
       return (
         <div>
           <p className="mb-3">
-            Here are the relevant mechanical drawings for piping and material
-            standards:
+            {t('chat.mechanicalIntro')}
           </p>
           <div className="space-y-2 mb-3">
             {docs.map((doc) =>
@@ -491,7 +491,7 @@ export function ChatInterface({
             )}
           </div>
           <p className="text-sm text-neutral-600">
-            Click any document above to view it in the document grid.
+            {t('chat.openInGrid')}
           </p>
         </div>);
 
@@ -505,7 +505,7 @@ export function ChatInterface({
       return (
         <div>
           <p className="mb-3">
-            Here are the relevant safety procedures for your query:
+            {t('chat.safetyIntro')}
           </p>
           <div className="space-y-2 mb-3">
             {docs.map((doc) =>
@@ -534,7 +534,7 @@ export function ChatInterface({
             )}
           </div>
           <p className="text-sm text-neutral-600">
-            Click any document above to view it in the document grid.
+            {t('chat.openInGrid')}
           </p>
         </div>);
 
@@ -545,8 +545,8 @@ export function ChatInterface({
       <div>
         <p className="mb-3">
           {attachments.length > 0 ?
-          'I used the attached documents for this prompt. Here are the files currently in context:' :
-          'Here are some relevant documents I found related to your query:'}
+          t('chat.attachedPromptResult') :
+          t('chat.relatedDocumentsIntro')}
         </p>
         <div className="space-y-2 mb-3">
           {docs.map((doc) =>
@@ -575,7 +575,7 @@ export function ChatInterface({
           )}
         </div>
         <p className="text-sm text-neutral-600">
-          Click any document above to view it in the document grid.
+          {t('chat.openInGrid')}
         </p>
       </div>);
 
@@ -641,21 +641,19 @@ export function ChatInterface({
   };
   const suggestions = askAbout ?
   (() => {
-    const subject = askKind === 'folder' ? `the ${askAbout} folder` : askKind === 'document' ? `the ${askAbout} document` : askAbout;
+    const subject = askAbout ?? '';
     return [
-    `Summarise ${subject}`,
-    `Who is responsible for ${subject}?`,
-    `What is the latest activity on ${subject}?`,
-    `Are there any open issues or holds on ${subject}?`,
-    `Show recent changes to ${subject}`];
+    t('chat.summariseSubject', { subject }),
+    t('chat.whoResponsible', { subject }),
+    t('chat.latestActivity', { subject }),
+    t('chat.openIssues', { subject }),
+    t('chat.recentChanges', { subject })];
   })() :
 
   [
-  'What documents are associated with TAG PV-101?',
-  'Show the latest revision of P-1001-PID-001',
-  'List pumps shown on drawing M-3012-GA-006',
-  'Where is valve tag XV-3402 referenced?',
-  'Vendor datasheets for centrifugal pump P-204A'];
+  t('chat.suggestions.specs'),
+  t('chat.suggestions.changes'),
+  t('chat.suggestions.compliance')];
 
   return (
     <motion.div
@@ -717,7 +715,7 @@ export function ChatInterface({
         className="flex-1 overflow-y-auto flex flex-col"
         role="log"
         aria-live="polite"
-        aria-label="Chat messages">
+        aria-label={t('chat.messagesAria')}>
         
         {messages.length === 0 ?
         <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
@@ -727,26 +725,29 @@ export function ChatInterface({
             {askAbout ?
           <>
               <h2 className="text-2xl font-bold text-neutral-900 mb-2 text-center">
-                What do you want to ask Flint about {askKind === 'folder' ? 'the ' : ''}<span className="text-[#0461BA]">{askAbout}</span>{askKind === 'folder' ? ' folder' : askKind === 'document' ? ' document' : ''}?
+                {askKind === 'folder'
+                  ? t('chat.askAboutFolderTitle', { name: askAbout ?? '' })
+                  : askKind === 'document'
+                    ? t('chat.askAboutDocumentTitle', { name: askAbout ?? '' })
+                    : t('chat.askAboutGenericTitle', { name: askAbout ?? '' })}
               </h2>
               <p className="text-neutral-500 mb-6 text-center text-base">
-                Type a question below or pick a suggestion.
+                {t('chat.suggestionHint')}
               </p>
             </> :
           <>
               <h2 className="text-3xl font-bold text-neutral-900 mb-2">
-                Ask Flint
+                {t('chat.title')}
               </h2>
               <p className="text-neutral-500 mb-6 text-center text-lg">
-                Your AI engineering assistant. Ask about document specifications,
-                project details, or compliance requirements.
+                {t('chat.subtitle')}
               </p>
             </>
           }
 
             {selectedClipboardDocs.length > 0 && (
               <div className="w-full mb-3 rounded-2xl border border-[#0461BA]/15 bg-white px-4 py-3 shadow-sm">
-                <p className="text-xs font-medium text-neutral-500 mb-2">Attached documents from clipboard</p>
+                <p className="text-xs font-medium text-neutral-500 mb-2">{t('chat.attachedDocuments')}</p>
                 {renderAttachmentChips(selectedClipboardDocs, {
                   removable: true,
                   onRemove: removePendingAttachment
@@ -763,7 +764,7 @@ export function ChatInterface({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="E.g., What is the required tensile strength for the primary support beams?"
+                placeholder={t('chat.inputPlaceholder')}
                 className="w-full pl-6 pr-16 py-4 rounded-full bg-transparent text-neutral-900 placeholder-neutral-400 focus:outline-none text-base"
                 autoFocus />
 
@@ -828,7 +829,7 @@ export function ChatInterface({
                     
                       {message.sender === 'flint' &&
                     <p className="text-xs font-bold text-[#0461BA] mb-2 uppercase tracking-wider">
-                          Flint AI
+                          {t('chat.flintLabel')}
                         </p>
                     }
                       {message.sender === 'user' && message.attachments && message.attachments.length > 0 && (
@@ -837,7 +838,7 @@ export function ChatInterface({
                         </div>
                       )}
                       <div className="text-[15px] leading-relaxed">
-                        {message.content || (message.sender === 'user' && message.attachments?.length ? 'Attached documents' : null)}
+                        {message.content || (message.sender === 'user' && message.attachments?.length ? t('chat.attachedDocumentsOnly') : null)}
                       </div>
                     </div>
                   </motion.div>
@@ -897,7 +898,7 @@ export function ChatInterface({
       <div className="bg-white border-t border-neutral-200 p-4 shrink-0">
           {selectedClipboardDocs.length > 0 && (
             <div className="mb-3 max-w-[960px] mx-auto">
-              <p className="text-xs font-medium text-neutral-500 mb-2">Attached documents from clipboard</p>
+              <p className="text-xs font-medium text-neutral-500 mb-2">{t('chat.attachedDocuments')}</p>
               {renderAttachmentChips(selectedClipboardDocs, {
                 removable: true,
                 onRemove: removePendingAttachment
@@ -910,9 +911,9 @@ export function ChatInterface({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask a follow-up question..."
+            placeholder={t('chat.followUpPlaceholder')}
             className="flex-1 px-5 py-3.5 rounded-full bg-[#F0F4F8] border border-neutral-200 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent text-sm transition-shadow"
-            aria-label="Message input" />
+            aria-label={t('chat.messageInputAria')} />
 
             {renderClipboardTrigger()}
 
@@ -920,7 +921,7 @@ export function ChatInterface({
             onClick={() => handleSend()}
             disabled={!inputValue.trim() && selectedClipboardDocs.length === 0}
             className="w-12 h-12 rounded-full bg-[#0461BA] hover:bg-[#035299] disabled:bg-neutral-200 disabled:text-neutral-400 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shrink-0 shadow-sm"
-            aria-label="Send message">
+            aria-label={t('chat.sendMessageAria')}>
             
               <SendIcon size={20} className="ml-0.5" />
             </button>
@@ -972,6 +973,7 @@ interface SidebarProps {
 }
 
 function ChatHistorySidebar(p: SidebarProps) {
+  const { t } = useLocalization();
   const filtered = p.conversations.filter((c) =>
   c.title.toLowerCase().includes(p.search.toLowerCase())
   );
@@ -983,14 +985,14 @@ function ChatHistorySidebar(p: SidebarProps) {
       <div className="w-10 shrink-0 border-r border-neutral-200 bg-white flex flex-col items-center py-3 gap-2">
         <button
           onClick={p.onToggle}
-          title="Show chat history"
+          title={t('chat.showHistory')}
           className="w-8 h-8 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 flex items-center justify-center">
 
           <PanelLeftOpenIcon size={16} />
         </button>
         <button
           onClick={p.onNew}
-          title="New chat"
+          title={t('chat.newChat')}
           className="w-8 h-8 rounded-md text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB] flex items-center justify-center">
 
           <PlusIcon size={16} />
@@ -1008,11 +1010,11 @@ function ChatHistorySidebar(p: SidebarProps) {
           onClick={p.onNew}
           className="flex-1 h-9 px-3 rounded-md bg-[#F0F4F8] text-neutral-700 text-sm font-medium hover:bg-neutral-200 hover:text-neutral-900 inline-flex items-center justify-center gap-1.5 border border-neutral-200 transition-colors">
 
-          <PencilIcon size={14} /> New chat
+          <PencilIcon size={14} /> {t('chat.newChat')}
         </button>
         <button
           onClick={p.onToggle}
-          title="Hide chat history"
+          title={t('chat.hideHistory')}
           className="w-9 h-9 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 inline-flex items-center justify-center">
 
           <PanelLeftCloseIcon size={16} />
@@ -1025,7 +1027,7 @@ function ChatHistorySidebar(p: SidebarProps) {
           <input
             value={p.search}
             onChange={(e) => p.onSearchChange(e.target.value)}
-            placeholder="Search chats"
+            placeholder={t('chat.searchChats')}
             className="w-full h-8 pl-8 pr-2 rounded-md border border-neutral-200 bg-[#F0F4F8] text-sm focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white" />
 
         </div>
@@ -1033,15 +1035,15 @@ function ChatHistorySidebar(p: SidebarProps) {
 
       <div className="flex-1 overflow-y-auto py-2">
         {pinned.length > 0 &&
-        <div className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Pinned</div>
+        <div className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.pinned')}</div>
         }
         {pinned.map((c) => renderItem(c, p))}
         {recent.length > 0 &&
-        <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">Recent</div>
+        <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.recent')}</div>
         }
         {recent.map((c) => renderItem(c, p))}
         {filtered.length === 0 &&
-        <div className="px-3 py-6 text-center text-xs text-neutral-400">No chats found</div>
+        <div className="px-3 py-6 text-center text-xs text-neutral-400">{t('chat.noChatsFound')}</div>
         }
       </div>
       {/* Resize handle */}
@@ -1049,8 +1051,8 @@ function ChatHistorySidebar(p: SidebarProps) {
         onMouseDown={(e) => { e.preventDefault(); p.onResizeStart(); }}
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize chat history"
-        title="Drag to resize"
+        aria-label={t('chat.resizeHistory')}
+        title={t('chat.dragToResize')}
         className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize group z-10">
         <div className="absolute inset-y-0 right-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] group-active:bg-[#0461BA] transition-colors" />
       </div>
@@ -1059,6 +1061,7 @@ function ChatHistorySidebar(p: SidebarProps) {
 }
 
 function renderItem(c: Conversation, p: SidebarProps) {
+  const { t } = useLocalization();
   const isActive = p.activeId === c.id;
   const isRenaming = p.renamingId === c.id;
   const menuOpen = p.menuOpenId === c.id;
@@ -1105,19 +1108,19 @@ function renderItem(c: Conversation, p: SidebarProps) {
             onClick={(e) => { e.stopPropagation(); p.onPin(c.id); p.onMenuOpen(null); }}
             className="w-full px-3 py-1.5 text-left hover:bg-[#F0F4F8] flex items-center gap-2">
 
-              {c.pinned ? <><PinOffIcon size={14} /> Unpin</> : <><PinIcon size={14} /> Pin</>}
+              {c.pinned ? <><PinOffIcon size={14} /> {t('chat.unpin')}</> : <><PinIcon size={14} /> {t('chat.pin')}</>}
             </button>
             <button
             onClick={(e) => { e.stopPropagation(); p.onStartRename(c.id, c.title); }}
             className="w-full px-3 py-1.5 text-left hover:bg-[#F0F4F8] flex items-center gap-2">
 
-              <PencilIcon size={14} /> Rename
+              <PencilIcon size={14} /> {t('chat.rename')}
             </button>
             <button
             onClick={(e) => { e.stopPropagation(); p.onDelete(c.id); }}
             className="w-full px-3 py-1.5 text-left hover:bg-rose-50 text-rose-600 flex items-center gap-2">
 
-              <Trash2Icon size={14} /> Delete
+              <Trash2Icon size={14} /> {t('chat.delete')}
             </button>
           </div>
         </>

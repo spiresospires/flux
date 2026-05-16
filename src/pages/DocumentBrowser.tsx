@@ -3,9 +3,7 @@ import React, {
   useEffect,
   useMemo,
   useState,
-  useRef,
-  Children,
-  lazy } from
+  useRef } from
 'react';
 import { DocumentCard, statusColors } from '../components/DocumentCard';
 import { FilterPanel } from '../components/FilterPanel';
@@ -21,6 +19,8 @@ import {
   ListIcon,
   TableIcon,
   SearchIcon,
+  CheckIcon,
+  MinusIcon,
   UserIcon,
   CalendarIcon,
   FolderIcon,
@@ -31,22 +31,16 @@ import {
   LoaderIcon,
   MoreHorizontalIcon,
   SparklesIcon,
-  StarIcon,
   ClipboardIcon } from
 'lucide-react';
 import { useClipboard } from '../contexts/ClipboardContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Document } from '../types/document';
 type SortDirection = 'asc' | 'desc' | null;
-type ColumnKey =
-'id' |
-'title' |
-'revisionNumber' |
-'status' |
-'documentType' |
-'author' |
-'dateModified';
+type ColumnKey = string;
 interface ColumnFilter {
   column: ColumnKey;
   value: string;
@@ -54,37 +48,99 @@ interface ColumnFilter {
 }
 type ViewMode = 'grid' | 'list' | 'table' | 'compact-table';
 
-interface DocumentActionItem {
+const TABLE_PREFERENCES_STORAGE_KEY = 'flux.documentBrowser.tablePreferences';
+const NON_GROUPABLE_COLUMN_KEYS = new Set<ColumnKey>(['id', 'title']);
+
+interface TableViewPreferences {
+  groupByColumn: ColumnKey | null;
+}
+
+interface GroupedDocumentSection {
+  key: string;
   label: string;
-  submenu?: string[];
+  documents: Document[];
+}
+
+function loadTableViewPreferences(): TableViewPreferences {
+  if (typeof window === 'undefined') {
+    return { groupByColumn: null };
+  }
+
+  try {
+    const saved = window.localStorage.getItem(TABLE_PREFERENCES_STORAGE_KEY);
+
+    if (!saved) {
+      return { groupByColumn: null };
+    }
+
+    const parsed = JSON.parse(saved) as Partial<TableViewPreferences>;
+
+    return {
+      groupByColumn: typeof parsed.groupByColumn === 'string' ? parsed.groupByColumn : null
+    };
+  } catch {
+    return { groupByColumn: null };
+  }
+}
+
+function saveTableViewPreferences(preferences: TableViewPreferences) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(TABLE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+}
+
+function getDocumentColumnText(document: Document, columnKey: ColumnKey) {
+  const value = document[columnKey];
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+
+  return '';
+}
+
+function getGroupLabel(value: string, unassignedLabel: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : unassignedLabel;
+}
+
+interface DocumentActionItem {
+  labelKey: string;
+  submenuKeys?: string[];
   danger?: boolean;
   dividerAbove?: boolean;
 }
 
 const DOCUMENT_ACTIONS: DocumentActionItem[] = [
-  { label: 'Add to Favorites' },
-  { label: 'Add Attachment' },
-  { label: 'Add to Package', submenu: ['Area 1 Processing', 'Piping System 20', 'Piping System Zone X'] },
-  { label: 'Change Life Cycle' },
-  { label: 'Check-Out' },
-  { label: 'Copy Link', submenu: ['Static', 'Dynamic'] },
-  { label: 'Copy markups to...' },
-  { label: 'Delete', danger: true },
-  { label: 'Edit Properties' },
-  { label: 'Lock' },
-  { label: 'Move' },
-  { label: 'Package' },
-  { label: 'Properties' },
-  { label: 'Rendition', submenu: ['Create', 'Download', 'Delete'] },
-  { label: 'Revise' },
-  { label: 'View' },
-  { label: 'Message', dividerAbove: true },
-  { label: 'Transmittal' },
-  { label: 'Formal Review' },
-  { label: 'Approval' },
-  { label: 'RFI' },
-  { label: 'Technical Query' },
-  { label: 'Change Request' }
+  { labelKey: 'documentBrowser.actions.addToFavorites' },
+  { labelKey: 'documentBrowser.actions.addAttachment' },
+  { labelKey: 'documentBrowser.actions.addToPackage', submenuKeys: ['documentBrowser.submenus.area1Processing', 'documentBrowser.submenus.pipingSystem20', 'documentBrowser.submenus.pipingSystemZoneX'] },
+  { labelKey: 'documentBrowser.actions.changeLifeCycle' },
+  { labelKey: 'documentBrowser.actions.checkOut' },
+  { labelKey: 'documentBrowser.actions.copyLink', submenuKeys: ['documentBrowser.submenus.static', 'documentBrowser.submenus.dynamic'] },
+  { labelKey: 'documentBrowser.actions.copyMarkups' },
+  { labelKey: 'documentBrowser.actions.delete', danger: true },
+  { labelKey: 'documentBrowser.actions.editProperties' },
+  { labelKey: 'documentBrowser.actions.lock' },
+  { labelKey: 'documentBrowser.actions.move' },
+  { labelKey: 'documentBrowser.actions.package' },
+  { labelKey: 'documentBrowser.actions.properties' },
+  { labelKey: 'documentBrowser.actions.rendition', submenuKeys: ['documentBrowser.submenus.create', 'documentBrowser.submenus.download', 'documentBrowser.submenus.delete'] },
+  { labelKey: 'documentBrowser.actions.revise' },
+  { labelKey: 'documentBrowser.actions.view' },
+  { labelKey: 'documentBrowser.actions.message', dividerAbove: true },
+  { labelKey: 'documentBrowser.actions.transmittal' },
+  { labelKey: 'documentBrowser.actions.formalReview' },
+  { labelKey: 'documentBrowser.actions.approval' },
+  { labelKey: 'documentBrowser.actions.rfi' },
+  { labelKey: 'documentBrowser.actions.technicalQuery' },
+  { labelKey: 'documentBrowser.actions.changeRequest' }
 ];
 
 function ViewModeDropdown({
@@ -94,6 +150,7 @@ function ViewModeDropdown({
 
 
 }: {viewMode: ViewMode;onViewModeChange: (mode: ViewMode) => void;}) {
+  const { t } = useLocalization();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const viewOptions: {
@@ -103,22 +160,22 @@ function ViewModeDropdown({
   }[] = [
   {
     mode: 'table',
-    label: 'Comfy Table',
+    label: t('documentBrowser.viewModes.comfyTable'),
     icon: <TableIcon size={16} />
   },
   {
     mode: 'compact-table',
-    label: 'Compact Table',
+    label: t('documentBrowser.viewModes.compactTable'),
     icon: <TableIcon size={16} />
   },
   {
     mode: 'grid',
-    label: 'Grid',
+    label: t('documentBrowser.viewModes.grid'),
     icon: <LayoutGridIcon size={16} />
   },
   {
     mode: 'list',
-    label: 'List',
+    label: t('documentBrowser.viewModes.list'),
     icon: <ListIcon size={16} />
   }];
 
@@ -212,6 +269,37 @@ function ClipboardStackIcon({
   );
 }
 
+function SelectionCheckboxButton({
+  checked,
+  indeterminate = false,
+  onClick,
+  ariaLabel,
+  className = ''
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  ariaLabel: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      role="checkbox"
+      aria-checked={indeterminate ? 'mixed' : checked}
+      aria-label={ariaLabel}
+      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30 ${
+        checked || indeterminate
+          ? 'border-[#0461BA] bg-[#E8F1FB] text-[#0461BA]'
+          : 'border-neutral-300 bg-white text-transparent hover:border-[#0461BA]'
+      } ${className}`}
+    >
+      {indeterminate ? <MinusIcon size={14} strokeWidth={2.5} /> : checked ? <CheckIcon size={14} strokeWidth={2.5} /> : null}
+    </button>
+  );
+}
+
 interface ColumnHeaderDropdownProps {
   column: ColumnKey;
   label: string;
@@ -228,6 +316,7 @@ function ColumnHeaderDropdown({
   onSortChange,
   onClearFilter
 }: ColumnHeaderDropdownProps) {
+  const { t } = useLocalization();
   const [isOpen, setIsOpen] = useState(false);
   const [filterValue, setFilterValue] = useState(filter?.value || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -289,7 +378,7 @@ function ColumnHeaderDropdown({
               
                 <input
                 type="text"
-                placeholder={`Filter ${label.toLowerCase()}...`}
+                placeholder={t('documentBrowser.filterColumn', { label: label.toLowerCase() })}
                 value={filterValue}
                 onChange={(e) => {
                   setFilterValue(e.target.value);
@@ -310,7 +399,7 @@ function ColumnHeaderDropdown({
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'asc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
               
                 <ChevronUpIcon size={14} />
-                Sort Ascending
+                {t('documentBrowser.sortAscending')}
               </button>
               <button
               onClick={() => {
@@ -320,7 +409,7 @@ function ColumnHeaderDropdown({
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'desc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
               
                 <ChevronDownIcon size={14} />
-                Sort Descending
+                {t('documentBrowser.sortDescending')}
               </button>
             </div>
 
@@ -335,7 +424,7 @@ function ColumnHeaderDropdown({
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error-600 hover:bg-error-50 rounded-md transition-colors">
               
                   <XIcon size={14} />
-                  Clear Filter
+                  {t('documentBrowser.clearFilter')}
                 </button>
               </div>
           }
@@ -347,14 +436,16 @@ function ColumnHeaderDropdown({
 }
 const ITEMS_PER_PAGE = 20;
 export function DocumentBrowser() {
+  const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, clearClipboard, isInClipboard } = useClipboard();
   const { currentWorkspace } = useWorkspace();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('compact-table');
-  const [sortBy, setSortBy] = useState<'dateModified' | 'title' | 'id'>(
+  const [sortBy] = useState<'dateModified' | 'title' | 'id'>(
     'dateModified'
   );
   const [leftPanelMode, setLeftPanelMode] = useState<'filter' | 'folder'>(
@@ -431,6 +522,10 @@ export function DocumentBrowser() {
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [groupByColumn, setGroupByColumn] = useState<ColumnKey | null>(() => loadTableViewPreferences().groupByColumn);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [isGroupDropActive, setIsGroupDropActive] = useState(false);
+  const [dragTooltipPosition, setDragTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   const folderLookup = useMemo(() => {
     const map = new Map<string, { id: string; name: string; parentId: string | null; children: string[]; documentCount: number }>();
@@ -568,6 +663,15 @@ export function DocumentBrowser() {
     if (leftPanelMode === 'filter' && selectedProject.length > 0) {
       filtered = filtered.filter((doc) => selectedProject.includes(doc.project));
     }
+    if (leftPanelMode === 'filter' && selectedCategories.length > 0) {
+      filtered = filtered.filter((doc) =>
+        doc.tags.some((tag) =>
+          selectedCategories.some(
+            (category) => tag.toLowerCase() === category.toLowerCase()
+          )
+        )
+      );
+    }
     // Apply column filters (for table view)
     columnFilters.forEach((filter) => {
       if (filter.value) {
@@ -617,6 +721,7 @@ export function DocumentBrowser() {
   selectedStatus,
   selectedDocType,
   selectedProject,
+  selectedCategories,
   sortBy,
   leftPanelMode,
   selectedFolderIds,
@@ -631,8 +736,10 @@ export function DocumentBrowser() {
   selectedStatus,
   selectedDocType,
   selectedProject,
+  selectedCategories,
   selectedFolderId,
-  leftPanelMode]
+  leftPanelMode,
+  groupByColumn]
   );
   // Lazy loading with Intersection Observer
   const loadMore = useCallback(() => {
@@ -680,9 +787,46 @@ export function DocumentBrowser() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  const displayedDocuments = filteredDocuments.slice(0, displayedCount);
-  const hasMore = displayedCount < filteredDocuments.length;
-  const hasActiveFilters = selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || Boolean(searchTerm);
+  const orderedDocuments = useMemo(() => {
+    if (!groupByColumn) {
+      return filteredDocuments;
+    }
+
+    return [...filteredDocuments].sort((a, b) => {
+      const aValue = getGroupLabel(getDocumentColumnText(a, groupByColumn), t('documentBrowser.unassigned'));
+      const bValue = getGroupLabel(getDocumentColumnText(b, groupByColumn), t('documentBrowser.unassigned'));
+      return aValue.localeCompare(bValue);
+    });
+  }, [filteredDocuments, groupByColumn, t]);
+  const displayedDocuments = orderedDocuments.slice(0, displayedCount);
+  const groupedSections = useMemo<GroupedDocumentSection[]>(() => {
+    if (!groupByColumn) {
+      return [];
+    }
+
+    const sectionMap = new Map<string, GroupedDocumentSection>();
+
+    displayedDocuments.forEach((document) => {
+      const label = getGroupLabel(getDocumentColumnText(document, groupByColumn), t('documentBrowser.unassigned'));
+      const key = `${groupByColumn}:${label}`;
+      const existingSection = sectionMap.get(key);
+
+      if (existingSection) {
+        existingSection.documents.push(document);
+        return;
+      }
+
+      sectionMap.set(key, {
+        key,
+        label,
+        documents: [document]
+      });
+    });
+
+    return Array.from(sectionMap.values());
+  }, [displayedDocuments, groupByColumn, t]);
+  const hasMore = displayedCount < orderedDocuments.length;
+  const hasActiveFilters = selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0 || Boolean(searchTerm);
   const allDisplayedSelected =
   displayedDocuments.length > 0 &&
   displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
@@ -729,32 +873,6 @@ export function DocumentBrowser() {
     description: doc.description,
   });
 
-  const containerVariants = {
-    hidden: {
-      opacity: 0
-    },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.03
-      }
-    }
-  };
-  const itemVariants = {
-    hidden: {
-      opacity: 0,
-      y: 10
-    },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: 'spring',
-        stiffness: 300,
-        damping: 24
-      }
-    }
-  };
   const handleChatClick = () => {
     navigate('/chat');
   };
@@ -772,76 +890,273 @@ export function DocumentBrowser() {
     setTimeout(() => setHighlightedDocId(null), 5000);
   };
 
+  const renderDocumentRow = (doc: Document) => {
+    const isSelected = selectedDocumentIds.has(doc.id);
+
+    return (
+      <tr
+        key={doc.id}
+        className={`transition-colors group ${isSelected || highlightedDocId === doc.id ? 'bg-[#E8F1FB]' : 'hover:bg-neutral-50'}`}
+      >
+        <td className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+          <SelectionCheckboxButton
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleDocumentSelection(doc.id);
+            }}
+            checked={isSelected}
+            ariaLabel={isSelected ? t('documentBrowser.deselectDocument', { id: doc.id }) : t('documentBrowser.selectDocument', { id: doc.id })}
+            className={!isSelected ? 'opacity-0 group-hover:opacity-100' : ''}
+          />
+        </td>
+        {columns.map((col) => {
+          switch (col.key) {
+            case 'id':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+                  <button
+                    onClick={() => setPanelData(toDocumentDetail(doc))}
+                    className="text-[#0461BA] hover:text-[#035299] font-medium text-left transition-colors"
+                  >
+                    {doc.id}
+                  </button>
+                </td>
+              );
+            case 'title':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+                  <button
+                    onClick={() => setPanelData(toDocumentDetail(doc))}
+                    className="text-neutral-900 group-hover:text-[#0461BA] transition-colors font-medium text-left"
+                  >
+                    {doc.title}
+                  </button>
+                </td>
+              );
+            case 'revisionNumber':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-500 font-medium'}>
+                  {doc.revisionNumber}
+                </td>
+              );
+            case 'status':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${statusColors[doc.status]}`}>
+                    {doc.status}
+                  </span>
+                </td>
+              );
+            case 'documentType':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
+                  {doc.documentType}
+                </td>
+              );
+            case 'author':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
+                  {doc.author}
+                </td>
+              );
+            case 'dateModified':
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
+                  {doc.dateModified}
+                </td>
+              );
+            default:
+              return (
+                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-500'}>
+                  {getDocumentColumnText(doc, col.key) || '--'}
+                </td>
+              );
+          }
+        })}
+        <td className={viewMode === 'compact-table' ? 'p-2 w-28' : 'p-4 w-32'}>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpenActionMenuId((prev) => {
+                  const next = prev === doc.id ? null : doc.id;
+                  if (!next) {
+                    setOpenActionSubmenuKey(null);
+                  }
+                  return next;
+                });
+                if (openActionMenuId !== doc.id) {
+                  setOpenActionSubmenuKey(null);
+                }
+              }}
+              className={`w-7 h-7 rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${
+                openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+              }`}
+              aria-label={t('documentBrowser.actionsFor', { id: doc.id })}
+            >
+              <MoreHorizontalIcon size={14} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/chat?ask=${encodeURIComponent(`${doc.id} — ${doc.title}`)}&askKind=document`);
+              }}
+              title={t('documentBrowser.askFlintAbout', { id: doc.id })}
+              aria-label={t('documentBrowser.askFlintAbout', { id: doc.id })}
+              className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-7 h-7 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]"
+            >
+              <SparklesIcon size={14} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isInClipboard(doc.id)) {
+                  removeFromClipboard(doc.id);
+                } else {
+                  addToClipboard(doc);
+                }
+              }}
+              title={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
+              aria-label={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
+              className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-7 h-7 rounded-md inline-flex items-center justify-center ${
+                isInClipboard(doc.id)
+                  ? 'bg-neutral-100 text-neutral-700 opacity-100'
+                  : 'text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              <ClipboardStackIcon size={14} active={isInClipboard(doc.id)} />
+            </button>
+          </div>
+          {openActionMenuId === doc.id && (
+            <div
+              ref={actionMenuRef}
+              className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-neutral-200 rounded-xl shadow-xl z-40 overflow-visible"
+            >
+              <div className="py-1.5 overflow-visible flex flex-col">
+                {DOCUMENT_ACTIONS.map((item) => (
+                  <div
+                    key={item.labelKey}
+                    className={`relative ${item.dividerAbove ? 'border-t border-neutral-200 mt-1 pt-1' : ''}`}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (item.submenuKeys) {
+                          const submenuKey = `${doc.id}:${item.labelKey}`;
+                          setOpenActionSubmenuKey((prev) => prev === submenuKey ? null : submenuKey);
+                          return;
+                        }
+                        setOpenActionMenuId(null);
+                        setOpenActionSubmenuKey(null);
+                      }}
+                      className={`w-full text-left px-3.5 py-1.5 text-[15px] leading-5 transition-colors flex items-center justify-between gap-2 ${
+                        item.danger
+                          ? 'text-red-600 hover:bg-red-50'
+                          : 'text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                      aria-expanded={item.submenuKeys ? openActionSubmenuKey === `${doc.id}:${item.labelKey}` : undefined}
+                    >
+                      <span>{t(item.labelKey)}</span>
+                      {item.submenuKeys && <ChevronRightIcon size={14} className="text-neutral-400" />}
+                    </button>
+                    {item.submenuKeys && openActionSubmenuKey === `${doc.id}:${item.labelKey}` && (
+                      <div className="absolute left-full top-0 ml-1.5 w-60 bg-white border border-neutral-200 rounded-xl shadow-xl py-1.5 z-50 flex flex-col">
+                        {item.submenuKeys.map((subKey) => (
+                          <button
+                            key={`${item.labelKey}-${subKey}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenActionMenuId(null);
+                              setOpenActionSubmenuKey(null);
+                            }}
+                            className="w-full text-left px-3.5 py-1.5 text-[15px] leading-5 text-neutral-700 hover:bg-neutral-50 transition-colors"
+                          >
+                            {t(subKey)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
   // Column definitions
   // Category-specific custom columns
   const CATEGORY_CUSTOM_COLUMNS: Record<string, { key: string; label: string }[]> = {
     Structural: [
-      { key: 'beamSize', label: 'Beam Size' },
-      { key: 'materialGrade', label: 'Material Grade' },
-      { key: 'loadRating', label: 'Load Rating' },
+      { key: 'beamSize', label: t('documentBrowser.columns.beamSize') },
+      { key: 'materialGrade', label: t('documentBrowser.columns.materialGrade') },
+      { key: 'loadRating', label: t('documentBrowser.columns.loadRating') },
+      { key: 'connectionType', label: t('documentBrowser.columns.connectionType') },
     ],
     Electrical: [
-      { key: 'voltage', label: 'Voltage' },
-      { key: 'circuitNumber', label: 'Circuit Number' },
-      { key: 'panel', label: 'Panel' },
+      { key: 'voltage', label: t('documentBrowser.columns.voltage') },
+      { key: 'circuitNumber', label: t('documentBrowser.columns.circuitNumber') },
+      { key: 'panel', label: t('documentBrowser.columns.panel') },
+      { key: 'protectionType', label: t('documentBrowser.columns.protectionType') },
     ],
     Mechanical: [
-      { key: 'equipmentTag', label: 'Equipment Tag' },
-      { key: 'powerRating', label: 'Power Rating' },
-      { key: 'manufacturer', label: 'Manufacturer' },
+      { key: 'equipmentTag', label: t('documentBrowser.columns.equipmentTag') },
+      { key: 'powerRating', label: t('documentBrowser.columns.powerRating') },
+      { key: 'manufacturer', label: t('documentBrowser.columns.manufacturer') },
+      { key: 'serviceMedium', label: t('documentBrowser.columns.serviceMedium') },
     ],
     Civil: [
-      { key: 'concreteType', label: 'Concrete Type' },
-      { key: 'rebarSize', label: 'Rebar Size' },
-      { key: 'soilClass', label: 'Soil Class' },
+      { key: 'concreteType', label: t('documentBrowser.columns.concreteType') },
+      { key: 'rebarSize', label: t('documentBrowser.columns.rebarSize') },
+      { key: 'soilClass', label: t('documentBrowser.columns.soilClass') },
+      { key: 'foundationType', label: t('documentBrowser.columns.foundationType') },
     ],
     Architectural: [
-      { key: 'finishType', label: 'Finish Type' },
-      { key: 'roomNumber', label: 'Room Number' },
-      { key: 'ceilingHeight', label: 'Ceiling Height' },
+      { key: 'finishType', label: t('documentBrowser.columns.finishType') },
+      { key: 'roomNumber', label: t('documentBrowser.columns.roomNumber') },
+      { key: 'ceilingHeight', label: t('documentBrowser.columns.ceilingHeight') },
+      { key: 'fireRating', label: t('documentBrowser.columns.fireRating') },
     ],
     Plumbing: [
-      { key: 'pipeSize', label: 'Pipe Size' },
-      { key: 'fixtureType', label: 'Fixture Type' },
-      { key: 'flowRate', label: 'Flow Rate' },
+      { key: 'pipeSize', label: t('documentBrowser.columns.pipeSize') },
+      { key: 'fixtureType', label: t('documentBrowser.columns.fixtureType') },
+      { key: 'flowRate', label: t('documentBrowser.columns.flowRate') },
+      { key: 'pressureClass', label: t('documentBrowser.columns.pressureClass') },
     ],
     HVAC: [
-      { key: 'ductSize', label: 'Duct Size' },
-      { key: 'airflow', label: 'Airflow' },
-      { key: 'unitType', label: 'Unit Type' },
+      { key: 'ductSize', label: t('documentBrowser.columns.ductSize') },
+      { key: 'airflow', label: t('documentBrowser.columns.airflow') },
+      { key: 'unitType', label: t('documentBrowser.columns.unitType') },
+      { key: 'zone', label: t('documentBrowser.columns.zone') },
     ],
   };
 
-  // Get selected categories from filter panel state (sync with FilterPanel if needed)
-  // For now, try to infer from filteredDocuments or selectedCategory state if available
-  // If not available, default to no custom columns
-  // TODO: If selectedCategories is lifted to DocumentBrowser, use that directly
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]); // TODO: sync with FilterPanel
-  // For demo, try to infer from filteredDocuments (if all docs have a tag matching a category)
-  useEffect(() => {
-    // Try to infer selected category if all filtered docs share a tag
-    if (filteredDocuments.length > 0) {
-      const allTags = filteredDocuments.flatMap(doc => doc.tags || []);
-      const category = Object.keys(CATEGORY_CUSTOM_COLUMNS).find(cat => allTags.every(tag => tag.toLowerCase().includes(cat.toLowerCase())));
-      if (category) setSelectedCategories([category]);
-      else setSelectedCategories([]);
-    } else {
-      setSelectedCategories([]);
-    }
-  }, [filteredDocuments]);
-
   // Compose all columns: base + custom for selected categories
-  const customColumns = selectedCategories.flatMap(cat => CATEGORY_CUSTOM_COLUMNS[cat] || []);
+  const customColumns = selectedCategories.length === 1 ? CATEGORY_CUSTOM_COLUMNS[selectedCategories[0]] || [] : [];
   const allColumns = [
-    { key: 'id', label: 'Reference' },
-    { key: 'title', label: 'Title' },
-    { key: 'revisionNumber', label: 'Rev' },
-    { key: 'status', label: 'Status' },
-    { key: 'documentType', label: 'Type' },
-    { key: 'author', label: 'Author' },
-    { key: 'dateModified', label: 'Date Modified' },
+    { key: 'id', label: t('documentBrowser.columns.reference') },
+    { key: 'title', label: t('documentBrowser.columns.title') },
+    { key: 'revisionNumber', label: t('documentBrowser.columns.rev') },
+    { key: 'status', label: t('documentBrowser.columns.status') },
+    { key: 'documentType', label: t('documentBrowser.columns.type') },
+    { key: 'author', label: t('documentBrowser.columns.author') },
+    { key: 'dateModified', label: t('documentBrowser.columns.dateModified') },
     ...customColumns
   ];
+  const allColumnKeys = allColumns.map((column) => column.key).join('|');
+  const columnLabelLookup = useMemo(
+    () => new Map(allColumns.map((column) => [column.key, column.label])),
+    [allColumnKeys]
+  );
+  const isGroupableColumn = useCallback((columnKey: ColumnKey) => !NON_GROUPABLE_COLUMN_KEYS.has(columnKey), []);
 
   // State for column order
   // Track all column keys (including custom)
@@ -851,45 +1166,179 @@ export function DocumentBrowser() {
   // Update order/visibility if columns change (e.g., category changes)
   useEffect(() => {
     setColumnOrder((prev) => {
-      // Add new columns at the end if not present
       const newKeys = allColumns.map(c => c.key);
-      return [...prev.filter(k => newKeys.includes(k)), ...newKeys.filter(k => !prev.includes(k))];
+      const retainedKeys = prev.filter((key) => newKeys.includes(key));
+      return [...retainedKeys, ...newKeys.filter((key) => !retainedKeys.includes(key))];
     });
     setVisibleColumns((prev) => {
       const newKeys = allColumns.map(c => c.key);
-      return [...prev.filter(k => newKeys.includes(k)), ...newKeys.filter(k => !prev.includes(k))];
+      const retainedKeys = prev.filter((key) => newKeys.includes(key));
+      return [...retainedKeys, ...newKeys.filter((key) => !retainedKeys.includes(key))];
     });
-  }, [allColumns.length]);
+  }, [allColumnKeys]);
+  useEffect(() => {
+    if (groupByColumn && (!allColumns.some((column) => column.key === groupByColumn) || !isGroupableColumn(groupByColumn))) {
+      setGroupByColumn(null);
+      setCollapsedGroups(new Set());
+    }
+  }, [allColumns, groupByColumn, isGroupableColumn]);
+  useEffect(() => {
+    saveTableViewPreferences({ groupByColumn });
+  }, [groupByColumn]);
   const columns = columnOrder
     .map(key => allColumns.find(c => c.key === key))
     .filter(col => col && visibleColumns.includes(col.key)) as { key: string; label: string }[];
+  const groupedColumnLabel = groupByColumn ? columnLabelLookup.get(groupByColumn) ?? groupByColumn : null;
 
   // Column chooser dropdown state
   const [showColumnChooser, setShowColumnChooser] = useState(false);
 
   // Drag-and-drop state
   const [draggedCol, setDraggedCol] = useState<ColumnKey | null>(null);
+  const [dragTarget, setDragTarget] = useState<{
+    key: ColumnKey;
+    position: 'before' | 'after';
+  } | null>(null);
 
-  const handleDragStart = (key: ColumnKey) => {
+  const reorderColumns = useCallback(
+    (sourceKey: ColumnKey, targetKey: ColumnKey, position: 'before' | 'after') => {
+      setColumnOrder((prev) => {
+        const sourceIndex = prev.indexOf(sourceKey);
+        const targetIndex = prev.indexOf(targetKey);
+
+        if (sourceIndex === -1 || targetIndex === -1) {
+          return prev;
+        }
+
+        const next = [...prev];
+        next.splice(sourceIndex, 1);
+
+        const adjustedTargetIndex = next.indexOf(targetKey);
+        const insertIndex = position === 'before' ? adjustedTargetIndex : adjustedTargetIndex + 1;
+
+        next.splice(insertIndex, 0, sourceKey);
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleDragStart = (e: React.DragEvent, key: ColumnKey) => {
+    e.dataTransfer.effectAllowed = 'move';
     setDraggedCol(key);
+    setDragTarget({ key, position: 'after' });
+    if (isGroupableColumn(key)) {
+      setDragTooltipPosition({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    if (!draggedCol || !isGroupableColumn(draggedCol)) {
+      return;
+    }
+
+    if (e.clientX === 0 && e.clientY === 0) {
+      return;
+    }
+
+    setDragTooltipPosition({ x: e.clientX, y: e.clientY });
   };
 
   const handleDragOver = (e: React.DragEvent, overKey: ColumnKey) => {
     e.preventDefault();
-    if (draggedCol && draggedCol !== overKey) {
-      const oldIndex = columnOrder.indexOf(draggedCol);
-      const newIndex = columnOrder.indexOf(overKey);
-      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const newOrder = [...columnOrder];
-        newOrder.splice(oldIndex, 1);
-        newOrder.splice(newIndex, 0, draggedCol);
-        setColumnOrder(newOrder);
-      }
+    e.dataTransfer.dropEffect = 'move';
+    setIsGroupDropActive(false);
+
+    if (draggedCol && isGroupableColumn(draggedCol) && e.clientX !== 0 && e.clientY !== 0) {
+      setDragTooltipPosition({ x: e.clientX, y: e.clientY });
     }
+
+    if (!draggedCol) {
+      return;
+    }
+
+    const bounds = e.currentTarget.getBoundingClientRect();
+    const offset = e.clientX - bounds.left;
+    const position = offset < bounds.width / 2 ? 'before' : 'after';
+
+    setDragTarget({ key: overKey, position });
+  };
+
+  const handleDrop = (e: React.DragEvent, dropKey: ColumnKey) => {
+    e.preventDefault();
+    setIsGroupDropActive(false);
+
+    if (!draggedCol || draggedCol === dropKey || !dragTarget) {
+      handleDragEnd();
+      return;
+    }
+
+    reorderColumns(draggedCol, dropKey, dragTarget.position);
+    handleDragEnd();
   };
 
   const handleDragEnd = () => {
     setDraggedCol(null);
+    setDragTarget(null);
+    setIsGroupDropActive(false);
+    setDragTooltipPosition(null);
+  };
+
+  const handleGroupDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    if (!draggedCol || !isGroupableColumn(draggedCol)) {
+      return;
+    }
+
+    e.dataTransfer.dropEffect = 'move';
+    setIsGroupDropActive(true);
+
+    if (e.clientX !== 0 && e.clientY !== 0) {
+      setDragTooltipPosition({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleGroupDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      return;
+    }
+
+    setIsGroupDropActive(false);
+  };
+
+  const handleGroupDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    if (!draggedCol || !isGroupableColumn(draggedCol)) {
+      handleDragEnd();
+      return;
+    }
+
+    setGroupByColumn(draggedCol);
+    setCollapsedGroups(new Set());
+    setDisplayedCount(ITEMS_PER_PAGE);
+    handleDragEnd();
+  };
+
+  const handleClearGrouping = () => {
+    setGroupByColumn(null);
+    setCollapsedGroups(new Set());
+    setDisplayedCount(ITEMS_PER_PAGE);
+  };
+
+  const toggleGroupCollapsed = (groupKey: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+
+      return next;
+    });
   };
 
   return (
@@ -953,7 +1402,9 @@ export function DocumentBrowser() {
               selectedDocType={selectedDocType}
               onDocTypeChange={setSelectedDocType}
               selectedProject={selectedProject}
-              onProjectChange={setSelectedProject} /> :
+              onProjectChange={setSelectedProject}
+              selectedCategories={selectedCategories}
+              onCategoryChange={setSelectedCategories} /> :
 
 
             <FolderTree
@@ -1058,9 +1509,17 @@ export function DocumentBrowser() {
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 1 || selectedDocType.length > 1 || selectedProject.length > 1 || (selectedStatus.length + selectedDocType.length + selectedProject.length > 1)) && (
+                      {selectedCategories.map((category) => (
+                        <span key={category} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+                          Category: <span className="font-semibold">{category}</span>
+                          <button onClick={() => setSelectedCategories((prev) => prev.filter((x) => x !== category))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${category} filter`}>
+                            <XIcon size={12} />
+                          </button>
+                        </span>
+                      ))}
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0 || Boolean(searchTerm)) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSearchTerm(''); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); setSearchTerm(''); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -1339,42 +1798,80 @@ export function DocumentBrowser() {
 
               <div key="table-view">
                     <div className="bg-white rounded-md border border-neutral-200 shadow-sm overflow-hidden">
+                      <div
+                        onDragOver={handleGroupDragOver}
+                        onDragLeave={handleGroupDragLeave}
+                        onDrop={handleGroupDrop}
+                        className="border-b border-neutral-200 bg-white px-3 py-2"
+                      >
+                        {groupByColumn ?
+                        <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-white'}`}>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Grouped by</span>
+                              <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F1FB] px-3 py-1 text-sm font-medium text-[#0461BA]">
+                                {groupedColumnLabel}
+                                <button
+                                  onClick={handleClearGrouping}
+                                  className="rounded-full p-0.5 text-[#0461BA] hover:bg-[#D8E9FB]"
+                                  aria-label={`Clear grouping by ${groupedColumnLabel}`}>
+
+                                  <XIcon size={12} />
+                                </button>
+                              </span>
+                            </div>
+                            <span className="text-xs text-neutral-500">Drag another column here to regroup</span>
+                          </div> :
+
+                        <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-neutral-50/70'}`}>
+                            <span className="text-sm text-neutral-500">Drag a column header here to group rows</span>
+                            {draggedCol && isGroupableColumn(draggedCol) &&
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0461BA] shadow-sm">
+                                Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
+                              </span>
+                          }
+                          </div>
+                        }
+                      </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse whitespace-nowrap">
                           <thead>
                             <tr className="border-b border-neutral-200 bg-neutral-50">
                               <th className={viewMode === 'compact-table' ? 'text-left p-2 w-9' : 'text-left p-4 w-10'}>
-                                <button
+                                <SelectionCheckboxButton
                                   onClick={toggleSelectAllDisplayed}
-                                  className="w-5 h-5 rounded border border-neutral-300 bg-white inline-flex items-center justify-center hover:border-[#0461BA] transition-colors"
-                                  aria-label={allDisplayedSelected ? 'Deselect all documents' : 'Select all documents'}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={allDisplayedSelected}
-                                    ref={(el) => {
-                                      if (el) el.indeterminate = hasSomeDisplayedSelected && !allDisplayedSelected;
-                                    }}
-                                    readOnly
-                                    className="w-3.5 h-3.5 accent-[#0461BA] cursor-pointer"
-                                  />
-                                </button>
+                                  checked={allDisplayedSelected}
+                                  indeterminate={hasSomeDisplayedSelected && !allDisplayedSelected}
+                                  ariaLabel={allDisplayedSelected ? 'Deselect all documents' : 'Select all documents'}
+                                />
                               </th>
                               {/* Table column headers restored */}
                               {columns.map((col) => (
                                 <th
                                   key={col.key}
                                   draggable
-                                  onDragStart={() => handleDragStart(col.key)}
+                                  onDragStart={(e) => handleDragStart(e, col.key)}
+                                  onDrag={handleDrag}
                                   onDragOver={e => handleDragOver(e, col.key)}
+                                  onDrop={e => handleDrop(e, col.key)}
                                   onDragEnd={handleDragEnd}
                                   className={
-                                    viewMode === 'compact-table' ?
-                                    'text-left p-2' :
-                                    'text-left p-4'
+                                    `${viewMode === 'compact-table' ? 'text-left p-2' : 'text-left p-4'} relative transition-colors`
                                   }
-                                  style={{ opacity: draggedCol === col.key ? 0.5 : 1, cursor: 'grab' }}
+                                  style={{
+                                    opacity: draggedCol === col.key ? 0.45 : 1,
+                                    cursor: draggedCol === col.key ? 'grabbing' : 'grab',
+                                    backgroundColor:
+                                      dragTarget?.key === col.key && draggedCol !== col.key
+                                        ? '#EFF6FF'
+                                        : undefined,
+                                  }}
                                 >
+                                  {dragTarget?.key === col.key && draggedCol !== col.key && dragTarget.position === 'before' && (
+                                    <span className="absolute left-0 top-1 bottom-1 w-1 rounded-full bg-[#0461BA]" aria-hidden="true" />
+                                  )}
+                                  {dragTarget?.key === col.key && draggedCol !== col.key && dragTarget.position === 'after' && (
+                                    <span className="absolute right-0 top-1 bottom-1 w-1 rounded-full bg-[#0461BA]" aria-hidden="true" />
+                                  )}
                                   <ColumnHeaderDropdown
                                     column={col.key}
                                     label={col.label}
@@ -1389,226 +1886,51 @@ export function DocumentBrowser() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-neutral-100">
-                            {displayedDocuments.map((doc) => {
-                              const isSelected = selectedDocumentIds.has(doc.id);
+                            {groupByColumn ?
+                            groupedSections.map((section) => {
+                              const isCollapsed = collapsedGroups.has(section.key);
                               return (
-                                <tr
-                                  key={doc.id}
-                                  className={`transition-colors group ${isSelected || highlightedDocId === doc.id ? 'bg-[#E8F1FB]' : 'hover:bg-neutral-50'}`}
-                                >
-                                  {/* Selection checkbox */}
-                                  <td className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
-                                    <button
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        toggleDocumentSelection(doc.id);
-                                      }}
-                                      className={`w-5 h-5 rounded border inline-flex items-center justify-center transition-colors ${
-                                        isSelected
-                                          ? 'border-[#0461BA] bg-[#E8F1FB]'
-                                          : 'border-neutral-300 bg-white opacity-0 group-hover:opacity-100'
-                                      }`}
-                                      aria-label={isSelected ? `Deselect ${doc.id}` : `Select ${doc.id}`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        readOnly
-                                        className="w-3.5 h-3.5 accent-[#0461BA] cursor-pointer"
-                                      />
-                                    </button>
-                                  </td>
-                                  {/* Data columns rendered in current order */}
-                                  {columns.map((col) => {
-                                    // Standard columns
-                                    switch (col.key) {
-                                      case 'id':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
-                                            <button
-                                              onClick={() => setPanelData(toDocumentDetail(doc))}
-                                              className="text-[#0461BA] hover:text-[#035299] font-medium text-left transition-colors"
-                                            >
-                                              {doc.id}
-                                            </button>
-                                          </td>
-                                        );
-                                      case 'title':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
-                                            <button
-                                              onClick={() => setPanelData(toDocumentDetail(doc))}
-                                              className="text-neutral-900 group-hover:text-[#0461BA] transition-colors font-medium text-left"
-                                            >
-                                              {doc.title}
-                                            </button>
-                                          </td>
-                                        );
-                                      case 'revisionNumber':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-500 font-medium'}>
-                                            {doc.revisionNumber}
-                                          </td>
-                                        );
-                                      case 'status':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
-                                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${statusColors[doc.status]}`}>
-                                              {doc.status}
-                                            </span>
-                                          </td>
-                                        );
-                                      case 'documentType':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
-                                            {doc.documentType}
-                                          </td>
-                                        );
-                                      case 'author':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
-                                            {doc.author}
-                                          </td>
-                                        );
-                                      case 'dateModified':
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
-                                            {doc.dateModified}
-                                          </td>
-                                        );
-                                      default:
-                                        // Custom columns: show random or placeholder data
-                                        return (
-                                          <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-500'}>
-                                            {/* For demo, show a random value or placeholder */}
-                                            {doc[col.key] || '--'}
-                                          </td>
-                                        );
-                                    }
-                                  })}
-                                  {/* Row actions */}
-                                  <td className={viewMode === 'compact-table' ? 'p-2 w-28' : 'p-4 w-32'}>
-                                    <div className="flex items-center gap-1">
+                                <React.Fragment key={section.key}>
+                                  <tr className="bg-[#F8FAFC]">
+                                    <td colSpan={columns.length + 2} className={viewMode === 'compact-table' ? 'px-2 py-2' : 'px-4 py-3'}>
                                       <button
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          setOpenActionMenuId((prev) => {
-                                            const next = prev === doc.id ? null : doc.id;
-                                            if (!next) {
-                                              setOpenActionSubmenuKey(null);
-                                            }
-                                            return next;
-                                          });
-                                          if (openActionMenuId !== doc.id) {
-                                            setOpenActionSubmenuKey(null);
+                                        onClick={() => toggleGroupCollapsed(section.key)}
+                                        className="flex w-full items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-left transition-colors hover:border-[#0461BA]/35 hover:bg-[#F8FBFF]"
+                                        aria-expanded={!isCollapsed}>
+
+                                        <span className="flex min-w-0 items-center gap-3">
+                                          {isCollapsed ?
+                                          <ChevronRightIcon size={14} className="text-neutral-500" /> :
+                                          <ChevronDownIcon size={14} className="text-neutral-500" />
                                           }
-                                        }}
-                                        className={`w-7 h-7 rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${
-                                          openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
-                                        }`}
-                                        aria-label={`Actions for ${doc.id}`}
-                                      >
-                                        <MoreHorizontalIcon size={14} />
+                                          <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-400">{groupedColumnLabel}</span>
+                                          <span className="truncate text-sm font-semibold text-neutral-800">{section.label}</span>
+                                        </span>
+                                        <span className="shrink-0 text-xs font-medium text-neutral-500">{section.documents.length} document{section.documents.length === 1 ? '' : 's'}</span>
                                       </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          navigate(`/chat?ask=${encodeURIComponent(`${doc.id} — ${doc.title}`)}&askKind=document`);
-                                        }}
-                                        title={`Ask Flint about ${doc.id}`}
-                                        aria-label={`Ask Flint about ${doc.id}`}
-                                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-7 h-7 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]"
-                                      >
-                                        <SparklesIcon size={14} />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          if (isInClipboard(doc.id)) {
-                                            removeFromClipboard(doc.id);
-                                          } else {
-                                            addToClipboard(doc);
-                                          }
-                                        }}
-                                        title={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
-                                        aria-label={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
-                                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-7 h-7 rounded-md inline-flex items-center justify-center ${
-                                          isInClipboard(doc.id)
-                                            ? 'bg-neutral-100 text-neutral-700 opacity-100'
-                                            : 'text-neutral-600 hover:bg-neutral-200'
-                                        }`}
-                                      >
-                                        <ClipboardStackIcon size={14} active={isInClipboard(doc.id)} />
-                                      </button>
-                                    </div>
-                                    {openActionMenuId === doc.id && (
-                                      <div
-                                        ref={actionMenuRef}
-                                        className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-neutral-200 rounded-xl shadow-xl z-40 overflow-visible"
-                                      >
-                                        <div className="py-1.5 overflow-visible flex flex-col">
-                                          {DOCUMENT_ACTIONS.map((item) => (
-                                            <div
-                                              key={item.label}
-                                              className={`relative ${item.dividerAbove ? 'border-t border-neutral-200 mt-1 pt-1' : ''}`}
-                                            >
-                                              <button
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  if (item.submenu) {
-                                                    const submenuKey = `${doc.id}:${item.label}`;
-                                                    setOpenActionSubmenuKey((prev) => prev === submenuKey ? null : submenuKey);
-                                                    return;
-                                                  }
-                                                  setOpenActionMenuId(null);
-                                                  setOpenActionSubmenuKey(null);
-                                                }}
-                                                className={`w-full text-left px-3.5 py-1.5 text-[15px] leading-5 transition-colors flex items-center justify-between gap-2 ${
-                                                  item.danger
-                                                    ? 'text-red-600 hover:bg-red-50'
-                                                    : 'text-neutral-700 hover:bg-neutral-50'
-                                                }`}
-                                                aria-expanded={item.submenu ? openActionSubmenuKey === `${doc.id}:${item.label}` : undefined}
-                                              >
-                                                <span>{item.label}</span>
-                                                {item.submenu && <ChevronRightIcon size={14} className="text-neutral-400" />}
-                                              </button>
-                                              {item.submenu && openActionSubmenuKey === `${doc.id}:${item.label}` && (
-                                                <div className="absolute left-full top-0 ml-1.5 w-60 bg-white border border-neutral-200 rounded-xl shadow-xl py-1.5 z-50 flex flex-col">
-                                                  {item.submenu.map((sub) => (
-                                                    <button
-                                                      key={`${item.label}-${sub}`}
-                                                      onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        setOpenActionMenuId(null);
-                                                        setOpenActionSubmenuKey(null);
-                                                      }}
-                                                      className="w-full text-left px-3.5 py-1.5 text-[15px] leading-5 text-neutral-700 hover:bg-neutral-50 transition-colors"
-                                                    >
-                                                      {sub}
-                                                    </button>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
+                                    </td>
+                                  </tr>
+                                  {!isCollapsed && section.documents.map(renderDocumentRow)}
+                                </React.Fragment>);
+
+                            }) :
+                            displayedDocuments.map(renderDocumentRow)
+                            }
                           </tbody>
                         </table>
                       </div>
                     </div>
+                    {isGroupDropActive && draggedCol && isGroupableColumn(draggedCol) && dragTooltipPosition &&
+                    <div
+                      className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
+                      style={{
+                        left: dragTooltipPosition.x,
+                        top: dragTooltipPosition.y - 8
+                      }}>
+
+                        Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
+                      </div>
+                    }
                     {hasMore &&
                 <div
                   ref={loadMoreRef}
