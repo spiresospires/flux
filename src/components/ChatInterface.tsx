@@ -669,47 +669,50 @@ export function ChatInterface({
       transition={{
         duration: 0.25
       }}
-      className="fixed inset-x-0 top-[45px] bottom-0 bg-[#F8FAFC] z-30 flex pl-[var(--left-rail-width,88px)]">
+      className="fixed inset-x-0 top-[45px] bottom-0 bg-[var(--main-bg-color)] z-30 flex pl-[var(--left-rail-width,88px)]">
 
       <LeftRail
         activeItem="chat"
         onItemClick={() => onExit()}
         onChatClick={() => {}} />
 
-      {/* Chat history sidebar */}
-      <ChatHistorySidebar
-        open={historyOpen}
-        width={historyWidth}
-        onResizeStart={startResize}
-        onToggle={() => setHistoryOpen((v) => !v)}
-        conversations={scopedConversations}
-        activeId={activeId}
-        search={historySearch}
-        onSearchChange={setHistorySearch}
-        renamingId={renamingId}
-        renameValue={renameValue}
-        menuOpenId={menuOpenId}
-        onMenuOpen={setMenuOpenId}
-        onSelect={(id) => { setActiveId(id); setMenuOpenId(null); }}
-        onNew={() => { setActiveId(null); setMenuOpenId(null); }}
-        onPin={(id) => setConversations((prev) => prev.map((c) => c.id === id ? { ...c, pinned: !c.pinned } : c))}
-        onDelete={(id) => {
-          setConversations((prev) => prev.filter((c) => c.id !== id));
-          if (activeId === id) setActiveId(null);
-          setMenuOpenId(null);
-        }}
-        onStartRename={(id, currentTitle) => { setRenamingId(id); setRenameValue(currentTitle); setMenuOpenId(null); }}
-        onRenameChange={setRenameValue}
-        onRenameCommit={() => {
-          if (renamingId) {
-            const t = renameValue.trim() || 'Untitled';
-            setConversations((prev) => prev.map((c) => c.id === renamingId ? { ...c, title: t } : c));
-          }
-          setRenamingId(null);
-        }} />
+      <div className="flex-1 w-full p-3">
+        <div className="mx-auto w-full max-w-[1200px] flex items-stretch gap-3 h-[calc(100vh-69px)]">
 
-      {/* Right side: chat content */}
-      <div className="flex-1 flex flex-col min-w-0">
+          {/* Chat history sidebar */}
+          <ChatHistorySidebar
+            open={historyOpen}
+            width={historyWidth}
+            onResizeStart={startResize}
+            onToggle={() => setHistoryOpen((v) => !v)}
+            conversations={scopedConversations}
+            activeId={activeId}
+            search={historySearch}
+            onSearchChange={setHistorySearch}
+            renamingId={renamingId}
+            renameValue={renameValue}
+            menuOpenId={menuOpenId}
+            onMenuOpen={setMenuOpenId}
+            onSelect={(id) => { setActiveId(id); setMenuOpenId(null); }}
+            onNew={() => { setActiveId(null); setMenuOpenId(null); }}
+            onPin={(id) => setConversations((prev) => prev.map((c) => c.id === id ? { ...c, pinned: !c.pinned } : c))}
+            onDelete={(id) => {
+              setConversations((prev) => prev.filter((c) => c.id !== id));
+              if (activeId === id) setActiveId(null);
+              setMenuOpenId(null);
+            }}
+            onStartRename={(id, currentTitle) => { setRenamingId(id); setRenameValue(currentTitle); setMenuOpenId(null); }}
+            onRenameChange={setRenameValue}
+            onRenameCommit={() => {
+              if (renamingId) {
+                const t = renameValue.trim() || 'Untitled';
+                setConversations((prev) => prev.map((c) => c.id === renamingId ? { ...c, title: t } : c));
+              }
+              setRenamingId(null);
+            }} />
+
+          {/* Right side: chat content (floating panel) */}
+          <div className="flex-1 flex flex-col min-w-0 bg-white border border-neutral-200 rounded-md shadow-sm overflow-hidden h-full">
       {/* Messages Area / Empty State */}
       <div
         className="flex-1 overflow-y-auto flex flex-col"
@@ -945,6 +948,8 @@ export function ChatInterface({
           });
         }}
       />
+        </div>
+      </div>
     </motion.div>);
 
 }
@@ -982,7 +987,7 @@ function ChatHistorySidebar(p: SidebarProps) {
 
   if (!p.open) {
     return (
-      <div className="w-10 shrink-0 border-r border-neutral-200 bg-white flex flex-col items-center py-3 gap-2">
+      <div className="w-10 shrink-0 border-r border-neutral-200 bg-white flex flex-col items-center py-3 gap-2 rounded-md overflow-hidden shadow-sm">
         <button
           onClick={p.onToggle}
           title={t('chat.showHistory')}
@@ -1003,7 +1008,7 @@ function ChatHistorySidebar(p: SidebarProps) {
 
   return (
     <aside
-      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col relative"
+      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col relative rounded-md overflow-hidden shadow-sm h-full"
       style={{ width: p.width }}>
       <div className="px-3 py-3 flex items-center gap-2 border-b border-neutral-100">
         <button

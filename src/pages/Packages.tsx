@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LeftRail } from '../components/LeftRail';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -459,11 +459,43 @@ function PackageLibrary({
   statusFilter.size + disciplineFilter.size + typeFilter.size +
   ownerFilter.size + changeFilter.size + (search ? 1 : 0);
 
+  // Resizable filter panel state
+  const [filterWidth, setFilterWidth] = useState<number>(256);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const resizingRef = useRef(false);
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current || !panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      const next = Math.min(560, Math.max(240, e.clientX - rect.left));
+      setFilterWidth(next);
+    };
+    const onUp = () => {
+      if (resizingRef.current) {
+        resizingRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+  const startFilterResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
   return (
     <div>
-      <div className="flex gap-4 items-start">
-        {/* Left filter panel */}
-        <aside className="w-64 shrink-0 bg-white border border-neutral-200 rounded-lg overflow-hidden">
+      <div className="flex gap-3 items-start">
+        {/* Left filter panel (resizable) */}
+        <aside ref={panelRef} style={{ width: filterWidth }} className="shrink-0 bg-white border border-neutral-200 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-900">{t('packages.filters')}</h3>
             {activeCount > 0 &&
@@ -536,6 +568,9 @@ function PackageLibrary({
 
               )}
             </FilterGroup>
+          </div>
+          <div onMouseDown={startFilterResize} role="separator" aria-orientation="vertical" title={t('packages.dragToResize')} className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize group z-10">
+            <div className="absolute inset-y-0 right-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] transition-colors" />
           </div>
         </aside>
 
@@ -661,6 +696,9 @@ function FilterGroup({ label, children, last }: {label: string;children: React.R
     </div>);
 
 }
+
+// Simple resizable filter panel used on the Packages page
+// ResizableFilter removed; packages panel now resizable inside PackageLibrary
 
 function CheckRow({ checked, onChange, label }: {checked: boolean;onChange: () => void;label: React.ReactNode;}) {
   return (

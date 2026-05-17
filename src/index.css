@@ -130,3 +130,20 @@ html[data-theme='dark'] .bg-\[\#E8F1FB\] { background-color: #1e3a5f !important;
 html[data-theme='dark'] .text-\[\#0461BA\] { color: #93c5fd !important; }
 html[data-theme='dark'] .bg-\[\#F8FAFC\] { background-color: #0f172a !important; }
 
+/* Modern column resizer cursor and hit area */
+.column-resizer {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><g fill='none' stroke='%230461BA' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 12h12'/><path d='M9 9l-3 3 3 3'/><path d='M15 9l3 3-3 3'/></g></svg>") 12 12, col-resize;
+  transition: background-color 120ms ease;
+}
+.column-resizer:hover {
+  background-color: rgba(4,97,186,0.06);
+}
+.column-resizer:active {
+  background-color: rgba(4,97,186,0.12);
+}
+
+/* Slightly larger hit target on small screens */
+@media (pointer: coarse) {
+  .column-resizer { width: 18px !important; }
+}
+
