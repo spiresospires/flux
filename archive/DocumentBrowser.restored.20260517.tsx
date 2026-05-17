@@ -3,9 +3,9 @@ import React, {
   useEffect,
   useMemo,
   useState,
-  useRef
-} from
-  'react';
+  useRef } from
+'react';
+import { createPortal } from 'react-dom';
 import { DocumentCard, statusColors } from '../components/DocumentCard';
 import { FilterPanel } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
@@ -32,9 +32,8 @@ import {
   LoaderIcon,
   MoreHorizontalIcon,
   SparklesIcon,
-  ClipboardIcon
-} from
-  'lucide-react';
+  ClipboardIcon } from
+'lucide-react';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -162,7 +161,92 @@ function GridWithStickyScrollbar({
   );
 }
 
+function PersistentHorizontalScrollbar({ children }: { children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const spacerRef = useRef<HTMLDivElement | null>(null);
+  const [syncEl] = useState(() => document.createElement('div'));
 
+  useEffect(() => {
+    syncEl.style.position = 'fixed';
+    syncEl.style.bottom = '12px';
+    syncEl.style.zIndex = '2147483647';
+    syncEl.style.height = '18px';
+    syncEl.style.overflowX = 'auto';
+    syncEl.style.overflowY = 'hidden';
+    syncEl.style.background = 'rgba(255,255,255,0.96)';
+    syncEl.style.border = '1px solid rgba(15,23,42,0.06)';
+    syncEl.style.borderRadius = '8px';
+    syncEl.style.boxShadow = '0 6px 18px rgba(2,6,23,0.08)';
+    syncEl.style.display = 'none';
+    syncEl.style.pointerEvents = 'auto';
+    document.body.appendChild(syncEl);
+    return () => {
+      if (syncEl.parentElement) syncEl.parentElement.removeChild(syncEl);
+    };
+  }, [syncEl]);
+
+  const update = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    // ensure there's a single child spacer inside the syncEl
+    if (syncEl && spacerRef.current) {
+      // set spacer width equal to scrollWidth
+      (spacerRef.current as HTMLDivElement).style.width = `${container.scrollWidth}px`;
+      const rect = container.getBoundingClientRect();
+      // align exactly with the grid container
+      syncEl.style.left = `${rect.left}px`;
+      syncEl.style.width = `${rect.width}px`;
+      const hasOverflow = container.scrollWidth > container.clientWidth + 1;
+      // hide native horizontal scrollbar when the fixed one is visible
+      container.style.overflowX = hasOverflow ? 'hidden' : 'auto';
+      syncEl.style.display = hasOverflow ? 'block' : 'none';
+    }
+  }, [syncEl]);
+
+  useEffect(() => {
+    update();
+    const ro = new ResizeObserver(update);
+    if (containerRef.current) ro.observe(containerRef.current);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update);
+    };
+  }, [update]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onContainerScroll = () => {
+      if (!syncEl) return;
+      syncEl.scrollLeft = container.scrollLeft;
+    };
+    const onSyncScroll = () => {
+      if (!container) return;
+      container.scrollLeft = syncEl.scrollLeft;
+    };
+
+    container.addEventListener('scroll', onContainerScroll, { passive: true });
+    syncEl.addEventListener('scroll', onSyncScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', onContainerScroll);
+      syncEl.removeEventListener('scroll', onSyncScroll);
+    };
+  }, [syncEl]);
+
+  // Render the sync spacer inside the syncEl using a portal
+  const portal = createPortal(<div ref={spacerRef} style={{ height: 1 }} />, syncEl);
+
+  return (
+    <div ref={containerRef} className="overflow-x-auto">
+      {children}
+      {portal}
+    </div>
+  );
+}
 type ViewMode = 'grid' | 'list' | 'table' | 'compact-table';
 
 const TABLE_PREFERENCES_STORAGE_KEY = 'flux.documentBrowser.tablePreferences';
@@ -225,7 +309,7 @@ function saveColumnPreferences(order: string[], widths: Record<string, number>) 
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(COLUMN_PREFERENCES_STORAGE_KEY, JSON.stringify({ order, widths }));
-  } catch { }
+  } catch {}
 }
 
 function getDocumentColumnText(document: Document, columnKey: ColumnKey) {
@@ -286,7 +370,7 @@ function ViewModeDropdown({
 
 
 
-}: { viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; }) {
+}: {viewMode: ViewMode;onViewModeChange: (mode: ViewMode) => void;}) {
   const { t } = useLocalization();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -295,34 +379,35 @@ function ViewModeDropdown({
     label: string;
     icon: React.ReactNode;
   }[] = [
-      {
-        mode: 'table',
-        label: t('documentBrowser.viewModes.comfyTable'),
-        icon: <TableIcon size={16} />
-      },
-      {
-        mode: 'compact-table',
-        label: t('documentBrowser.viewModes.compactTable'),
-        icon: <TableIcon size={16} />
-      },
-      {
-        mode: 'grid',
-        label: t('documentBrowser.viewModes.grid'),
-        icon: <LayoutGridIcon size={16} />
-      },
-      {
-        mode: 'list',
-        label: t('documentBrowser.viewModes.list'),
-        icon: <ListIcon size={16} />
-      }];
+  {
+    mode: 'table',
+    label: t('documentBrowser.viewModes.comfyTable'),
+    icon: <TableIcon size={16} />
+  },
+  {
+    mode: 'compact-table',
+    label: t('documentBrowser.viewModes.compactTable'),
+    icon: <TableIcon size={16} />
+  },
+  {
+    mode: 'grid',
+    label: t('documentBrowser.viewModes.grid'),
+    icon: <LayoutGridIcon size={16} />
+  },
+  {
+    mode: 'list',
+    label: t('documentBrowser.viewModes.list'),
+    icon: <ListIcon size={16} />
+  }];
 
   const currentView =
-    viewOptions.find((v) => v.mode === viewMode) || viewOptions[0];
+  viewOptions.find((v) => v.mode === viewMode) || viewOptions[0];
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)) {
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node))
+      {
         setIsOpen(false);
       }
     }
@@ -339,38 +424,38 @@ function ViewModeDropdown({
 
       <AnimatePresence>
         {isOpen &&
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: -4
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            exit={{
-              opacity: 0,
-              y: -4
-            }}
-            transition={{
-              duration: 0.15
-            }}
-            className="absolute top-full right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-50">
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: -4
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
+          exit={{
+            opacity: 0,
+            y: -4
+          }}
+          transition={{
+            duration: 0.15
+          }}
+          className="absolute top-full right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-50">
 
             <div className="p-2">
               {viewOptions.map((option) =>
-                <button
-                  key={option.mode}
-                  onClick={() => {
-                    onViewModeChange(option.mode);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${viewMode === option.mode ? 'bg-[#E8F1FB] text-[#2A5FB8] font-medium' : 'text-neutral-700 hover:bg-neutral-50'}`}>
-
+            <button
+              key={option.mode}
+              onClick={() => {
+                onViewModeChange(option.mode);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${viewMode === option.mode ? 'bg-[#E8F1FB] text-[#2A5FB8] font-medium' : 'text-neutral-700 hover:bg-neutral-50'}`}>
+              
                   {option.icon}
                   {option.label}
                 </button>
-              )}
+            )}
             </div>
           </motion.div>
         }
@@ -420,10 +505,11 @@ function SelectionCheckboxButton({
       role="checkbox"
       aria-checked={indeterminate ? 'mixed' : checked}
       aria-label={ariaLabel}
-      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30 ${checked || indeterminate
-        ? 'border-[#0461BA] bg-[#E8F1FB] text-[#0461BA]'
-        : 'border-neutral-300 bg-white text-transparent hover:border-[#0461BA]'
-        } ${className}`}
+      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30 ${
+        checked || indeterminate
+          ? 'border-[#0461BA] bg-[#E8F1FB] text-[#0461BA]'
+          : 'border-neutral-300 bg-white text-transparent hover:border-[#0461BA]'
+      } ${className}`}
     >
       {indeterminate ? <MinusIcon size={14} strokeWidth={2.5} /> : checked ? <CheckIcon size={14} strokeWidth={2.5} /> : null}
     </button>
@@ -453,8 +539,9 @@ function ColumnHeaderDropdown({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)) {
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node))
+      {
         setIsOpen(false);
       }
     }
@@ -467,96 +554,96 @@ function ColumnHeaderDropdown({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1.5 text-left font-semibold text-xs uppercase tracking-wider transition-colors ${hasActiveFilter ? 'text-[#0461BA]' : 'text-neutral-700 hover:text-neutral-900'}`}>
-
+        
         {label}
         {filter?.sortDirection === 'asc' && <ChevronUpIcon size={14} />}
         {filter?.sortDirection === 'desc' && <ChevronDownIcon size={14} />}
         {!filter?.sortDirection &&
-          <ChevronDownIcon size={12} className="opacity-50" />
+        <ChevronDownIcon size={12} className="opacity-50" />
         }
         {filter?.value &&
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0461BA]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-[#0461BA]" />
         }
       </button>
 
       <AnimatePresence>
         {isOpen &&
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: -4
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            exit={{
-              opacity: 0,
-              y: -4
-            }}
-            transition={{
-              duration: 0.15
-            }}
-            className="absolute top-full left-0 mt-2 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg z-50">
-
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: -4
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
+          exit={{
+            opacity: 0,
+            y: -4
+          }}
+          transition={{
+            duration: 0.15
+          }}
+          className="absolute top-full left-0 mt-2 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg z-50">
+          
             <div className="p-3 border-b border-neutral-100">
               <div className="relative">
                 <SearchIcon
-                  size={14}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-
+                size={14}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+              
                 <input
-                  type="text"
-                  placeholder={t('documentBrowser.filterColumn', { label: label.toLowerCase() })}
-                  value={filterValue}
-                  onChange={(e) => {
-                    setFilterValue(e.target.value);
-                    onFilterChange(column, e.target.value);
-                  }}
-                  className="w-full pl-8 pr-3 py-2 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent"
-                  autoFocus />
-
+                type="text"
+                placeholder={t('documentBrowser.filterColumn', { label: label.toLowerCase() })}
+                value={filterValue}
+                onChange={(e) => {
+                  setFilterValue(e.target.value);
+                  onFilterChange(column, e.target.value);
+                }}
+                className="w-full pl-8 pr-3 py-2 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent"
+                autoFocus />
+              
               </div>
             </div>
 
             <div className="p-2">
               <button
-                onClick={() => {
-                  onSortChange(column, 'asc');
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'asc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
-
+              onClick={() => {
+                onSortChange(column, 'asc');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'asc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
+              
                 <ChevronUpIcon size={14} />
                 {t('documentBrowser.sortAscending')}
               </button>
               <button
-                onClick={() => {
-                  onSortChange(column, 'desc');
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'desc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
-
+              onClick={() => {
+                onSortChange(column, 'desc');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'desc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
+              
                 <ChevronDownIcon size={14} />
                 {t('documentBrowser.sortDescending')}
               </button>
             </div>
 
             {hasActiveFilter &&
-              <div className="p-2 border-t border-neutral-100">
+          <div className="p-2 border-t border-neutral-100">
                 <button
-                  onClick={() => {
-                    setFilterValue('');
-                    onClearFilter(column);
-                    setIsOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error-600 hover:bg-error-50 rounded-md transition-colors">
-
+              onClick={() => {
+                setFilterValue('');
+                onClearFilter(column);
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error-600 hover:bg-error-50 rounded-md transition-colors">
+              
                   <XIcon size={14} />
                   {t('documentBrowser.clearFilter')}
                 </button>
               </div>
-            }
+          }
           </motion.div>
         }
       </AnimatePresence>
@@ -593,11 +680,11 @@ export function DocumentBrowser() {
     const factor = projectScale[currentWorkspace] ?? 1;
     const scale = (n: number) => Math.max(0, Math.round(n * factor));
     const walk = (list: typeof mockFolders): typeof mockFolders =>
-      list.map((f) => ({
-        ...f,
-        documentCount: scale(f.documentCount),
-        children: f.children ? walk(f.children) : []
-      }));
+    list.map((f) => ({
+      ...f,
+      documentCount: scale(f.documentCount),
+      children: f.children ? walk(f.children) : []
+    }));
     return walk(mockFolders);
   }, [currentWorkspace]);
   const projectDocuments = useMemo(() => {
@@ -646,7 +733,7 @@ export function DocumentBrowser() {
   // Column filters for table view
   const [columnFilters, setColumnFilters] = useState<
     Map<ColumnKey, ColumnFilter>>(
-      new Map());
+    new Map());
   // Lazy loading state
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
@@ -654,7 +741,7 @@ export function DocumentBrowser() {
   const [groupByColumn, setGroupByColumn] = useState<ColumnKey | null>(() => loadTableViewPreferences().groupByColumn);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [isGroupDropActive, setIsGroupDropActive] = useState(false);
-
+  
   const [dragTooltipPosition, setDragTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const [perGroupDisplayedCounts, setPerGroupDisplayedCounts] = useState<Map<string, number>>(new Map());
   const groupLoadRefs = useRef(new Map<string, HTMLDivElement | null>());
@@ -740,8 +827,9 @@ export function DocumentBrowser() {
     setDisplayedCount(ITEMS_PER_PAGE);
   };
   const handleColumnSortChange = (
-    column: ColumnKey,
-    direction: SortDirection) => {
+  column: ColumnKey,
+  direction: SortDirection) =>
+  {
     setColumnFilters((prev) => {
       const newFilters = new Map(prev);
       // Clear sort from other columns
@@ -778,11 +866,11 @@ export function DocumentBrowser() {
     if (searchTerm) {
       filtered = filtered.filter(
         (doc) =>
-          doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.tags.some((tag) =>
-            tag.toLowerCase().includes(searchTerm.toLowerCase())
-          )
+        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.tags.some((tag) =>
+        tag.toLowerCase().includes(searchTerm.toLowerCase())
+        )
       );
     }
     if (selectedStatus.length > 0) {
@@ -790,7 +878,7 @@ export function DocumentBrowser() {
     }
     if (selectedDocType.length > 0) {
       filtered = filtered.filter((doc) =>
-        selectedDocType.includes(doc.documentType)
+      selectedDocType.includes(doc.documentType)
       );
     }
     if (selectedProject.length > 0) {
@@ -850,29 +938,29 @@ export function DocumentBrowser() {
     }
     return filtered;
   }, [
-    searchTerm,
-    selectedStatus,
-    selectedDocType,
-    selectedProject,
-    selectedCategories,
-    sortBy,
-    leftPanelMode,
-    selectedFolderIds,
-    columnFilters,
-    projectDocuments]
+  searchTerm,
+  selectedStatus,
+  selectedDocType,
+  selectedProject,
+  selectedCategories,
+  sortBy,
+  leftPanelMode,
+  selectedFolderIds,
+  columnFilters,
+  projectDocuments]
   );
   // Reset displayed count when filters change
   useEffect(() => {
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [
-    searchTerm,
-    selectedStatus,
-    selectedDocType,
-    selectedProject,
-    selectedCategories,
-    selectedFolderId,
-    leftPanelMode,
-    groupByColumn]
+  searchTerm,
+  selectedStatus,
+  selectedDocType,
+  selectedProject,
+  selectedCategories,
+  selectedFolderId,
+  leftPanelMode,
+  groupByColumn]
   );
   // Lazy loading with Intersection Observer
   const loadMore = useCallback(() => {
@@ -881,7 +969,7 @@ export function DocumentBrowser() {
     // Simulate network delay for lazy loading
     setTimeout(() => {
       setDisplayedCount((prev) =>
-        Math.min(prev + ITEMS_PER_PAGE, filteredDocuments.length)
+      Math.min(prev + ITEMS_PER_PAGE, filteredDocuments.length)
       );
       setIsLoading(false);
     }, 500);
@@ -974,7 +1062,7 @@ export function DocumentBrowser() {
     groupedSections.forEach((section) => {
       const el = groupLoadRefs.current.get(section.key);
       if (!el) return;
-
+      
       const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
@@ -999,10 +1087,10 @@ export function DocumentBrowser() {
   const hasMore = displayedCount < orderedDocuments.length;
   const hasActiveFilters = selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0 || Boolean(searchTerm);
   const allDisplayedSelected =
-    displayedDocuments.length > 0 &&
-    displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
+  displayedDocuments.length > 0 &&
+  displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
   const hasSomeDisplayedSelected =
-    displayedDocuments.some((doc) => selectedDocumentIds.has(doc.id));
+  displayedDocuments.some((doc) => selectedDocumentIds.has(doc.id));
 
   const toggleDocumentSelection = (docId: string) => {
     setSelectedDocumentIds((prev) => {
@@ -1112,8 +1200,9 @@ export function DocumentBrowser() {
                             setOpenActionSubmenuKey(null);
                           }
                         }}
-                        className={`w-7 h-7 rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
-                          }`}
+                        className={`w-7 h-7 rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${
+                          openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                        }`}
                         aria-label={t('documentBrowser.actionsFor', { id: doc.id })}
                       >
                         <MoreHorizontalIcon size={14} />
@@ -1142,10 +1231,11 @@ export function DocumentBrowser() {
                         }}
                         title={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
                         aria-label={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
-                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-7 h-7 rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
-                          ? 'bg-neutral-100 text-neutral-700 opacity-100'
-                          : 'text-neutral-600 hover:bg-neutral-200'
-                          }`}
+                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-7 h-7 rounded-md inline-flex items-center justify-center ${
+                          isInClipboard(doc.id)
+                            ? 'bg-neutral-100 text-neutral-700 opacity-100'
+                            : 'text-neutral-600 hover:bg-neutral-200'
+                        }`}
                       >
                         <ClipboardStackIcon size={14} active={isInClipboard(doc.id)} />
                       </button>
@@ -1214,7 +1304,7 @@ export function DocumentBrowser() {
               );
           }
         })}
-
+        
       </tr>
     );
   };
@@ -1357,33 +1447,33 @@ export function DocumentBrowser() {
     []
   );
 
-  // Column resizing
-  const resizeStateRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+    // Column resizing
+    const resizeStateRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
-  const onMouseMoveResize = useCallback((e: MouseEvent) => {
-    const state = resizeStateRef.current;
-    if (!state) return;
-    const dx = e.clientX - state.startX;
-    const newWidth = Math.max(60, Math.round(state.startWidth + dx));
-    setColumnWidths((prev) => ({ ...prev, [state.key]: newWidth }));
-  }, []);
+    const onMouseMoveResize = useCallback((e: MouseEvent) => {
+      const state = resizeStateRef.current;
+      if (!state) return;
+      const dx = e.clientX - state.startX;
+      const newWidth = Math.max(60, Math.round(state.startWidth + dx));
+      setColumnWidths((prev) => ({ ...prev, [state.key]: newWidth }));
+    }, []);
 
-  const onMouseUpResize = useCallback(() => {
-    resizeStateRef.current = null;
-    window.removeEventListener('mousemove', onMouseMoveResize);
-    window.removeEventListener('mouseup', onMouseUpResize);
+    const onMouseUpResize = useCallback(() => {
+      resizeStateRef.current = null;
+      window.removeEventListener('mousemove', onMouseMoveResize);
+      window.removeEventListener('mouseup', onMouseUpResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onMouseMoveResize]);
+    }, [onMouseMoveResize]);
 
-  const startResize = useCallback((e: React.MouseEvent, key: string) => {
-    e.preventDefault();
-    const target = e.currentTarget as HTMLElement;
-    const th = target.closest('th') as HTMLElement | null;
-    const startWidth = (th && th.offsetWidth) || (columnWidths[key] || 120);
-    resizeStateRef.current = { key, startX: e.clientX, startWidth };
-    window.addEventListener('mousemove', onMouseMoveResize);
-    window.addEventListener('mouseup', onMouseUpResize);
-  }, [onMouseMoveResize, onMouseUpResize, columnWidths]);
+    const startResize = useCallback((e: React.MouseEvent, key: string) => {
+      e.preventDefault();
+      const target = e.currentTarget as HTMLElement;
+      const th = target.closest('th') as HTMLElement | null;
+      const startWidth = (th && th.offsetWidth) || (columnWidths[key] || 120);
+      resizeStateRef.current = { key, startX: e.clientX, startWidth };
+      window.addEventListener('mousemove', onMouseMoveResize);
+      window.addEventListener('mouseup', onMouseUpResize);
+    }, [onMouseMoveResize, onMouseUpResize, columnWidths]);
 
   const handleDragStart = (e: React.DragEvent, key: ColumnKey) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -1520,85 +1610,85 @@ export function DocumentBrowser() {
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
-
+      
       {/* Chat Mode */}
       <AnimatePresence>
-        {isChatMode &&
+        {isChatMode ? (
           <ChatInterface
             onExit={handleExitChat}
             onDocumentSelect={handleDocumentSelectFromChat}
             askAbout={new URLSearchParams(location.search).get('ask')}
-            askKind={new URLSearchParams(location.search).get('askKind') as 'folder' | 'document' | null} />
-
-        }
+            askKind={(new URLSearchParams(location.search).get('askKind') as 'folder' | 'document' | null)} />
+        ) : null}
       </AnimatePresence>
 
       {/* Main Layout */}
       <AnimatePresence>
-        {!isChatMode &&
-          <motion.div
-            initial={{
-              opacity: 0
-            }}
-            animate={{
-              opacity: 1
-            }}
-            exit={{
-              opacity: 0
-            }}
-            transition={{
-              duration: 0.25
-            }}
-            className="flex h-full gap-3 pl-[var(--left-rail-width,88px)]">
-
+        {!isChatMode ? (
+        <motion.div
+          initial={{
+            opacity: 0
+          }}
+          animate={{
+            opacity: 1
+          }}
+          exit={{
+            opacity: 0
+          }}
+          transition={{
+            duration: 0.25
+          }}
+          className="flex h-full gap-3 pl-[var(--left-rail-width,88px)]">
+          
             {/* Left Rail */}
             <LeftRail
-              activeItem={activeRailItem}
-              onItemClick={setActiveRailItem}
-              onChatClick={handleChatClick} />
-
+            activeItem={activeRailItem}
+            onItemClick={setActiveRailItem}
+            onChatClick={handleChatClick} />
+          
 
             {/* Sidebar Island */}
             <CollapsibleFilterPanel
-              isExpanded
-              showCollapseToggle={false}
-              mode={leftPanelMode}
-              onModeChange={setLeftPanelMode}
+            isExpanded
+            showCollapseToggle={false}
+            mode={leftPanelMode}
+            onModeChange={setLeftPanelMode}
             >
-
+            
               {leftPanelMode === 'filter' ?
-                <FilterPanel
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  selectedStatus={selectedStatus}
-                  onStatusChange={setSelectedStatus}
-                  selectedDocType={selectedDocType}
-                  onDocTypeChange={setSelectedDocType}
-                  selectedProject={selectedProject}
-                  onProjectChange={setSelectedProject}
-                  selectedCategories={selectedCategories}
-                  onCategoryChange={setSelectedCategories} /> :
+            <FilterPanel
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              selectedStatus={selectedStatus}
+              onStatusChange={setSelectedStatus}
+              selectedDocType={selectedDocType}
+              onDocTypeChange={setSelectedDocType}
+              selectedProject={selectedProject}
+              onProjectChange={setSelectedProject}
+              selectedCategories={selectedCategories}
+              onCategoryChange={setSelectedCategories} /> :
 
 
-                <FolderTree
-                  folders={projectFolders}
-                  selectedFolderId={selectedFolderId}
-                  onFolderSelect={setSelectedFolderId} />
+            <FolderTree
+              folders={projectFolders}
+              selectedFolderId={selectedFolderId}
+              onFolderSelect={setSelectedFolderId} />
 
-              }
+            }
             </CollapsibleFilterPanel>
 
             {/* Main Content Island */}
             <div
-              className="flex-1 flex flex-col min-w-0 rounded-lg shadow-lg overflow-hidden"
-              style={{
-                backgroundColor: 'var(--element-bg-color, #FFFFFF)'
-              }}>
-
+            className="flex-1 flex flex-col min-w-0 rounded-lg shadow-lg overflow-hidden"
+            style={{
+              backgroundColor: 'var(--element-bg-color, #FFFFFF)'
+            }}>
+            
               {/* Header */}
               <header
-                className={`px-4 bg-white shrink-0 flex justify-between ${leftPanelMode === 'folder' || leftPanelMode === 'filter' ? 'items-start pt-2 pb-2' : 'items-center h-10'
-                  }`}
+                className={`px-4 bg-white shrink-0 flex justify-between ${
+                  leftPanelMode === 'folder' || leftPanelMode === 'filter' ? 'items-start pt-2 pb-2' : 'items-center h-10'
+                }`}
               >
                 {leftPanelMode === 'folder' ? (
                   <div className="min-w-0 pr-4">
@@ -1775,47 +1865,47 @@ export function DocumentBrowser() {
                         </span>
                       </button>
                       {showClipboardDropdown && (
-                        <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-neutral-200 rounded-md shadow-lg z-40">
-                          <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-neutral-800">Clipboard ({clipboard.length})</p>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                clearClipboard();
-                              }}
-                              className="text-[11px] font-semibold text-neutral-500 hover:text-red-600 transition-colors disabled:text-neutral-300"
-                              disabled={clipboard.length === 0}
-                              aria-label="Clear clipboard"
-                            >
-                              Clear
-                            </button>
-                          </div>
-                          {clipboard.length === 0 ? (
-                            <div className="px-3 py-4 text-xs text-neutral-500">Clipboard is empty</div>
-                          ) : (
-                            <div className="max-h-64 overflow-y-auto">
-                              {clipboard.map((doc) => (
-                                <div key={doc.id} className="px-3 py-2 border-b border-neutral-100 last:border-b-0 flex items-center justify-between gap-2 hover:bg-neutral-50 group">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-neutral-800 truncate">{doc.id}</p>
-                                    <p className="text-[11px] text-neutral-500 truncate">{doc.title}</p>
-                                  </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeFromClipboard(doc.id);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-neutral-600 hover:bg-neutral-200"
-                                    aria-label={`Remove ${doc.id} from clipboard`}
-                                  >
-                                    <ClipboardStackIcon size={13} active />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                      <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-neutral-200 rounded-md shadow-lg z-40">
+                        <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-neutral-800">Clipboard ({clipboard.length})</p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearClipboard();
+                            }}
+                            className="text-[11px] font-semibold text-neutral-500 hover:text-red-600 transition-colors disabled:text-neutral-300"
+                            disabled={clipboard.length === 0}
+                            aria-label="Clear clipboard"
+                          >
+                            Clear
+                          </button>
                         </div>
-                      )}
+                        {clipboard.length === 0 ? (
+                          <div className="px-3 py-4 text-xs text-neutral-500">Clipboard is empty</div>
+                        ) : (
+                        <div className="max-h-64 overflow-y-auto">
+                          {clipboard.map((doc) => (
+                            <div key={doc.id} className="px-3 py-2 border-b border-neutral-100 last:border-b-0 flex items-center justify-between gap-2 hover:bg-neutral-50 group">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-neutral-800 truncate">{doc.id}</p>
+                                <p className="text-[11px] text-neutral-500 truncate">{doc.title}</p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeFromClipboard(doc.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-neutral-600 hover:bg-neutral-200"
+                                aria-label={`Remove ${doc.id} from clipboard`}
+                              >
+                                <ClipboardStackIcon size={13} active />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        )}
+                      </div>
+                    )}
                     </div>
                   )}
                   {/* View mode dropdown */}
@@ -1831,7 +1921,7 @@ export function DocumentBrowser() {
                       aria-haspopup="true"
                       aria-expanded={showColumnChooser}
                     >
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2" fill="currentColor" /><circle cx="12" cy="12" r="2" fill="currentColor" /><circle cx="19" cy="12" r="2" fill="currentColor" /></svg>
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
                     </button>
                     {showColumnChooser && (
                       <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg z-50 p-3">
@@ -1870,7 +1960,7 @@ export function DocumentBrowser() {
               {/* Content Area */}
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
                 {filteredDocuments.length === 0 && leftPanelMode !== 'folder' ?
-                  <div className="flex flex-col items-center justify-center h-full max-h-[400px] bg-white rounded-lg border border-neutral-200 border-dashed">
+              <div className="flex flex-col items-center justify-center h-full max-h-[400px] bg-white rounded-lg border border-neutral-200 border-dashed">
                     <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-3">
                       <SearchIcon size={24} className="text-neutral-400" />
                     </div>
@@ -1881,176 +1971,179 @@ export function DocumentBrowser() {
                       Try adjusting your filters or search criteria
                     </p>
                   </div> :
-                  viewMode === 'grid' ?
-                    <div key="grid-view">
-                      {/* Wrap grid in a horizontally-scrollable container and
+              viewMode === 'grid' ?
+              <div key="grid-view">
+                    {/* Wrap grid in a horizontally-scrollable container and
                         add a sticky synced scrollbar so the horizontal
                         scrollbar remains visible at the bottom of the grid */}
-                      <GridWithStickyScrollbar documents={displayedDocuments} highlightedDocId={highlightedDocId} />
-                      {hasMore && !groupByColumn &&
-                        <div
-                          ref={loadMoreRef}
-                          className="flex justify-center py-8">
+                    <GridWithStickyScrollbar documents={displayedDocuments} highlightedDocId={highlightedDocId} />
+                    {hasMore && !groupByColumn &&
+                <div
+                  ref={loadMoreRef}
+                  className="flex justify-center py-8">
+                  
+                        {isLoading ?
+                  <div className="flex items-center gap-2 text-neutral-500">
+                            <LoaderIcon size={20} className="animate-spin" />
+                            <span className="text-sm">
+                              Loading more documents...
+                            </span>
+                          </div> :
 
-                          {isLoading ?
-                            <div className="flex items-center gap-2 text-neutral-500">
-                              <LoaderIcon size={20} className="animate-spin" />
-                              <span className="text-sm">
-                                Loading more documents...
-                              </span>
-                            </div> :
-
-                            <div className="h-8" />
-                          }
-                        </div>
-                      }
-                    </div> :
-                    viewMode === 'list' ?
-                      <div key="list-view" className="space-y-2">
-                        {displayedDocuments.map((doc) =>
-                          <div key={doc.id}>
-                            <button
-                              onClick={() => setPanelData(toDocumentDetail(doc))}
-                              className={`w-full text-left block border p-3 hover:shadow-sm transition-all bg-white rounded-md group ${highlightedDocId === doc.id ? 'border-[#0461BA] ring-2 ring-[#0461BA]/20 shadow-md' : 'border-neutral-200 hover:border-neutral-300'}`}>
-
-                              <div className="flex gap-3">
-                                <div className="w-24 h-16 bg-neutral-100 flex-shrink-0 rounded-md overflow-hidden border border-neutral-100">
-                                  <img
-                                    src={doc.thumbnail}
-                                    alt={doc.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-
-                                </div>
-                                <div className="flex-1 flex flex-col justify-center min-w-0">
-                                  <div className="flex items-start justify-between mb-1 gap-3">
-                                    <h3 className="font-semibold text-neutral-900 text-sm group-hover:text-[#0461BA] transition-colors truncate">
-                                      {doc.title}
-                                    </h3>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                      <button
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          if (isInClipboard(doc.id)) {
-                                            removeFromClipboard(doc.id);
-                                          } else {
-                                            addToClipboard(doc);
-                                          }
-                                        }}
-                                        title={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
-                                        aria-label={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
-                                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-6 h-6 rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
-                                          ? 'bg-neutral-100 text-neutral-700 opacity-100'
-                                          : 'text-neutral-600 hover:bg-neutral-200'
-                                          }`}>
-                                        <ClipboardStackIcon size={13} active={isInClipboard(doc.id)} />
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          navigate(`/chat?ask=${encodeURIComponent(`${doc.id} — ${doc.title}`)}&askKind=document`);
-                                        }}
-                                        title={`Ask Flint about ${doc.id}`}
-                                        aria-label={`Ask Flint about ${doc.id}`}
-                                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
-                                        <SparklesIcon size={13} />
-                                      </button>
-                                      <span
-                                        className={`text-[10px] font-medium px-2 py-0.5 rounded-md border whitespace-nowrap ${statusColors[doc.status]}`}>
-
-                                        {doc.status}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <p className="text-xs font-medium text-neutral-500 mb-2">
-                                    {doc.id}{' '}
-                                    <span className="text-neutral-300 mx-1">•</span>{' '}
-                                    Rev {doc.revisionNumber}
-                                  </p>
-                                  <div className="flex gap-5 text-xs text-neutral-500">
-                                    <span className="flex items-center gap-1.5">
-                                      <UserIcon
-                                        size={12}
-                                        className="text-neutral-400" />
-
-                                      {doc.author}
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                      <CalendarIcon
-                                        size={12}
-                                        className="text-neutral-400" />
-
-                                      {doc.dateModified}
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                      <FolderIcon
-                                        size={12}
-                                        className="text-neutral-400" />
-
-                                      {doc.project}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          </div>
-                        )}
-                        {hasMore && !groupByColumn && (
-                          <div ref={loadMoreRef} className="flex justify-center py-8">
-                            {isLoading ? (
-                              <div className="flex items-center gap-2 text-neutral-500">
-                                <LoaderIcon size={20} className="animate-spin" />
-                                <span className="text-sm">Loading more documents...</span>
-                              </div>
-                            ) : (
-                              <div className="h-8" />
-                            )}
-                          </div>
-                        )}
-                      </div> :
-
-                      <div key="table-view" className="flex flex-col h-full">
-                        <div className="bg-white rounded-md border border-neutral-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
-                          <div
-                            onDragOver={handleGroupDragOver}
-                            onDragLeave={handleGroupDragLeave}
-                            onDrop={handleGroupDrop}
-                            className="border-b border-neutral-200 bg-white px-3 py-2 shrink-0"
-                          >
-                            {groupByColumn ?
-                              <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-white'}`}>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Grouped by</span>
-                                  <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F1FB] px-3 py-1 text-sm font-medium text-[#0461BA]">
-                                    {groupedColumnLabel}
-                                    <button
-                                      onClick={handleClearGrouping}
-                                      className="rounded-full p-0.5 text-[#0461BA] hover:bg-[#D8E9FB]"
-                                      aria-label={`Clear grouping by ${groupedColumnLabel}`}>
-
-                                      <XIcon size={12} />
-                                    </button>
-                                  </span>
-                                </div>
-                                <span className="text-xs text-neutral-500">Drag another column here to regroup</span>
-                              </div> :
-
-                              <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-neutral-50/70'}`}>
-                                <span className="text-sm text-neutral-500">Drag a column header here to group rows</span>
-                                {draggedCol && isGroupableColumn(draggedCol) &&
-                                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0461BA] shadow-sm">
-                                    Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
-                                  </span>
+                  <div className="h-8" />
+                  }
+                      </div>
+                }
+                  </div> :
+              viewMode === 'list' ?
+              <div key="list-view" className="space-y-2">
+                    {displayedDocuments.map((doc) =>
+                <div key={doc.id}>
+                        <button
+                    onClick={() => setPanelData(toDocumentDetail(doc))}
+                    className={`w-full text-left block border p-3 hover:shadow-sm transition-all bg-white rounded-md group ${highlightedDocId === doc.id ? 'border-[#0461BA] ring-2 ring-[#0461BA]/20 shadow-md' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                    
+                          <div className="flex gap-3">
+                            <div className="w-24 h-16 bg-neutral-100 flex-shrink-0 rounded-md overflow-hidden border border-neutral-100">
+                              <img
+                          src={doc.thumbnail}
+                          alt={doc.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        
+                            </div>
+                            <div className="flex-1 flex flex-col justify-center min-w-0">
+                              <div className="flex items-start justify-between mb-1 gap-3">
+                                <h3 className="font-semibold text-neutral-900 text-sm group-hover:text-[#0461BA] transition-colors truncate">
+                                  {doc.title}
+                                </h3>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (isInClipboard(doc.id)) {
+                                  removeFromClipboard(doc.id);
+                                } else {
+                                  addToClipboard(doc);
                                 }
+                              }}
+                              title={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
+                              aria-label={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
+                              className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-6 h-6 rounded-md inline-flex items-center justify-center ${
+                                isInClipboard(doc.id)
+                                  ? 'bg-neutral-100 text-neutral-700 opacity-100'
+                                  : 'text-neutral-600 hover:bg-neutral-200'
+                              }`}>
+                                    <ClipboardStackIcon size={13} active={isInClipboard(doc.id)} />
+                                  </button>
+                                  <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate(`/chat?ask=${encodeURIComponent(`${doc.id} — ${doc.title}`)}&askKind=document`);
+                              }}
+                              title={`Ask Flint about ${doc.id}`}
+                              aria-label={`Ask Flint about ${doc.id}`}
+                              className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
+                                    <SparklesIcon size={13} />
+                                  </button>
+                                  <span
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-md border whitespace-nowrap ${statusColors[doc.status]}`}>
+                              
+                                    {doc.status}
+                                  </span>
+                                </div>
                               </div>
-                            }
+                              <p className="text-xs font-medium text-neutral-500 mb-2">
+                                {doc.id}{' '}
+                                <span className="text-neutral-300 mx-1">•</span>{' '}
+                                Rev {doc.revisionNumber}
+                              </p>
+                              <div className="flex gap-5 text-xs text-neutral-500">
+                                <span className="flex items-center gap-1.5">
+                                  <UserIcon
+                              size={12}
+                              className="text-neutral-400" />
+                            
+                                  {doc.author}
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                  <CalendarIcon
+                              size={12}
+                              className="text-neutral-400" />
+                            
+                                  {doc.dateModified}
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                  <FolderIcon
+                              size={12}
+                              className="text-neutral-400" />
+                            
+                                  {doc.project}
+                                </span>
+                              </div>
+                            </div>
                           </div>
+                        </button>
+                      </div>
+                )}
+                    {hasMore && !groupByColumn && (
+                      <div ref={loadMoreRef} className="flex justify-center py-8">
+                        {isLoading ? (
+                          <div className="flex items-center gap-2 text-neutral-500">
+                            <LoaderIcon size={20} className="animate-spin" />
+                            <span className="text-sm">Loading more documents...</span>
+                          </div>
+                        ) : (
+                          <div className="h-8" />
+                        )}
+                      </div>
+                    )}
+                  </div> :
 
-                          {/* Unified scroll wrapper — handles both vertical and horizontal scrolling */}
-                          <div ref={dataContainerRef} className="flex-1 min-h-0 overflow-auto w-full" style={{ scrollbarGutter: 'stable' as any }}>
+              <div key="table-view" className="flex flex-col h-full">
+                    <div className="bg-white rounded-md border border-neutral-200 shadow-sm overflow-hidden flex flex-col h-full">
+                      <div
+                        onDragOver={handleGroupDragOver}
+                        onDragLeave={handleGroupDragLeave}
+                        onDrop={handleGroupDrop}
+                        className="border-b border-neutral-200 bg-white px-3 py-2 shrink-0"
+                      >
+                        {groupByColumn ?
+                        <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-white'}`}>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Grouped by</span>
+                              <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F1FB] px-3 py-1 text-sm font-medium text-[#0461BA]">
+                                {groupedColumnLabel}
+                                <button
+                                  onClick={handleClearGrouping}
+                                  className="rounded-full p-0.5 text-[#0461BA] hover:bg-[#D8E9FB]"
+                                  aria-label={`Clear grouping by ${groupedColumnLabel}`}>
+
+                                  <XIcon size={12} />
+                                </button>
+                              </span>
+                            </div>
+                            <span className="text-xs text-neutral-500">Drag another column here to regroup</span>
+                          </div> :
+
+                        <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-neutral-50/70'}`}>
+                            <span className="text-sm text-neutral-500">Drag a column header here to group rows</span>
+                            {draggedCol && isGroupableColumn(draggedCol) &&
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0461BA] shadow-sm">
+                                Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
+                              </span>
+                          }
+                          </div>
+                        }
+                      </div>
+
+                      {/* Header controls and column headers (static) */}
+                      <div ref={dataContainerRef} className="flex-1 overflow-auto min-h-0">
+                        <div className="w-full">
+                          <div className="w-full shrink-0">
                             <table className="w-full text-sm border-collapse whitespace-nowrap">
-                              <thead className="sticky top-0 z-20 bg-white shadow-sm">
+                              <thead className="sticky top-0 z-20 bg-white">
                                 <tr className="border-b border-neutral-200 bg-neutral-50">
                                   <th className={viewMode === 'compact-table' ? 'text-left p-2 w-9' : 'text-left p-4 w-10'}>
                                     <SelectionCheckboxButton
@@ -2105,59 +2198,67 @@ export function DocumentBrowser() {
                                   ))}
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-neutral-100">
-                                {groupByColumn ?
-                                  groupedSections.map((section) => {
-                                    const isCollapsed = collapsedGroups.has(section.key);
-                                    return (
-                                      <React.Fragment key={section.key}>
-                                        <tr className="bg-[#F8FAFC]">
-                                          <td colSpan={columns.length + 2} className={viewMode === 'compact-table' ? 'px-2 py-2' : 'px-4 py-3'}>
-                                            <button
-                                              onClick={() => toggleGroupCollapsed(section.key)}
-                                              className="flex w-full items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-left transition-colors hover:border-[#0461BA]/35 hover:bg-[#F8FBFF]"
-                                              aria-expanded={!isCollapsed}>
-
-                                              <span className="flex min-w-0 items-center gap-3">
-                                                {isCollapsed ?
-                                                  <ChevronRightIcon size={14} className="text-neutral-500" /> :
-                                                  <ChevronDownIcon size={14} className="text-neutral-500" />
-                                                }
-                                                <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-400">{groupedColumnLabel}</span>
-                                                <span className="truncate text-sm font-semibold text-neutral-800">{section.label}</span>
-                                                <span className="ml-3 text-xs font-medium text-neutral-500 whitespace-nowrap">{section.documents.length} document{section.documents.length === 1 ? '' : 's'}</span>
-                                              </span>
-                                            </button>
-                                          </td>
-                                        </tr>
-                                        {!isCollapsed && (() => {
-                                          const perCount = perGroupDisplayedCounts.get(section.key) ?? ITEMS_PER_PAGE;
-                                          const docsToShow = section.documents.slice(0, perCount);
-                                          return (
-                                            <>
-                                              {docsToShow.map(renderDocumentRow)}
-                                              {perCount < section.documents.length && (
-                                                <tr key={`${section.key}-load`}>
-                                                  <td colSpan={columns.length + 2} className="py-2">
-                                                    <div
-                                                      data-group-key={section.key}
-                                                      ref={(el) => groupLoadRefs.current.set(section.key, el)}
-                                                      className="h-8 flex items-center justify-center text-neutral-500">
-                                                      <span className="text-sm">Loading more documents...</span>
-                                                    </div>
-                                                  </td>
-                                                </tr>
-                                              )}
-                                            </>
-                                          );
-                                        })()}
-                                      </React.Fragment>);
-
-                                  }) :
-                                  displayedDocuments.map(renderDocumentRow)
-                                }
-                              </tbody>
                             </table>
+                          </div>
+
+                          {/* Scrollable data rows container */}
+                          <div className="w-full overflow-x-auto">
+                            <div className="min-w-[1200px]">
+                              <table className="w-full text-sm border-collapse whitespace-nowrap">
+                                <tbody className="divide-y divide-neutral-100">
+                                  {groupByColumn ?
+                                    groupedSections.map((section) => {
+                                      const isCollapsed = collapsedGroups.has(section.key);
+                                      return (
+                                        <React.Fragment key={section.key}>
+                                          <tr className="bg-[#F8FAFC]">
+                                            <td colSpan={columns.length + 2} className={viewMode === 'compact-table' ? 'px-2 py-2' : 'px-4 py-3'}>
+                                              <button
+                                                onClick={() => toggleGroupCollapsed(section.key)}
+                                                className="flex w-full items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-left transition-colors hover:border-[#0461BA]/35 hover:bg-[#F8FBFF]"
+                                                aria-expanded={!isCollapsed}>
+
+                                                <span className="flex min-w-0 items-center gap-3">
+                                                  {isCollapsed ?
+                                                    <ChevronRightIcon size={14} className="text-neutral-500" /> :
+                                                    <ChevronDownIcon size={14} className="text-neutral-500" />
+                                                  }
+                                                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-400">{groupedColumnLabel}</span>
+                                                  <span className="truncate text-sm font-semibold text-neutral-800">{section.label}</span>
+                                                  <span className="ml-3 text-xs font-medium text-neutral-500 whitespace-nowrap">{section.documents.length} document{section.documents.length === 1 ? '' : 's'}</span>
+                                                </span>
+                                              </button>
+                                            </td>
+                                          </tr>
+                                          {!isCollapsed && (() => {
+                                            const perCount = perGroupDisplayedCounts.get(section.key) ?? ITEMS_PER_PAGE;
+                                            const docsToShow = section.documents.slice(0, perCount);
+                                            return (
+                                              <>
+                                                {docsToShow.map(renderDocumentRow)}
+                                                {perCount < section.documents.length && (
+                                                  <tr key={`${section.key}-load`}>
+                                                    <td colSpan={columns.length + 2} className="py-2">
+                                                      <div
+                                                        data-group-key={section.key}
+                                                        ref={(el) => groupLoadRefs.current.set(section.key, el)}
+                                                        className="h-8 flex items-center justify-center text-neutral-500">
+                                                        <span className="text-sm">Loading more documents...</span>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                )}
+                                              </>
+                                            );
+                                          })()}
+                                        </React.Fragment>);
+
+                                    }) :
+                                    displayedDocuments.map(renderDocumentRow)
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
 
                             {hasMore &&
                               <div ref={loadMoreRef} className="flex justify-center py-8">
@@ -2171,25 +2272,27 @@ export function DocumentBrowser() {
                                 )}
                               </div>
                             }
+                            </div>
                           </div>
                         </div>
-                        {isGroupDropActive && draggedCol && isGroupableColumn(draggedCol) && dragTooltipPosition &&
-                          <div
-                            className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
-                            style={{
-                              left: dragTooltipPosition.x,
-                              top: dragTooltipPosition.y - 8
-                            }}>
-
-                            Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
-                          </div>
-                        }
                       </div>
-                }
+                    </div>
+                    {(isGroupDropActive && draggedCol && isGroupableColumn(draggedCol) && dragTooltipPosition) ? (
+                      <div
+                        className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
+                        style={{
+                          left: dragTooltipPosition.x,
+                          top: dragTooltipPosition.y - 8
+                        }}>
+
+                        Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
+                      </div>
+                    ) : null}
+                  </div>
               </div>
             </div>
           </motion.div>
-        }
+        ) : null}
       </AnimatePresence>
       <DetailSlidePanel data={panelData} onClose={() => setPanelData(null)} />
     </div>);
