@@ -1,4 +1,4 @@
-import React, { useMemo, useState, Children } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   ChevronRightIcon,
   ChevronDownIcon,
@@ -22,6 +22,7 @@ export function FolderTree({
   const navigate = useNavigate();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const nodeRefs = useRef(new Map<string, HTMLDivElement | null>());
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(folderId)) {
@@ -61,7 +62,7 @@ export function FolderTree({
     const isSelected = selectedFolderId === folder.id;
     const hasChildren = folder.children && folder.children.length > 0;
     return (
-      <div key={folder.id}>
+      <div key={folder.id} ref={(el) => { nodeRefs.current.set(folder.id, el); }}>
         <div
           className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer transition-colors group rounded-md mx-1 ${isSelected ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900'}`}
           style={{
@@ -141,12 +142,48 @@ export function FolderTree({
       </div>);
 
   };
+
+  // When a selectedFolderId is provided, ensure its ancestor folders are expanded
+  // and scroll the selected folder into view so it appears focused when returning
+  // to the folder view.
+  useEffect(() => {
+    if (!selectedFolderId) return;
+
+    const findPath = (id: string, nodes: Folder[], path: string[] = []): string[] | null => {
+      for (const n of nodes) {
+        if (n.id === id) return [...path, n.id];
+        if (n.children && n.children.length > 0) {
+          const res = findPath(id, n.children, [...path, n.id]);
+          if (res) return res;
+        }
+      }
+      return null;
+    };
+
+    const path = findPath(selectedFolderId, folders);
+    if (path && path.length > 1) {
+      // add all ancestors (excluding the leaf) to expanded set
+      const parents = path.slice(0, -1);
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        parents.forEach((p) => next.add(p));
+        return next;
+      });
+    }
+
+    // Scroll the selected node into view
+    const el = nodeRefs.current.get(selectedFolderId);
+    if (el && el.scrollIntoView) {
+      // Delay to allow expansion to take effect
+      setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 50);
+    }
+  }, [selectedFolderId, folders]);
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <div className="px-4 pb-3">
+      <div className="px-4 pt-1 pb-3">
         <div className="relative">
           <SearchIcon
-            size={16}
+            size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           
           <input
@@ -155,11 +192,12 @@ export function FolderTree({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="
-              w-full pl-9 pr-3 py-2.5 
+              w-full pl-8 pr-3 py-1.5 
               bg-[#F0F4F8] border border-neutral-200 
-              text-sm rounded-lg 
+              text-xs rounded-md 
               text-neutral-900 placeholder-neutral-400
-              focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent focus:bg-white
+              focus:outline-none focus:ring-1 focus:ring-[#7FB7E6] focus:border-transparent focus:bg-white
+              relative z-20
               transition-all
             " />
 
