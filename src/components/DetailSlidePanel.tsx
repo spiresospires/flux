@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, AlertCircleIcon, CheckCircleIcon, InfoIcon } from 'lucide-react';
+import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, AlertCircleIcon, CheckCircleIcon, InfoIcon, BellIcon, StarIcon, LinkIcon, FilesIcon, MessageSquareIcon, BriefcaseIcon, EyeIcon, DownloadIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 
 export type DetailPanelObjectType = 'document' | 'transmittal' | 'review' | 'workflow' | 'package' | 'folder' | 'search' | 'report';
@@ -103,10 +103,38 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string | n
   );
 }
 
+function ActionIconButton({ icon: Icon, label, onClick }: { icon: React.ElementType; label: string; onClick?: (e: React.MouseEvent) => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="flex items-center justify-center w-8 h-8 rounded-md text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB] transition-colors"
+    >
+      <Icon size={16} strokeWidth={2} />
+    </button>
+  );
+}
+
 function DocumentDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Action Bar */}
+      <div className="flex flex-wrap items-center gap-1 pb-4 border-b border-neutral-100">
+        <ActionIconButton icon={EyeIcon} label={t('detailPanel.openDocument')} onClick={(e) => { e.preventDefault(); /* TODO: View */ }} />
+        <ActionIconButton icon={DownloadIcon} label={t('detailPanel.download')} onClick={(e) => { e.preventDefault(); /* TODO: Download */ }} />
+
+        <div className="w-px h-5 bg-neutral-200 mx-2" />
+
+        <ActionIconButton icon={BellIcon} label="Subscribe" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={StarIcon} label="Favourite" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={LinkIcon} label="Share link" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={FilesIcon} label="Renditions" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={MessageSquareIcon} label="Message" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={BriefcaseIcon} label="Briefcase" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <Field label={t('detailPanel.documentId')} value={data.docId || data.objectId} icon={FileIcon} />
         <Field label={t('detailPanel.revision')} value={data.revision} />
@@ -132,10 +160,6 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
           </div>
         </div>
       )}
-      <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openDocument')}</button>
-        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.download')}</button>
-      </div>
     </div>
   );
 }

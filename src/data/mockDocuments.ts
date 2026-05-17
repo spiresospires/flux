@@ -1,70 +1,66 @@
 import { Document } from '../types/document';
 
 const authors = [
-'John Smith',
-'Sarah Johnson',
-'Mike Chen',
-'Lisa Wong',
-'David Kumar',
-'Emily Rodriguez',
-'Robert Lee',
-'Maria Garcia',
-'James Wilson',
-'Patricia Brown',
-'Thomas Anderson',
-'Nancy Miller',
-'Jennifer Martinez',
-'Michael Chang',
-'Daniel Kim',
-'Susan Taylor',
-'Kevin White',
-'Laura Thompson',
-'Christopher Davis',
-'Margaret Robinson'];
+  'John Smith',
+  'Sarah Johnson',
+  'Mike Chen',
+  'Lisa Wong',
+  'David Kumar',
+  'Emily Rodriguez',
+  'Robert Lee',
+  'Maria Garcia',
+  'James Wilson',
+  'Patricia Brown',
+  'Thomas Anderson',
+  'Nancy Miller',
+  'Jennifer Martinez',
+  'Michael Chang',
+  'Daniel Kim',
+  'Susan Taylor',
+  'Kevin White',
+  'Laura Thompson',
+  'Christopher Davis',
+  'Margaret Robinson'];
 
 
 const projects = [
-'Refinery Upgrade 2024',
-'Operations Manual',
-'Maintenance Program',
-'Safety Compliance 2024',
-'Environmental Initiative',
-'Digital Transformation',
-'Pipeline Extension',
-'Tank Farm Upgrade'];
+  'Refinery Upgrade 2024',
+  'Operations Manual',
+  'Maintenance Program',
+  'Safety Compliance 2024',
+  'Environmental Initiative',
+  'Digital Transformation',
+  'Pipeline Extension',
+  'Tank Farm Upgrade'];
 
 
 const statuses: Array<
   'Draft' | 'In Review' | 'Approved' | 'Superseded' | 'Archived'> =
-['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'];
+  ['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'];
 
 const thumbnails = [
-'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400',
-'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400',
-'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=400',
-'https://images.unsplash.com/photo-1568667256549-094345857637?w=400',
-'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400',
-'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=400',
-'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400',
-'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400'];
+  '/eng_drawing_1_1779057915112.png',
+  '/eng_drawing_2_1779057926523.png',
+  '/eng_drawing_3_1779057939893.png'
+];
 
 
 const getRandomItem = <T,>(array: T[]): T =>
-array[Math.floor(Math.random() * array.length)];
+  array[Math.floor(Math.random() * array.length)];
 
 const getRandomDate = (start: Date, end: Date) =>
-new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime())).
-toISOString().
-split('T')[0];
+  new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime())).
+    toISOString().
+    split('T')[0];
 
 const categoryCycle = [
-'Structural',
-'Electrical',
-'Mechanical',
-'Civil',
-'Architectural',
-'Plumbing',
-'HVAC'] as const;
+  'Structural',
+  'Electrical',
+  'Mechanical',
+  'Civil',
+  'Architectural',
+  'Plumbing',
+  'HVAC'] as const;
 
 const inferPrimaryCategory = (doc: Document, index: number) => {
   const haystack = `${doc.title} ${doc.description} ${doc.tags.join(' ')}`.toLowerCase();
@@ -177,7 +173,7 @@ const mechDrawings: Document[] = Array.from({ length: 30 }, (_, i) => ({
   fileSize: `${(Math.random() * 3 + 1).toFixed(1)} MB`,
   documentType: 'Drawing' as const,
   description:
-  'Mechanical engineering drawing for piping and equipment systems',
+    'Mechanical engineering drawing for piping and equipment systems',
   thumbnail: thumbnails[i % thumbnails.length],
   folderId: 'folder-drawings-mechanical',
   relationships: []
@@ -625,14 +621,14 @@ const archivedDocs: Document[] = Array.from({ length: 15 }, (_, i) => ({
   fileType: 'PDF' as const,
   fileSize: `${(Math.random() * 2 + 1).toFixed(1)} MB`,
   documentType: (
-  [
-  'Drawing',
-  'Specification',
-  'Procedure',
-  'Manual',
-  'Technical Report'] as
-  const)[
-  i % 5],
+    [
+      'Drawing',
+      'Specification',
+      'Procedure',
+      'Manual',
+      'Technical Report'] as
+    const)[
+    i % 5],
   description: 'Superseded document retained for historical reference',
   thumbnail: thumbnails[(i + 6) % thumbnails.length],
   folderId: 'folder-archive-superseded',
@@ -640,26 +636,26 @@ const archivedDocs: Document[] = Array.from({ length: 15 }, (_, i) => ({
 }));
 
 export const mockDocuments: Document[] = [
-...mechDrawings,
-...elecDrawings,
-...civilDrawings,
-...instrDrawings,
-...processDrawings,
-...equipSpecs,
-...matSpecs,
-...analysisReports,
-...feasibilityStudies,
-...safetyProcs,
-...maintProcs,
-...opManuals,
-...envCompliance,
-...qaReports,
-...constProcs,
-...commProcs,
-...vendorDatasheets,
-...procSpecs,
-...hseReports,
-...pmDocs,
-...asBuiltRecords,
-...trainingMats,
-...archivedDocs].map(withCategoryAttributes);
+  ...mechDrawings,
+  ...elecDrawings,
+  ...civilDrawings,
+  ...instrDrawings,
+  ...processDrawings,
+  ...equipSpecs,
+  ...matSpecs,
+  ...analysisReports,
+  ...feasibilityStudies,
+  ...safetyProcs,
+  ...maintProcs,
+  ...opManuals,
+  ...envCompliance,
+  ...qaReports,
+  ...constProcs,
+  ...commProcs,
+  ...vendorDatasheets,
+  ...procSpecs,
+  ...hseReports,
+  ...pmDocs,
+  ...asBuiltRecords,
+  ...trainingMats,
+  ...archivedDocs].map(withCategoryAttributes);

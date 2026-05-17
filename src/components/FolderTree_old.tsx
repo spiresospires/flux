@@ -5,11 +5,8 @@ import {
   FolderIcon,
   FolderOpenIcon,
   SearchIcon,
-  SparklesIcon,
-  BellIcon,
-  StarIcon
-} from
-  'lucide-react';
+  SparklesIcon } from
+'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Folder } from '../types/document';
 interface FolderTreeProps {
@@ -36,24 +33,24 @@ export function FolderTree({
     setExpandedFolders(newExpanded);
   };
   const filterFoldersRecursive = (
-    folders: Folder[],
-    searchLower: string)
-    : Folder[] => {
+  folders: Folder[],
+  searchLower: string)
+  : Folder[] => {
     return folders.
-      filter((folder) => {
-        const matchesSearch = folder.name.toLowerCase().includes(searchLower);
-        const hasMatchingChildren =
-          folder.children &&
-          folder.children.length > 0 &&
-          filterFoldersRecursive(folder.children, searchLower).length > 0;
-        return matchesSearch || hasMatchingChildren;
-      }).
-      map((folder) => ({
-        ...folder,
-        children: folder.children ?
-          filterFoldersRecursive(folder.children, searchLower) :
-          []
-      }));
+    filter((folder) => {
+      const matchesSearch = folder.name.toLowerCase().includes(searchLower);
+      const hasMatchingChildren =
+      folder.children &&
+      folder.children.length > 0 &&
+      filterFoldersRecursive(folder.children, searchLower).length > 0;
+      return matchesSearch || hasMatchingChildren;
+    }).
+    map((folder) => ({
+      ...folder,
+      children: folder.children ?
+      filterFoldersRecursive(folder.children, searchLower) :
+      []
+    }));
   };
   const filteredFolders = useMemo(() => {
     if (!searchTerm) return folders;
@@ -72,92 +69,73 @@ export function FolderTree({
             paddingLeft: `${8 + level * 12}px`
           }}
           onClick={() => onFolderSelect(folder.id)}>
-
+          
           {hasChildren ?
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFolder(folder.id);
-              }}
-              className={`p-0.5 rounded transition-colors ${isSelected ? 'hover:bg-[#D1E3F8]' : 'hover:bg-neutral-200'}`}>
-
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFolder(folder.id);
+            }}
+            className={`p-0.5 rounded transition-colors ${isSelected ? 'hover:bg-[#D1E3F8]' : 'hover:bg-neutral-200'}`}>
+            
               {isExpanded ?
-                <ChevronDownIcon
-                  size={14}
-                  className={
-                    isSelected ?
-                      'text-[#0461BA]' :
-                      'text-neutral-400 group-hover:text-neutral-600'
-                  } /> :
+            <ChevronDownIcon
+              size={14}
+              className={
+              isSelected ?
+              'text-[#0461BA]' :
+              'text-neutral-400 group-hover:text-neutral-600'
+              } /> :
 
 
-                <ChevronRightIcon
-                  size={14}
-                  className={
-                    isSelected ?
-                      'text-[#0461BA]' :
-                      'text-neutral-400 group-hover:text-neutral-600'
-                  } />
+            <ChevronRightIcon
+              size={14}
+              className={
+              isSelected ?
+              'text-[#0461BA]' :
+              'text-neutral-400 group-hover:text-neutral-600'
+              } />
 
-              }
+            }
             </button> :
 
-            <div className="w-5" />
+          <div className="w-5" />
           }
 
           {isExpanded || isSelected ?
-            <FolderOpenIcon
-              size={16}
-              className={`flex-shrink-0 ${isSelected ? 'text-amber-500' : 'text-amber-400 group-hover:text-amber-500'}`} /> :
+          <FolderOpenIcon
+            size={16}
+            className={`flex-shrink-0 ${isSelected ? 'text-amber-500' : 'text-amber-400 group-hover:text-amber-500'}`} /> :
 
 
-            <FolderIcon
-              size={16}
-              className={`flex-shrink-0 ${isSelected ? 'text-amber-500' : 'text-amber-400 group-hover:text-amber-500'}`} />
+          <FolderIcon
+            size={16}
+            className={`flex-shrink-0 ${isSelected ? 'text-amber-500' : 'text-amber-400 group-hover:text-amber-500'}`} />
 
           }
 
           <span className="text-sm flex-1 truncate font-medium">
             {folder.name}
           </span>
-          <div className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center shrink-0">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // TODO: Implement Subscribe
-                console.log(`Subscribed to ${folder.name}`);
-              }}
-              title={`Subscribe to ${folder.name} for changes`}
-              aria-label={`Subscribe to ${folder.name} for changes`}
-              className="w-6 h-6 rounded-md inline-flex items-center justify-center text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB] transition-colors">
-              <BellIcon size={13} />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // TODO: Implement toggle favourite
-                console.log(`Added ${folder.name} to favourites`);
-              }}
-              title={`Add ${folder.name} to favourites`}
-              aria-label={`Add ${folder.name} to favourites`}
-              className="w-6 h-6 rounded-md inline-flex items-center justify-center text-neutral-500 hover:text-amber-500 hover:bg-amber-50 transition-colors">
-              <StarIcon size={13} />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/chat?ask=${encodeURIComponent(folder.name)}&askKind=folder`);
-              }}
-              title={`Ask Flint about ${folder.name}`}
-              aria-label={`Ask Flint about ${folder.name}`}
-              className="w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
-              <SparklesIcon size={13} />
-            </button>
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/chat?ask=${encodeURIComponent(folder.name)}&askKind=folder`);
+            }}
+            title={`Ask Flint about ${folder.name}`}
+            aria-label={`Ask Flint about ${folder.name}`}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB] flex-shrink-0">
+            <SparklesIcon size={13} />
+          </button>
+          <span
+            className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0 transition-colors ${isSelected ? 'bg-[#0461BA] text-white' : 'bg-neutral-100 text-neutral-500 group-hover:bg-neutral-200'}`}>
+            
+            {folder.documentCount}
+          </span>
         </div>
 
         {hasChildren && isExpanded &&
-          <div className="mt-0.5 space-y-0.5">
+        <div className="mt-0.5 space-y-0.5">
             {folder.children.map((child) => renderFolder(child, level + 1))}
           </div>
         }
@@ -207,7 +185,7 @@ export function FolderTree({
           <SearchIcon
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-
+          
           <input
             type="text"
             placeholder="Search folders..."
@@ -229,7 +207,7 @@ export function FolderTree({
 
 
 
-
+          
         </div>
       </div>
 
@@ -237,15 +215,15 @@ export function FolderTree({
         <div
           className={`flex items-center gap-2 px-2 py-1.5 mx-1 mb-2 rounded-md cursor-pointer transition-colors group ${selectedFolderId === null ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900'}`}
           onClick={() => onFolderSelect(null)}>
-
+          
           <FolderIcon
             size={16}
             className={
-              selectedFolderId === null ?
-                'text-amber-500' :
-                'text-amber-400 group-hover:text-amber-500'
+            selectedFolderId === null ?
+            'text-amber-500' :
+            'text-amber-400 group-hover:text-amber-500'
             } />
-
+          
           <span className="text-sm font-semibold">All Documents</span>
         </div>
 
@@ -254,7 +232,7 @@ export function FolderTree({
         </div>
 
         {searchTerm && filteredFolders.length === 0 &&
-          <div className="p-4 text-sm text-neutral-500 text-center">
+        <div className="p-4 text-sm text-neutral-500 text-center">
             No folders found
           </div>
         }
