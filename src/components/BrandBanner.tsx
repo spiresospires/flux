@@ -25,7 +25,6 @@ export function BrandBanner() {
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const isHomeRoute = location.pathname === '/';
   const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
   const notifPreview = mockNotifications.slice(0, 4);
 

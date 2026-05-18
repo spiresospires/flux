@@ -3,7 +3,6 @@ interface ColorSwatchProps {
   name: string;
   variable: string;
   hex: string;
-  textColor?: 'dark' | 'light';
   showContrast?: boolean;
   baseHex?: string; // For contrast checking against base if needed, though we usually check against white/black
 }
@@ -27,11 +26,9 @@ function getContrastRatio(hex1: string, hex2: string) {
 export function ColorSwatch({
   name,
   variable,
-  hex,
-  textColor = 'dark'
+  hex
 }: ColorSwatchProps) {
   const contrastWhite = getContrastRatio(hex, '#FFFFFF');
-  const contrastBlack = getContrastRatio(hex, '#000000');
   // Determine best text color based on contrast
   const bestTextColor =
   parseFloat(contrastWhite) >= 4.5 ? 'text-white' : 'text-neutral-900';

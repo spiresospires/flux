@@ -438,7 +438,6 @@ function DashboardContent({
     return (
       <div className="h-full flex flex-col">
         <SectionHeader
-          title="To Do"
           title={t('dashboard.todoTitle')}
           subtitle={t('dashboard.todoSubtitle', { count: todoFiltered.length })}
           filters={TODO_FILTERS}
@@ -725,7 +724,7 @@ export function Dashboard() {
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
-      <LeftRail activeItem={activeItem} onItemClick={setActiveItem} onChatClick={() => {}} />
+      <LeftRail activeItem={activeItem} onItemClick={setActiveItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
         <div className="mb-5">

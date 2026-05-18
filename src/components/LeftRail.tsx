@@ -13,7 +13,6 @@ import { useShellLayout } from '../contexts/ShellLayoutContext';
 interface LeftRailProps {
   activeItem: string;
   onItemClick: (item: string) => void;
-  onChatClick: () => void;
 }
 interface NavItem {
   id: string;
@@ -23,8 +22,7 @@ interface NavItem {
 }
 export function LeftRail({
   activeItem,
-  onItemClick,
-  onChatClick
+  onItemClick
 }: LeftRailProps) {
   const { t } = useLocalization();
   const [focusedIndex, setFocusedIndex] = useState(-1);

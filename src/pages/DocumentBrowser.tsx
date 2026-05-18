@@ -6,7 +6,8 @@ import React, {
   useRef
 } from
   'react';
-import { DocumentCard, statusColors } from '../components/DocumentCard';
+import { DocumentCard } from '../components/DocumentCard';
+import { statusColors } from '../components/documentStatusColors';
 import { FilterPanel } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
 import { LeftRail } from '../components/LeftRail';
@@ -52,6 +53,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Document } from '../types/document';
 type SortDirection = 'asc' | 'desc' | null;
 type ColumnKey = string;
+const PROJECT_SCALE: Record<string, number> = {
+  'The Shard, London': 1,
+  Skyline: 0.7,
+  Tower: 0.45,
+  'Empire State': 0.85
+};
+
 interface ColumnFilter {
   column: ColumnKey;
   value: string;
@@ -234,7 +242,9 @@ function saveColumnPreferences(order: string[], widths: Record<string, number>) 
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(COLUMN_PREFERENCES_STORAGE_KEY, JSON.stringify({ order, widths }));
-  } catch { }
+  } catch {
+    return;
+  }
 }
 
 function getDocumentColumnText(document: Document, columnKey: ColumnKey) {
@@ -255,39 +265,6 @@ function getGroupLabel(value: string, unassignedLabel: string) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : unassignedLabel;
 }
-
-interface DocumentActionItem {
-  labelKey: string;
-  submenuKeys?: string[];
-  danger?: boolean;
-  dividerAbove?: boolean;
-}
-
-const DOCUMENT_ACTIONS: DocumentActionItem[] = [
-  { labelKey: 'documentBrowser.actions.addToFavorites' },
-  { labelKey: 'documentBrowser.actions.addAttachment' },
-  { labelKey: 'documentBrowser.actions.addToPackage', submenuKeys: ['documentBrowser.submenus.area1Processing', 'documentBrowser.submenus.pipingSystem20', 'documentBrowser.submenus.pipingSystemZoneX'] },
-  { labelKey: 'documentBrowser.actions.changeLifeCycle' },
-  { labelKey: 'documentBrowser.actions.checkOut' },
-  { labelKey: 'documentBrowser.actions.copyLink', submenuKeys: ['documentBrowser.submenus.static', 'documentBrowser.submenus.dynamic'] },
-  { labelKey: 'documentBrowser.actions.copyMarkups' },
-  { labelKey: 'documentBrowser.actions.delete', danger: true },
-  { labelKey: 'documentBrowser.actions.editProperties' },
-  { labelKey: 'documentBrowser.actions.lock' },
-  { labelKey: 'documentBrowser.actions.move' },
-  { labelKey: 'documentBrowser.actions.package' },
-  { labelKey: 'documentBrowser.actions.properties' },
-  { labelKey: 'documentBrowser.actions.rendition', submenuKeys: ['documentBrowser.submenus.create', 'documentBrowser.submenus.download', 'documentBrowser.submenus.delete'] },
-  { labelKey: 'documentBrowser.actions.revise' },
-  { labelKey: 'documentBrowser.actions.view' },
-  { labelKey: 'documentBrowser.actions.message', dividerAbove: true },
-  { labelKey: 'documentBrowser.actions.transmittal' },
-  { labelKey: 'documentBrowser.actions.formalReview' },
-  { labelKey: 'documentBrowser.actions.approval' },
-  { labelKey: 'documentBrowser.actions.rfi' },
-  { labelKey: 'documentBrowser.actions.technicalQuery' },
-  { labelKey: 'documentBrowser.actions.changeRequest' }
-];
 
 function ViewModeDropdown({
   viewMode,
@@ -592,14 +569,8 @@ export function DocumentBrowser() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [isChatMode, setIsChatMode] = useState(false);
   const [activeRailItem, setActiveRailItem] = useState('dashboard');
-  const projectScale: Record<string, number> = {
-    'The Shard, London': 1,
-    'Skyline': 0.7,
-    'Tower': 0.45,
-    'Empire State': 0.85
-  };
   const projectFolders = useMemo(() => {
-    const factor = projectScale[currentWorkspace] ?? 1;
+    const factor = PROJECT_SCALE[currentWorkspace] ?? 1;
     const scale = (n: number) => Math.max(0, Math.round(n * factor));
     const walk = (list: typeof mockFolders): typeof mockFolders =>
       list.map((f) => ({
@@ -610,7 +581,7 @@ export function DocumentBrowser() {
     return walk(mockFolders);
   }, [currentWorkspace]);
   const projectDocuments = useMemo(() => {
-    const factor = projectScale[currentWorkspace] ?? 1;
+    const factor = PROJECT_SCALE[currentWorkspace] ?? 1;
     // Deterministic shuffle seeded by project name so each workspace shows a different mix
     let seed = 0;
     for (let i = 0; i < currentWorkspace.length; i++) {
@@ -867,7 +838,6 @@ export function DocumentBrowser() {
     selectedProject,
     selectedCategories,
     sortBy,
-    leftPanelMode,
     selectedFolderIds,
     columnFilters,
     projectDocuments]
@@ -1011,7 +981,6 @@ export function DocumentBrowser() {
     };
   }, [groupedSections]);
   const hasMore = displayedCount < orderedDocuments.length;
-  const hasActiveFilters = selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0 || Boolean(searchTerm);
   const allDisplayedSelected =
     displayedDocuments.length > 0 &&
     displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
@@ -1058,9 +1027,6 @@ export function DocumentBrowser() {
     description: doc.description,
   });
 
-  const handleChatClick = () => {
-    navigate('/chat');
-  };
   const handleExitChat = () => {
     navigate('/');
   };
@@ -1369,7 +1335,7 @@ export function DocumentBrowser() {
 
   // Column definitions
   // Category-specific custom columns
-  const CATEGORY_CUSTOM_COLUMNS: Record<string, { key: string; label: string }[]> = {
+  const categoryCustomColumns = useMemo<Record<string, { key: string; label: string }[]>>(() => ({
     Structural: [
       { key: 'beamSize', label: t('documentBrowser.columns.beamSize') },
       { key: 'materialGrade', label: t('documentBrowser.columns.materialGrade') },
@@ -1412,24 +1378,31 @@ export function DocumentBrowser() {
       { key: 'unitType', label: t('documentBrowser.columns.unitType') },
       { key: 'zone', label: t('documentBrowser.columns.zone') },
     ],
-  };
+  }), [t]);
 
   // Compose all columns: base + custom for selected categories
-  const customColumns = selectedCategories.length === 1 ? CATEGORY_CUSTOM_COLUMNS[selectedCategories[0]] || [] : [];
-  const allColumns = [
-    { key: 'id', label: t('documentBrowser.columns.reference') },
-    { key: 'title', label: t('documentBrowser.columns.title') },
-    { key: 'revisionNumber', label: t('documentBrowser.columns.rev') },
-    { key: 'status', label: t('documentBrowser.columns.status') },
-    { key: 'documentType', label: t('documentBrowser.columns.type') },
-    { key: 'author', label: t('documentBrowser.columns.author') },
-    { key: 'dateModified', label: t('documentBrowser.columns.dateModified') },
-    ...customColumns
-  ];
-  const allColumnKeys = allColumns.map((column) => column.key).join('|');
+  const allColumns = useMemo(
+    () => {
+      const customColumns = selectedCategories.length === 1
+        ? categoryCustomColumns[selectedCategories[0]] || []
+        : [];
+
+      return [
+        { key: 'id', label: t('documentBrowser.columns.reference') },
+        { key: 'title', label: t('documentBrowser.columns.title') },
+        { key: 'revisionNumber', label: t('documentBrowser.columns.rev') },
+        { key: 'status', label: t('documentBrowser.columns.status') },
+        { key: 'documentType', label: t('documentBrowser.columns.type') },
+        { key: 'author', label: t('documentBrowser.columns.author') },
+        { key: 'dateModified', label: t('documentBrowser.columns.dateModified') },
+        ...customColumns
+      ];
+    },
+    [categoryCustomColumns, selectedCategories, t]
+  );
   const columnLabelLookup = useMemo(
     () => new Map(allColumns.map((column) => [column.key, column.label])),
-    [allColumnKeys]
+    [allColumns]
   );
   const isGroupableColumn = useCallback((columnKey: ColumnKey) => !NON_GROUPABLE_COLUMN_KEYS.has(columnKey), []);
 
@@ -1452,7 +1425,7 @@ export function DocumentBrowser() {
       const retainedKeys = prev.filter((key) => newKeys.includes(key));
       return [...retainedKeys, ...newKeys.filter((key) => !retainedKeys.includes(key))];
     });
-  }, [allColumnKeys]);
+  }, [allColumns]);
 
   // Persist column order and widths whenever they change
   useEffect(() => {
@@ -1702,8 +1675,7 @@ export function DocumentBrowser() {
             {/* Left Rail */}
             <LeftRail
               activeItem={activeRailItem}
-              onItemClick={setActiveRailItem}
-              onChatClick={handleChatClick} />
+              onItemClick={setActiveRailItem} />
 
 
             {/* Sidebar Island */}
@@ -2226,7 +2198,7 @@ export function DocumentBrowser() {
                           </div>
 
                           {/* Unified scroll wrapper — handles both vertical and horizontal scrolling */}
-                          <div ref={dataContainerRef} className="flex-1 min-h-0 overflow-auto w-full" style={{ scrollbarGutter: 'stable' as any }}>
+                          <div ref={dataContainerRef} className="flex-1 min-h-0 overflow-auto w-full" style={{ scrollbarGutter: 'stable' }}>
                             <table className="w-full text-sm border-collapse whitespace-nowrap">
                               <thead className="sticky top-0 z-20 bg-white shadow-sm">
                                 <tr className="border-b border-neutral-200 bg-neutral-50">

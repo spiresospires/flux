@@ -35,32 +35,32 @@ export function FolderTree({
     }
     setExpandedFolders(newExpanded);
   };
-  const filterFoldersRecursive = (
-    folders: Folder[],
-    searchLower: string)
-    : Folder[] => {
-    return folders.
-      filter((folder) => {
-        const matchesSearch = folder.name.toLowerCase().includes(searchLower);
-        const hasMatchingChildren =
-          folder.children &&
-          folder.children.length > 0 &&
-          filterFoldersRecursive(folder.children, searchLower).length > 0;
-        return matchesSearch || hasMatchingChildren;
-      }).
-      map((folder) => ({
-        ...folder,
-        children: folder.children ?
-          filterFoldersRecursive(folder.children, searchLower) :
-          []
-      }));
-  };
   const filteredFolders = useMemo(() => {
     if (!searchTerm) return folders;
     const searchLower = searchTerm.toLowerCase();
+    const filterFoldersRecursive = (
+      nodes: Folder[],
+      search: string)
+      : Folder[] => {
+      return nodes.
+        filter((folder) => {
+          const matchesSearch = folder.name.toLowerCase().includes(search);
+          const hasMatchingChildren =
+            folder.children &&
+            folder.children.length > 0 &&
+            filterFoldersRecursive(folder.children, search).length > 0;
+          return matchesSearch || hasMatchingChildren;
+        }).
+        map((folder) => ({
+          ...folder,
+          children: folder.children ?
+            filterFoldersRecursive(folder.children, search) :
+            []
+        }));
+    };
     return filterFoldersRecursive(folders, searchLower);
   }, [folders, searchTerm]);
-  const renderFolder = (folder: Folder, level: number = 0) => {
+  const renderFolder = (folder: Folder, level = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
     const isSelected = selectedFolderId === folder.id;
     const hasChildren = folder.children && folder.children.length > 0;

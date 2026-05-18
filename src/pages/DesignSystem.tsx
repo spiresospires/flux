@@ -177,23 +177,6 @@ export function DesignSystem() {
     hex: '#050505'
   }];
 
-  const semanticColors = [
-  {
-    name: t('designSystem.colorNames.error'),
-    variable: '--color-error-500',
-    hex: '#EF4444'
-  },
-  {
-    name: t('designSystem.colorNames.warning'),
-    variable: '--color-warning-500',
-    hex: '#F59E0B'
-  },
-  {
-    name: t('designSystem.colorNames.success'),
-    variable: '--color-success-500',
-    hex: '#10B981'
-  }];
-
   const whiteColors = [
   {
     name: t('designSystem.colorNames.white'),

@@ -11,7 +11,7 @@ import { mockDocuments } from '../data/mockDocuments';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { RelationshipsPanel } from '../components/RelationshipsPanel';
-import { statusColors } from '../components/DocumentCard';
+import { statusColors } from '../components/documentStatusColors';
 export function DocumentDetail() {
   const { t } = useLocalization();
   const { id } = useParams<{
