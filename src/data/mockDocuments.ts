@@ -45,9 +45,6 @@ const thumbnails = [
 ];
 
 
-const getRandomItem = <T,>(array: T[]): T =>
-  array[Math.floor(Math.random() * array.length)];
-
 const getRandomDate = (start: Date, end: Date) =>
   new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime())).
     toISOString().

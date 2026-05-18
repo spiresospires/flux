@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileIcon, FileTextIcon, FileSpreadsheetIcon, FileBarChart2Icon, FileArchiveIcon, FileVideoIcon, FileImageIcon, FileCodeIcon, FileAudioIcon, FileQuestionIcon, CalendarIcon, UserIcon, HardDriveIcon, SparklesIcon, CopyIcon, CheckIcon } from 'lucide-react';
+import { FileIcon, FileTextIcon, FileSpreadsheetIcon, FileBarChart2Icon, FileArchiveIcon, FileVideoIcon, FileImageIcon, FileCodeIcon, FileAudioIcon, CalendarIcon, UserIcon, HardDriveIcon, SparklesIcon, CopyIcon, CheckIcon } from 'lucide-react';
 // Custom SVG for DWG (Autodesk) icon
 function DwgIcon({ size = 18, className = '' }) {
   return (
@@ -45,6 +45,7 @@ import { Document } from '../types/document';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useClipboard } from '../contexts/ClipboardContext';
+import { statusColors } from './documentStatusColors';
 
 interface DocumentCardProps {
   document: Document;
@@ -78,13 +79,6 @@ function DocumentTypeBadge({ type }: { type: Document['documentType'] }) {
   );
 }
 
-export const statusColors = {
-  Draft: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'In Review': 'bg-warning-50 text-warning-700 border-warning-200',
-  Approved: 'bg-success-50 text-success-700 border-success-200',
-  Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
-  Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200'
-};
 export function DocumentCard({ document, isHighlighted }: DocumentCardProps) {
   const navigate = useNavigate();
   const { addToClipboard, isInClipboard } = useClipboard();

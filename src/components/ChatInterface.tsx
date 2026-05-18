@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   SendIcon,
   XIcon,
@@ -18,7 +18,7 @@ import {
   FileIcon } from
 'lucide-react';
 import { mockDocuments } from '../data/mockDocuments';
-import { statusColors } from './DocumentCard';
+import { statusColors } from './documentStatusColors';
 import { LeftRail } from './LeftRail';
 import { ClipboardPanel } from './ClipboardPanel';
 import { useClipboard } from '../contexts/ClipboardContext';
@@ -241,7 +241,7 @@ export function ChatInterface({
   });
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const { scope, setScope } = useScope();
+  const { scope } = useScope();
   const askAboutRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (askAbout && askAbout !== askAboutRef.current) {
@@ -284,7 +284,7 @@ export function ChatInterface({
   const [historySearch, setHistorySearch] = useState('');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const active = conversations.find((c) => c.id === activeId) ?? null;
-  const messages = active?.messages ?? [];
+  const messages = useMemo(() => active?.messages ?? [], [active]);
   const setMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
     setConversations((prev) => {
       let id = activeId;
@@ -673,8 +673,7 @@ export function ChatInterface({
 
       <LeftRail
         activeItem="chat"
-        onItemClick={() => onExit()}
-        onChatClick={() => {}} />
+        onItemClick={() => onExit()} />
 
       <div className="flex-1 w-full p-3">
         <div className="mx-auto w-full max-w-[1200px] flex items-stretch gap-3 h-[calc(100vh-69px)]">
@@ -1042,11 +1041,11 @@ function ChatHistorySidebar(p: SidebarProps) {
         {pinned.length > 0 &&
         <div className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.pinned')}</div>
         }
-        {pinned.map((c) => renderItem(c, p))}
+        {pinned.map((c) => renderItem(c, p, t))}
         {recent.length > 0 &&
         <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.recent')}</div>
         }
-        {recent.map((c) => renderItem(c, p))}
+        {recent.map((c) => renderItem(c, p, t))}
         {filtered.length === 0 &&
         <div className="px-3 py-6 text-center text-xs text-neutral-400">{t('chat.noChatsFound')}</div>
         }
@@ -1065,8 +1064,11 @@ function ChatHistorySidebar(p: SidebarProps) {
 
 }
 
-function renderItem(c: Conversation, p: SidebarProps) {
-  const { t } = useLocalization();
+function renderItem(
+  c: Conversation,
+  p: SidebarProps,
+  t: ReturnType<typeof useLocalization>['t']
+) {
   const isActive = p.activeId === c.id;
   const isRenaming = p.renamingId === c.id;
   const menuOpen = p.menuOpenId === c.id;

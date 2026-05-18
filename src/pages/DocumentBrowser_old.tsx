@@ -225,7 +225,9 @@ function saveColumnPreferences(order: string[], widths: Record<string, number>) 
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(COLUMN_PREFERENCES_STORAGE_KEY, JSON.stringify({ order, widths }));
-  } catch { }
+  } catch {
+    return;
+  }
 }
 
 function getDocumentColumnText(document: Document, columnKey: ColumnKey) {
@@ -1044,9 +1046,6 @@ export function DocumentBrowser() {
     description: doc.description,
   });
 
-  const handleChatClick = () => {
-    navigate('/chat');
-  };
   const handleExitChat = () => {
     navigate('/');
   };
@@ -1554,8 +1553,7 @@ export function DocumentBrowser() {
             {/* Left Rail */}
             <LeftRail
               activeItem={activeRailItem}
-              onItemClick={setActiveRailItem}
-              onChatClick={handleChatClick} />
+              onItemClick={setActiveRailItem} />
 
 
             {/* Sidebar Island */}

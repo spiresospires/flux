@@ -57,7 +57,7 @@ export function FolderTree({
     const searchLower = searchTerm.toLowerCase();
     return filterFoldersRecursive(folders, searchLower);
   }, [folders, searchTerm]);
-  const renderFolder = (folder: Folder, level: number = 0) => {
+  const renderFolder = (folder: Folder, level = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
     const isSelected = selectedFolderId === folder.id;
     const hasChildren = folder.children && folder.children.length > 0;

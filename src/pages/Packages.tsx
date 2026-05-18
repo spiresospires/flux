@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { LeftRail } from '../components/LeftRail';
 import { useLocalization } from '../contexts/LocalizationContext';
 import {
@@ -24,7 +23,6 @@ import {
   ClockIcon,
   UserIcon,
   FileTextIcon,
-  EyeIcon,
   TrashIcon } from
 'lucide-react';
 
@@ -346,8 +344,7 @@ export function Packages() {
       }}>
       <LeftRail
         activeItem={activeRailItem}
-        onItemClick={setActiveRailItem}
-        onChatClick={() => {}} />
+        onItemClick={setActiveRailItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
         {view === 'library' &&
@@ -1473,7 +1470,7 @@ function ActionCard({
 
 }
 
-function GitIconLike(props: any) {
+function GitIconLike(props: React.ComponentProps<typeof CheckIcon>) {
   return <CheckIcon {...props} />;
 }
 

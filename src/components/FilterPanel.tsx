@@ -86,7 +86,7 @@ export function FilterPanel({
   const setQuickDateRange = (range: 'day' | 'week' | 'month' | 'sixmonths') => {
     const today = new Date();
     const to = today.toISOString().split('T')[0];
-    let from = new Date();
+    const from = new Date();
     switch (range) {
       case 'day':
         from.setDate(today.getDate() - 1);
