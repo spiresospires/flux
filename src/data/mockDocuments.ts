@@ -1,4 +1,5 @@
 import { Document } from '../types/document';
+import { PROJECTS } from './projects';
 
 const authors = [
   'John Smith',
@@ -23,15 +24,7 @@ const authors = [
   'Margaret Robinson'];
 
 
-const projects = [
-  'Refinery Upgrade 2024',
-  'Operations Manual',
-  'Maintenance Program',
-  'Safety Compliance 2024',
-  'Environmental Initiative',
-  'Digital Transformation',
-  'Pipeline Extension',
-  'Tank Farm Upgrade'];
+const projects = PROJECTS.map((p) => p.name);
 
 
 const statuses: Array<
@@ -350,7 +343,7 @@ const safetyProcs: Document[] = Array.from({ length: 15 }, (_, i) => ({
   author: authors[i % authors.length],
   dateCreated: getRandomDate(new Date('2022-01-01'), new Date('2023-06-01')),
   dateModified: getRandomDate(new Date('2023-06-01'), new Date('2024-02-10')),
-  project: 'Safety Compliance 2024',
+  project: 'Tower',
   asset: 'All Units',
   tags: ['safety', 'procedure', 'compliance'],
   fileType: 'DOCX' as const,
@@ -371,7 +364,7 @@ const maintProcs: Document[] = Array.from({ length: 15 }, (_, i) => ({
   author: authors[i % authors.length],
   dateCreated: getRandomDate(new Date('2022-01-01'), new Date('2023-06-01')),
   dateModified: getRandomDate(new Date('2023-06-01'), new Date('2024-02-10')),
-  project: 'Maintenance Program',
+  project: 'Empire State',
   asset: `Unit ${i % 5 + 1}00`,
   tags: ['maintenance', 'procedure', 'preventive'],
   fileType: 'DOCX' as const,
@@ -392,7 +385,7 @@ const opManuals: Document[] = Array.from({ length: 20 }, (_, i) => ({
   author: authors[i % authors.length],
   dateCreated: getRandomDate(new Date('2022-01-01'), new Date('2023-06-01')),
   dateModified: getRandomDate(new Date('2023-06-01'), new Date('2024-02-10')),
-  project: 'Operations Manual',
+  project: 'The Shard, London',
   asset: `Unit ${i % 5 + 1}00`,
   tags: ['operations', 'manual', 'procedures'],
   fileType: 'DOCX' as const,
@@ -413,7 +406,7 @@ const envCompliance: Document[] = Array.from({ length: 10 }, (_, i) => ({
   author: authors[i % authors.length],
   dateCreated: getRandomDate(new Date('2022-01-01'), new Date('2023-06-01')),
   dateModified: getRandomDate(new Date('2023-06-01'), new Date('2024-02-10')),
-  project: 'Environmental Initiative',
+  project: 'Skyline',
   tags: ['environmental', 'compliance', 'monitoring'],
   fileType: 'PDF' as const,
   fileSize: `${(Math.random() * 3 + 2).toFixed(1)} MB`,
@@ -533,7 +526,7 @@ const hseReports: Document[] = Array.from({ length: 15 }, (_, i) => ({
   author: authors[i % authors.length],
   dateCreated: getRandomDate(new Date('2022-01-01'), new Date('2023-06-01')),
   dateModified: getRandomDate(new Date('2023-06-01'), new Date('2024-02-10')),
-  project: 'Safety Compliance 2024',
+  project: 'Tower',
   tags: ['HSE', 'safety', 'environment'],
   fileType: 'PDF' as const,
   fileSize: `${(Math.random() * 3 + 1).toFixed(1)} MB`,
@@ -593,7 +586,7 @@ const trainingMats: Document[] = Array.from({ length: 10 }, (_, i) => ({
   author: authors[i % authors.length],
   dateCreated: getRandomDate(new Date('2022-01-01'), new Date('2023-06-01')),
   dateModified: getRandomDate(new Date('2023-06-01'), new Date('2024-02-10')),
-  project: 'Operations Manual',
+  project: 'The Shard, London',
   tags: ['training', 'material', 'education'],
   fileType: 'PDF' as const,
   fileSize: `${(Math.random() * 5 + 3).toFixed(1)} MB`,

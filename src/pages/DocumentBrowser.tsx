@@ -48,6 +48,7 @@ import {
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useScope } from '../contexts/ScopeContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Document } from '../types/document';
@@ -554,7 +555,7 @@ export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, clearClipboard, isInClipboard } = useClipboard();
   const { currentWorkspace } = useWorkspace();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { setScope } = useScope();
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string[]>([]);
@@ -617,6 +618,26 @@ export function DocumentBrowser() {
   }, [location.pathname]);
   const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+
+  // Navigate-from-search: switch workspace scope, open the folder, and select/highlight the document.
+  // TODO: When direct object URLs are implemented (via a DB mapping table of objectType+id → canonical URL),
+  // replace this location.state pattern with a proper deep-link route e.g. /documents/:folderId/:docId.
+  useEffect(() => {
+    const state = location.state as {
+      folderId?: string;
+      selectedDocId?: string;
+      projectId?: string;
+      projectName?: string;
+    } | null;
+    if (state?.projectId && state?.projectName) {
+      setScope({ kind: 'project', id: state.projectId, name: state.projectName });
+    }
+    if (state?.folderId) setSelectedFolderId(state.folderId);
+    if (state?.selectedDocId) {
+      setHighlightedDocId(state.selectedDocId);
+      setSelectedDocumentIds(new Set([state.selectedDocId]));
+    }
+  }, [location.state]);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [openActionSubmenuKey, setOpenActionSubmenuKey] = useState<string | null>(null);
   const [showClipboardDropdown, setShowClipboardDropdown] = useState(false);
@@ -757,16 +778,6 @@ export function DocumentBrowser() {
     if (selectedFolderIds) {
       filtered = filtered.filter((doc) => !!doc.folderId && selectedFolderIds.has(doc.folderId));
     }
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (doc) =>
-          doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.tags.some((tag) =>
-            tag.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-      );
-    }
     if (selectedStatus.length > 0) {
       filtered = filtered.filter((doc) => selectedStatus.includes(doc.status));
     }
@@ -832,7 +843,6 @@ export function DocumentBrowser() {
     }
     return filtered;
   }, [
-    searchTerm,
     selectedStatus,
     selectedDocType,
     selectedProject,
@@ -846,7 +856,6 @@ export function DocumentBrowser() {
   useEffect(() => {
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [
-    searchTerm,
     selectedStatus,
     selectedDocType,
     selectedProject,
@@ -981,6 +990,10 @@ export function DocumentBrowser() {
     };
   }, [groupedSections]);
   const hasMore = displayedCount < orderedDocuments.length;
+<<<<<<< HEAD
+=======
+  const hasActiveFilters = selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0;
+>>>>>>> d363d2d (chore: apply workspace changes)
   const allDisplayedSelected =
     displayedDocuments.length > 0 &&
     displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
@@ -1037,7 +1050,6 @@ export function DocumentBrowser() {
     setSelectedStatus([]);
     setSelectedDocType([]);
     setSelectedProject([]);
-    setSearchTerm('');
     setTimeout(() => setHighlightedDocId(null), 5000);
   };
 
@@ -1443,13 +1455,21 @@ export function DocumentBrowser() {
   const columns = columnOrder
     .map(key => allColumns.find(c => c.key === key))
     .filter(col => col && visibleColumns.includes(col.key)) as { key: string; label: string }[];
-  const groupedColumnLabel = groupByColumn ? columnLabelLookup.get(groupByColumn) ?? groupByColumn : null;
+  const hasActiveGrouping =
+    typeof groupByColumn === 'string' &&
+    groupByColumn.trim().length > 0 &&
+    isGroupableColumn(groupByColumn);
+  const groupedColumnLabel = hasActiveGrouping ? columnLabelLookup.get(groupByColumn) ?? groupByColumn : null;
 
   // Column chooser dropdown state
   const [showColumnChooser, setShowColumnChooser] = useState(false);
 
   // Drag-and-drop state
   const [draggedCol, setDraggedCol] = useState<ColumnKey | null>(null);
+  const isDraggingGroupableColumn =
+    typeof draggedCol === 'string' &&
+    draggedCol.trim().length > 0 &&
+    isGroupableColumn(draggedCol);
   const [dragTarget, setDragTarget] = useState<{
     key: ColumnKey;
     position: 'before' | 'after';
@@ -1560,12 +1580,26 @@ export function DocumentBrowser() {
     handleDragEnd();
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedCol(null);
     setDragTarget(null);
     setIsGroupDropActive(false);
     setDragTooltipPosition(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    const resetDragState = () => {
+      handleDragEnd();
+    };
+
+    window.addEventListener('dragend', resetDragState);
+    window.addEventListener('drop', resetDragState);
+
+    return () => {
+      window.removeEventListener('dragend', resetDragState);
+      window.removeEventListener('drop', resetDragState);
+    };
+  }, [handleDragEnd]);
 
   const handleGroupDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1637,7 +1671,7 @@ export function DocumentBrowser() {
 
   return (
     <div
-      className="h-[calc(100vh-45px)] mt-[45px] font-sans overflow-hidden p-3"
+      className="h-[calc(100vh-45px)] mt-[45px] font-sans overflow-hidden p-4"
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
@@ -1670,7 +1704,7 @@ export function DocumentBrowser() {
             transition={{
               duration: 0.25
             }}
-            className="flex h-full gap-3 pl-[var(--left-rail-width,88px)]">
+            className="flex h-full gap-4 pl-[var(--left-rail-width,88px)]">
 
             {/* Left Rail */}
             <LeftRail
@@ -1688,8 +1722,6 @@ export function DocumentBrowser() {
 
               {leftPanelMode === 'filter' ?
                 <FilterPanel
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
                   selectedStatus={selectedStatus}
                   onStatusChange={setSelectedStatus}
                   selectedDocType={selectedDocType}
@@ -1717,11 +1749,10 @@ export function DocumentBrowser() {
 
               {/* Header */}
               <header
-                className={`px-4 bg-white shrink-0 flex justify-between ${leftPanelMode === 'folder' || leftPanelMode === 'filter' ? 'items-start pt-2 pb-2' : 'items-center h-10'
-                  }`}
+                className={`px-4 bg-white shrink-0 flex justify-between items-center py-2`}
               >
                 {leftPanelMode === 'folder' ? (
-                  <div className="min-w-0 pr-4">
+                  <div className="min-w-0 pr-4 min-h-[40px] flex flex-col justify-center">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 flex-wrap">
                       <button
                         onClick={() => setSelectedFolderId(null)}
@@ -1743,14 +1774,6 @@ export function DocumentBrowser() {
                     </div>
                     <p className="text-[11px] text-neutral-500 mt-1">{filteredDocuments.length} documents</p>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {searchTerm && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 text-xs font-medium">
-                          Search: <span className="font-semibold">{searchTerm}</span>
-                          <button onClick={() => setSearchTerm('')} className="ml-1 hover:text-red-500 transition-colors" aria-label="Clear search">
-                            <XIcon size={12} />
-                          </button>
-                        </span>
-                      )}
                       {selectedStatus.map((s) => (
                         <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
                           Status: <span className="font-semibold">{s}</span>
@@ -1783,9 +1806,9 @@ export function DocumentBrowser() {
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0 || Boolean(searchTerm)) && (
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); setSearchTerm(''); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -1794,10 +1817,10 @@ export function DocumentBrowser() {
                     </div>
                   </div>
                 ) : leftPanelMode === 'filter' ? (
-                  <div className="min-w-0 pr-4">
+                  <div className="min-w-0 pr-4 min-h-[40px] flex flex-col justify-center">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 flex-wrap">
                       {selectedFolderId ? (
-                        <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 text-xs font-medium">
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D9EDFF] text-[#034E8F] text-xs font-medium">
                           <FolderIcon size={12} />
                           <span className="text-[11px]">Folder scope:</span>
                           <span className="font-semibold">
@@ -1806,7 +1829,7 @@ export function DocumentBrowser() {
                           <button
                             onClick={() => setSelectedFolderId(null)}
                             aria-label="Clear folder scope"
-                            className="ml-2 text-neutral-500 hover:text-neutral-700 p-1 rounded-full"
+                            className="ml-2 text-[#0461BA] hover:text-[#034E8F] p-1 rounded-full"
                           >
                             <XIcon size={12} />
                           </button>
@@ -1823,14 +1846,6 @@ export function DocumentBrowser() {
                     <p className="text-[11px] text-neutral-500 mt-1">{filteredDocuments.length} documents</p>
                     {/* Folder scope is now removable via the chip's X button; no extra links needed */}
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {searchTerm && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 text-xs font-medium">
-                          Search: <span className="font-semibold">{searchTerm}</span>
-                          <button onClick={() => setSearchTerm('')} className="ml-1 hover:text-red-500 transition-colors" aria-label="Clear search">
-                            <XIcon size={12} />
-                          </button>
-                        </span>
-                      )}
                       {selectedStatus.map((s) => (
                         <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
                           Status: <span className="font-semibold">{s}</span>
@@ -1863,9 +1878,9 @@ export function DocumentBrowser() {
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0 || Boolean(searchTerm)) && (
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); setSearchTerm(''); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -2146,7 +2161,7 @@ export function DocumentBrowser() {
                             </button>
                           </div>
                         )}
-                        {hasMore && !groupByColumn && (
+                        {hasMore && !hasActiveGrouping && (
                           <div ref={loadMoreRef} className="flex justify-center py-8">
                             {isLoading ? (
                               <div className="flex items-center gap-2 text-neutral-500">
@@ -2162,40 +2177,52 @@ export function DocumentBrowser() {
 
                       <div key="table-view" className="flex flex-col h-full">
                         <div className="bg-white rounded-md border border-neutral-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
-                          <div
-                            onDragOver={handleGroupDragOver}
-                            onDragLeave={handleGroupDragLeave}
-                            onDrop={handleGroupDrop}
-                            className="border-b border-neutral-200 bg-white px-3 py-2 shrink-0"
-                          >
-                            {groupByColumn ?
-                              <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-white'}`}>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Grouped by</span>
-                                  <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F1FB] px-3 py-1 text-sm font-medium text-[#0461BA]">
-                                    {groupedColumnLabel}
-                                    <button
-                                      onClick={handleClearGrouping}
-                                      className="rounded-full p-0.5 text-[#0461BA] hover:bg-[#D8E9FB]"
-                                      aria-label={`Clear grouping by ${groupedColumnLabel}`}>
+                          <AnimatePresence initial={false}>
+                            {(isDraggingGroupableColumn || hasActiveGrouping) && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                className="overflow-hidden shrink-0"
+                              >
+                                <div
+                                  onDragOver={handleGroupDragOver}
+                                  onDragLeave={handleGroupDragLeave}
+                                  onDrop={handleGroupDrop}
+                                  className="border-b border-neutral-200 bg-white px-3 py-2"
+                                >
+                                  {hasActiveGrouping ? (
+                                    <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-white'}`}>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500">Grouped by</span>
+                                        <span className="inline-flex items-center gap-2 rounded-full bg-[#E8F1FB] px-3 py-1 text-sm font-medium text-[#0461BA]">
+                                          {groupedColumnLabel}
+                                          <button
+                                            onClick={handleClearGrouping}
+                                            className="rounded-full p-0.5 text-[#0461BA] hover:bg-[#D8E9FB]"
+                                            aria-label={`Clear grouping by ${groupedColumnLabel}`}>
 
-                                      <XIcon size={12} />
-                                    </button>
-                                  </span>
+                                            <XIcon size={12} />
+                                          </button>
+                                        </span>
+                                      </div>
+                                      <span className="text-xs text-neutral-500">Drag another column here to regroup</span>
+                                    </div>
+                                  ) : (
+                                    <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-neutral-50/70'}`}>
+                                      <span className="text-sm text-neutral-500">Drag a column header here to group rows</span>
+                                      {isDraggingGroupableColumn &&
+                                        <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0461BA] shadow-sm">
+                                          Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
+                                        </span>
+                                      }
+                                    </div>
+                                  )}
                                 </div>
-                                <span className="text-xs text-neutral-500">Drag another column here to regroup</span>
-                              </div> :
-
-                              <div className={`flex min-h-10 items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2 transition-colors ${isGroupDropActive ? 'border-[#0461BA] bg-[#E8F1FB]' : 'border-neutral-200 bg-neutral-50/70'}`}>
-                                <span className="text-sm text-neutral-500">Drag a column header here to group rows</span>
-                                {draggedCol && isGroupableColumn(draggedCol) &&
-                                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#0461BA] shadow-sm">
-                                    Group by {columnLabelLookup.get(draggedCol) ?? draggedCol}
-                                  </span>
-                                }
-                              </div>
-                            }
-                          </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
 
                           {/* Unified scroll wrapper — handles both vertical and horizontal scrolling */}
                           <div ref={dataContainerRef} className="flex-1 min-h-0 overflow-auto w-full" style={{ scrollbarGutter: 'stable' }}>

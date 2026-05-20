@@ -199,11 +199,6 @@ function OverviewPane({
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-4 border-b border-neutral-100">
-        <h2 className="text-base font-semibold text-neutral-900">{t('dashboard.highlights')}</h2>
-        <p className="text-xs text-neutral-500 mt-0.5">{t('dashboard.highlightsSubtitle')}</p>
-      </div>
-
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 border-b border-neutral-100">
         <button
           onClick={() => onSelectSection('todo')}
@@ -718,6 +713,12 @@ export function Dashboard() {
     }
   }, [location.state]);
 
+  useEffect(() => {
+    if (scope.kind === 'enterprise') {
+      setSelectedSection('overview');
+    }
+  }, [scope]);
+
   return (
     <div
       className="h-[calc(100vh-45px)] mt-[45px] font-sans overflow-y-auto p-3"
@@ -727,26 +728,12 @@ export function Dashboard() {
       <LeftRail activeItem={activeItem} onItemClick={setActiveItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
-        <div className="mb-5">
-          <p className="text-sm text-neutral-500 mt-0.5">
-            {t('dashboard.welcomeBack')} {overdueTodos > 0 && <span className="text-red-600 font-medium">{overdueTodos === 1 ? t('dashboard.overdueActions', { count: overdueTodos }) : t('dashboard.overdueActions_other', { count: overdueTodos })}</span>}
-            {overdueTodos > 0 && unreadNotifs > 0 && ` ${t('dashboard.and')} `}
-            {unreadNotifs > 0 && <span className="text-[#0461BA] font-medium">{unreadNotifs === 1 ? t('dashboard.unreadNotifications', { count: unreadNotifs }) : t('dashboard.unreadNotifications_other', { count: unreadNotifs })}</span>}
-            {overdueTodos === 0 && unreadNotifs === 0 && ` ${t('dashboard.everythingUpToDate')}`}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-3 min-h-[calc(100vh-95px)]">
-          <section className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden h-fit sticky top-3">
-            <div className="px-4 py-3 border-b border-neutral-100">
-              <h2 className="text-sm font-semibold text-neutral-800">{t('dashboard.homeSections')}</h2>
-              <p className="text-xs text-neutral-500 mt-0.5">{t('dashboard.homeSectionsSubtitle')}</p>
-            </div>
-
+        <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-3 min-h-[calc(100vh-69px)] items-start">
+          <section className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden h-fit sticky top-0">
             <div className="divide-y divide-neutral-100">
               <button
                 onClick={() => setSelectedSection('overview')}
-                className={`w-full text-left px-4 py-3 transition-colors ${selectedSection === 'overview' ? 'bg-[#E8F1FB]' : 'hover:bg-neutral-50'}`}
+                className={`w-full text-left px-4 py-3 transition-colors ${selectedSection === 'overview' ? 'bg-white' : 'hover:bg-neutral-50'}`}
               >
                 <p className="text-sm font-semibold text-neutral-800">{t('dashboard.highlightsOverview')}</p>
                 <p className="text-xs text-neutral-500 mt-0.5">{t('dashboard.highlightsOverviewSubtitle')}</p>

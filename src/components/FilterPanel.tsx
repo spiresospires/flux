@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { SearchIcon, ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 interface FilterPanelProps {
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
   selectedStatus: string[];
   onStatusChange: (status: string[]) => void;
   selectedDocType: string[];
@@ -14,8 +12,6 @@ interface FilterPanelProps {
   onCategoryChange: (categories: string[]) => void;
 }
 export function FilterPanel({
-  searchTerm,
-  onSearchChange,
   selectedStatus,
   onStatusChange,
   selectedDocType,
@@ -112,7 +108,6 @@ export function FilterPanel({
     onDocTypeChange([]);
     onProjectChange([]);
     onCategoryChange([]);
-    onSearchChange('');
     setIncludePlaceholders(false);
     setSelectedFileType('');
     setCurrentVersionOnly(false);
@@ -167,37 +162,6 @@ export function FilterPanel({
   };
   return (
     <div className="w-full h-full px-4 pb-4 overflow-y-auto custom-scrollbar">
-      {/* Search */}
-      <div className="mb-4">
-        <div className="relative">
-          <SearchIcon
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-          
-          <input
-            type="text"
-            placeholder={t('filters.searchPlaceholder')}
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="
-              w-full pl-9 pr-3 py-2.5 
-              bg-[#F0F4F8] border border-neutral-200 
-              text-sm rounded-lg 
-              text-neutral-900 placeholder-neutral-400
-              focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent focus:bg-white
-              transition-all
-            " />
-
-
-
-
-
-
-
-          
-        </div>
-      </div>
-
       {/* Status */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">

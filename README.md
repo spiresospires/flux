@@ -23,6 +23,7 @@ A clickable wireframe / prototype exploring a redesigned UX for the FusionLive e
 ### Global chrome
 - **FusionLive brand banner** — thin dark-blue banner pinned to the top of every page with the FusionLive wordmark in the top-right.
 - **Left navigation rail** — collapsed icon rail expands on hover. Items: Dashboard, Documents, Packages, Workflows, Transmittals, Reports, Admin, Projects, Chat. The rest of the page dims when the rail expands so it stands out.
+- **Home logo button** — the top-left home control now uses the Clough logo image instead of the text placeholder. The source asset is stored in [`artifacts/Clough_Colore.png`](./artifacts/Clough_Colore.png).
 - **Active item routing** — Documents → `/`, Packages → `/packages`, Chat → `/chat`. All other items are placeholders in this prototype.
 - **Appearance switcher** (gear icon at the bottom of the rail) — replaced the unfinished multi-palette picker with a simple **Light / Dark** mode toggle. Choice persists in `localStorage` and applies via a `data-theme="dark"` attribute on `<html>`.
 

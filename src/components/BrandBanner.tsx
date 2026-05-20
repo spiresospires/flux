@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, Settings2Icon } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -6,13 +6,7 @@ import { useShellLayout } from '../contexts/ShellLayoutContext';
 import { useScope } from '../contexts/ScopeContext';
 import { mockNotifications } from '../data/mockDashboard';
 import profilePhoto from '../assets/profile-user.png';
-
-const PROJECTS = [
-  { id: 'shard', name: 'The Shard, London' },
-  { id: 'skyline', name: 'Skyline' },
-  { id: 'tower', name: 'Tower' },
-  { id: 'empire', name: 'Empire State' }
-];
+import { PROJECTS } from '../data/projects';
 
 export function BrandBanner() {
   const { t } = useLocalization();
@@ -20,13 +14,47 @@ export function BrandBanner() {
   const { scope, setScope } = useScope();
   const LEFT_RAIL_WIDTH = 88;
   const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+  const [projectSearch, setProjectSearch] = useState('');
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
+  const scopeMeasureRef = useRef<HTMLSpanElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [scopeButtonWidth, setScopeButtonWidth] = useState<number | undefined>(undefined);
   const navigate = useNavigate();
+
+  const longestScopeName = useMemo(() => {
+    const names = [t('banner.homeScope'), ...PROJECTS.map((p) => p.name)];
+    return names.reduce((a, b) => (a.length >= b.length ? a : b));
+  }, [t]);
+
+  useLayoutEffect(() => {
+    const compute = () => {
+      if (!scopeMeasureRef.current || !scopeDropdownRef.current || !searchContainerRef.current) return;
+      const naturalWidth = scopeMeasureRef.current.getBoundingClientRect().width + 2; // +2 for button border
+      const dropLeft = scopeDropdownRef.current.getBoundingClientRect().left;
+      const searchLeft = searchContainerRef.current.getBoundingClientRect().left;
+      const maxAllowed = searchLeft - dropLeft - 100;
+      setScopeButtonWidth(Math.min(naturalWidth, Math.max(maxAllowed, 60)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    if (searchContainerRef.current) ro.observe(searchContainerRef.current);
+    return () => ro.disconnect();
+  }, [longestScopeName]);
   const location = useLocation();
   const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
   const notifPreview = mockNotifications.slice(0, 4);
+
+  const filteredProjects = useMemo(
+    () => PROJECTS.filter((p) => p.name.toLowerCase().includes(projectSearch.toLowerCase())),
+    [projectSearch]
+  );
+
+  useEffect(() => {
+    if (!scopeMenuOpen) setProjectSearch('');
+  }, [scopeMenuOpen]);
 
   const formatRelativeTime = (timestamp: string) => {
     const diffMs = Date.now() - new Date(timestamp).getTime();
@@ -49,6 +77,22 @@ export function BrandBanner() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const query = new URLSearchParams(location.search).get('q') ?? '';
+    setSearchValue(location.pathname === '/search' ? query : '');
+  }, [location.pathname, location.search]);
+
+  const submitSearch = () => {
+    const trimmedSearch = searchValue.trim();
+
+    if (!trimmedSearch) {
+      navigate('/search');
+      return;
+    }
+
+    navigate(`/search?q=${encodeURIComponent(trimmedSearch)}`);
+  };
 
   const openNotificationsArea = () => {
     const requestId = Date.now();
@@ -81,8 +125,21 @@ export function BrandBanner() {
 
         {/* Scope Selector */}
         <div className="relative" ref={scopeDropdownRef}>
+          {/* Hidden element to measure natural width of the longest project name */}
+          <span
+            ref={scopeMeasureRef}
+            aria-hidden="true"
+            className="absolute opacity-0 pointer-events-none h-7 px-2.5 inline-flex items-center gap-2 text-xs font-medium whitespace-nowrap"
+            style={{ top: 0, left: -9999 }}
+          >
+            <Building2Icon size={14} className="shrink-0" />
+            <span>{longestScopeName}</span>
+            <ChevronDownIcon size={12} className="shrink-0" />
+          </span>
+
           <button
             onClick={() => setScopeMenuOpen(!scopeMenuOpen)}
+            style={{ width: scopeButtonWidth }}
             className={`h-7 px-2.5 rounded-md border inline-flex items-center gap-2 text-xs font-medium transition-colors ${
               scope.kind === 'enterprise'
                 ? 'border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100'
@@ -96,12 +153,12 @@ export function BrandBanner() {
             ) : (
               <Building2Icon size={14} className="shrink-0" />
             )}
-            <span className="truncate">
+            <span className="flex-1 min-w-0 truncate">
               {scope.kind === 'enterprise' ? t('banner.homeScope') : scope.name}
             </span>
             <ChevronDownIcon
               size={12}
-              className={`shrink-0 transition-transform ${scopeMenuOpen ? 'rotate-180' : ''}`}
+              className={`shrink-0 ml-auto transition-transform ${scopeMenuOpen ? 'rotate-180' : ''}`}
             />
           </button>
 
@@ -127,10 +184,22 @@ export function BrandBanner() {
                   <CheckIcon size={14} className="text-violet-600 shrink-0" />
                 )}
               </button>
-              <div className="border-t border-neutral-100 px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
-                {t('banner.projects')}
+              <div className="border-t border-neutral-100 px-2 py-2">
+                <div className="relative">
+                  <SearchIcon size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                  <input
+                    autoFocus={false}
+                    value={projectSearch}
+                    onChange={(e) => setProjectSearch(e.target.value)}
+                    placeholder="Search projects…"
+                    className="w-full h-7 pl-7 pr-2 rounded-md border border-neutral-200 bg-[#F0F4F8] text-xs text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white"
+                  />
+                </div>
               </div>
-              {PROJECTS.map((proj) => {
+              {filteredProjects.length === 0 && (
+                <p className="px-3 py-2 text-xs text-neutral-400">No projects match</p>
+              )}
+              {filteredProjects.map((proj) => {
                 const selected = scope.kind === 'project' && scope.id === proj.id;
                 return (
                   <button
@@ -157,12 +226,19 @@ export function BrandBanner() {
       </div>
 
       <div className="flex-1 px-4 flex items-center justify-center">
-        <div className="w-full max-w-xl">
+        <div className="w-full max-w-xl" ref={searchContainerRef}>
           <div className="relative">
             <SearchIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               aria-label={t('banner.searchLabel')}
               placeholder={t('banner.searchPlaceholder')}
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  submitSearch();
+                }
+              }}
               className="w-full h-7 pl-8 pr-2 rounded-md border border-neutral-200 bg-[#F0F4F8] text-xs text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white"
             />
           </div>

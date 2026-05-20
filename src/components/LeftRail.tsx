@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboardIcon,
   MessageCircleIcon,
   SettingsIcon,
+  SearchIcon,
   PackageIcon,
   FolderIcon } from
 'lucide-react';
 import { ColorCustomizer } from './ColorCustomizer';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useShellLayout } from '../contexts/ShellLayoutContext';
+import { useScope } from '../contexts/ScopeContext';
+import { useSearch } from '../contexts/SearchContext';
+import cloughLogo from '../../artifacts/Clough_Colore.png';
 interface LeftRailProps {
   activeItem: string;
   onItemClick: (item: string) => void;
@@ -28,40 +31,49 @@ export function LeftRail({
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [showColorCustomizer, setShowColorCustomizer] = useState(false);
   const { isLeftRailVisible } = useShellLayout();
+  const { scope, setScope } = useScope();
+  const { lastQuery } = useSearch();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const routeActiveItem =
+    location.pathname === '/' ? 'dashboard' :
+    location.pathname.startsWith('/documents') ? 'documents' :
+    location.pathname.startsWith('/search') ? 'search' :
+    location.pathname.startsWith('/packages') ? 'packages' :
+    location.pathname.startsWith('/chat') ? 'chat' :
+    activeItem;
 
   const navItems: NavItem[] = [
-  {
-    id: 'dashboard',
-    icon: LayoutDashboardIcon,
-    label: t('navigation.home'),
-    onClick: () => navigate('/')
-  },
-  {
-    id: 'documents',
-    icon: FolderIcon,
-    label: t('navigation.documents'),
-    onClick: () => navigate('/documents')
-  },
-  {
-    id: 'packages',
-    icon: PackageIcon,
-    label: t('navigation.packages'),
-    onClick: () => navigate('/packages')
-  },
-  {
-    id: 'chat',
-    icon: MessageCircleIcon,
-    label: t('navigation.chat'),
-    onClick: () => navigate('/chat')
-  }];
+    {
+      id: 'chat',
+      icon: MessageCircleIcon,
+      label: t('navigation.chat'),
+      onClick: () => navigate('/chat'),
+    },
+    {
+      id: 'search',
+      icon: SearchIcon,
+      label: t('navigation.search'),
+      onClick: () => navigate(lastQuery ? `/search?q=${encodeURIComponent(lastQuery)}` : '/search'),
+    },
+    ...(scope.kind === 'project'
+      ? [{
+          id: 'documents' as const,
+          icon: FolderIcon,
+          label: t('navigation.documents'),
+          onClick: () => navigate('/documents'),
+        }]
+      : []),
+  ];
 
   const bottomItems: NavItem[] = [
-  {
-    id: 'settings',
-    icon: SettingsIcon,
-    label: t('navigation.settings')
-  }];
+    {
+      id: 'settings',
+      icon: SettingsIcon,
+      label: t('navigation.settings'),
+    },
+  ];
 
   const allItems = [...navItems, ...bottomItems];
 
@@ -86,7 +98,7 @@ export function LeftRail({
     }
   };
   const renderNavItem = (item: NavItem, index: number) => {
-    const isActive = activeItem === item.id;
+    const isActive = routeActiveItem === item.id;
     const isFocused = focusedIndex === index;
     const Icon = item.icon;
     const isSettings = item.id === 'settings';
@@ -134,17 +146,26 @@ export function LeftRail({
       >
         {/* Customer logo area */}
         <div className="px-2 mb-3">
-          <div
-            className="h-20 rounded-md bg-[#E10613] text-white relative overflow-hidden border border-[#C70010]"
-            aria-label="Customer logo mockup"
+          <button
+            type="button"
+            onClick={() => { navigate('/'); setScope({ kind: 'enterprise' }); }}
+            onFocus={() => setFocusedIndex(-1)}
+            className={`relative h-20 w-full rounded-md overflow-hidden border transition-colors bg-white ${
+              routeActiveItem === 'dashboard'
+                ? 'border-[#B30B16] ring-2 ring-[#0461BA] ring-offset-1'
+                : 'border-neutral-200 hover:border-[#C70010] hover:shadow-sm'
+            }`}
+            aria-label="Customer logo - go to Home dashboard"
+            aria-current={routeActiveItem === 'dashboard' ? 'page' : undefined}
           >
-            <div className="h-full flex items-center justify-center">
-              <span className="text-lg font-bold tracking-wide lowercase">clough</span>
+            <div className="h-full w-full p-2 flex items-center justify-center">
+              <img
+                src={cloughLogo}
+                alt=""
+                className="h-full w-full object-contain"
+              />
             </div>
-            <span className="absolute right-2 top-3 w-5 h-5 rounded-full border-2 border-white border-l-transparent border-b-transparent rotate-45" />
-            <span className="absolute right-1.5 top-2.5 w-7 h-7 rounded-full border border-white/85 border-l-transparent border-b-transparent rotate-45" />
-            <span className="absolute right-1 top-2 w-9 h-9 rounded-full border border-white/70 border-l-transparent border-b-transparent rotate-45" />
-          </div>
+          </button>
         </div>
 
         {/* Main Nav Items */}
