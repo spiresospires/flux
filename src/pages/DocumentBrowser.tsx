@@ -14,6 +14,7 @@ import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
 import { ChatInterface } from '../components/ChatInterface';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
+import { ClipboardDropdown } from '../components/ClipboardDropdown';
 import { mockDocuments } from '../data/mockDocuments';
 import { mockFolders } from '../data/mockFolders';
 import {
@@ -568,8 +569,10 @@ export function DocumentBrowser() {
     'folder'
   );
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [isChatMode, setIsChatMode] = useState(false);
-  const [activeRailItem, setActiveRailItem] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isChatMode = location.pathname === '/chat';
+  const activeRailItem = isChatMode ? 'chat' : 'documents';
   const projectFolders = useMemo(() => {
     const factor = PROJECT_SCALE[currentWorkspace] ?? 1;
     const scale = (n: number) => Math.max(0, Math.round(n * factor));
@@ -605,17 +608,6 @@ export function DocumentBrowser() {
     setSelectedFolderId(null);
     setDisplayedCount(ITEMS_PER_PAGE);
   }, [currentWorkspace]);
-  const location = useLocation();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (location.pathname === '/chat') {
-      setIsChatMode(true);
-      setActiveRailItem('chat');
-    } else {
-      setIsChatMode(false);
-      setActiveRailItem('documents');
-    }
-  }, [location.pathname]);
   const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
 
@@ -640,11 +632,9 @@ export function DocumentBrowser() {
   }, [location.state]);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [openActionSubmenuKey, setOpenActionSubmenuKey] = useState<string | null>(null);
-  const [showClipboardDropdown, setShowClipboardDropdown] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
-  const clipboardRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   // Column filters for table view
   const [columnFilters, setColumnFilters] = useState<
@@ -904,10 +894,7 @@ export function DocumentBrowser() {
         setOpenActionMenuId(null);
         setOpenActionSubmenuKey(null);
       }
-      if (clipboardRef.current && !clipboardRef.current.contains(event.target as Node)) {
-        setShowClipboardDropdown(false);
-      }
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
         setShowExportMenu(false);
       }
     };
@@ -1667,7 +1654,7 @@ export function DocumentBrowser() {
 
   return (
     <div
-      className="h-[calc(100vh-45px)] mt-[45px] font-sans overflow-hidden p-4"
+      className="h-[calc(100vh-60px)] mt-[60px] font-sans overflow-hidden p-4"
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
@@ -1705,7 +1692,7 @@ export function DocumentBrowser() {
             {/* Left Rail */}
             <LeftRail
               activeItem={activeRailItem}
-              onItemClick={setActiveRailItem} />
+              onItemClick={() => {}} />
 
 
             {/* Sidebar Island */}
@@ -1738,7 +1725,7 @@ export function DocumentBrowser() {
 
             {/* Main Content Island */}
             <div
-              className="flex-1 flex flex-col min-w-0 rounded-lg shadow-lg overflow-hidden"
+              className="flex-1 flex flex-col min-w-0 rounded-xl shadow-md overflow-hidden"
               style={{
                 backgroundColor: 'var(--element-bg-color, #FFFFFF)'
               }}>
@@ -1890,64 +1877,21 @@ export function DocumentBrowser() {
                 <div className="flex items-center gap-1">
                   {/* Clipboard button */}
                   {clipboard.length > 0 && (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowClipboardDropdown((prev) => !prev);
-                        }}
-                        className="h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-colors inline-flex items-center justify-center"
-                        aria-label="Clipboard"
-                        aria-expanded={showClipboardDropdown}
-                      >
-                        <ClipboardIcon size={15} />
-                        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-[#0461BA] text-white text-[10px] leading-4 text-center font-semibold">
-                          {Math.min(clipboard.length, 99)}
-                        </span>
-                      </button>
-                      {showClipboardDropdown && (
-                        <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-neutral-200 rounded-md shadow-lg z-40">
-                          <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-neutral-800">Clipboard ({clipboard.length})</p>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                clearClipboard();
-                              }}
-                              className="text-[11px] font-semibold text-neutral-500 hover:text-red-600 transition-colors disabled:text-neutral-300"
-                              disabled={clipboard.length === 0}
-                              aria-label="Clear clipboard"
-                            >
-                              Clear
-                            </button>
-                          </div>
-                          {clipboard.length === 0 ? (
-                            <div className="px-3 py-4 text-xs text-neutral-500">Clipboard is empty</div>
-                          ) : (
-                            <div className="max-h-64 overflow-y-auto">
-                              {clipboard.map((doc) => (
-                                <div key={doc.id} className="px-3 py-2 border-b border-neutral-100 last:border-b-0 flex items-center justify-between gap-2 hover:bg-neutral-50 group">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-neutral-800 truncate">{doc.id}</p>
-                                    <p className="text-[11px] text-neutral-500 truncate">{doc.title}</p>
-                                  </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeFromClipboard(doc.id);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-neutral-600 hover:bg-neutral-200"
-                                    aria-label={`Remove ${doc.id} from clipboard`}
-                                  >
-                                    <ClipboardStackIcon size={13} active />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                    <ClipboardDropdown align="right">
+                      {({ toggle, isOpen }) => (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggle(); }}
+                          className="relative h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-colors inline-flex items-center justify-center"
+                          aria-label="Clipboard"
+                          aria-expanded={isOpen}
+                        >
+                          <ClipboardIcon size={15} />
+                          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-[#0461BA] text-white text-[10px] leading-4 text-center font-semibold">
+                            {Math.min(clipboard.length, 99)}
+                          </span>
+                        </button>
                       )}
-                    </div>
+                    </ClipboardDropdown>
                   )}
                   {/* View mode dropdown */}
                   <ViewModeDropdown
@@ -2172,7 +2116,7 @@ export function DocumentBrowser() {
                       </div> :
 
                       <div key="table-view" className="flex flex-col h-full">
-                        <div className="bg-white rounded-md border border-neutral-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
+                        <div className="bg-white rounded-lg border border-neutral-200 shadow-sm overflow-hidden flex flex-col h-full min-h-0">
                           <AnimatePresence initial={false}>
                             {(isDraggingGroupableColumn || hasActiveGrouping) && (
                               <motion.div

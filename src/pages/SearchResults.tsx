@@ -221,14 +221,13 @@ function SearchResultCard({ result }: { result: SearchResult }) {
 
 function EmptySearchState() {
   return (
-    <section className="flex min-h-[420px] items-center justify-center rounded-md border border-dashed border-neutral-300 bg-white p-8 text-center">
+    <section className="flex min-h-[420px] items-center justify-center rounded-xl bg-white shadow-md p-8 text-center">
       <div className="max-w-md">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F1FB] text-[#0461BA]">
           <SearchIcon size={22} />
         </div>
-        <h2 className="mt-4 text-xl font-semibold text-neutral-900">Search across Flux</h2>
-        <p className="mt-2 text-sm text-neutral-600">Use the search bar above to find documents and placeholders.</p>
-        <p className="mt-2 text-xs text-neutral-500">Phase 1 search includes documents and placeholders.</p>
+        <h2 className="mt-4 text-xl font-semibold text-neutral-900">Search across FusionLive</h2>
+        <p className="mt-2 text-sm text-neutral-600">Use the search bar above to find anything.</p>
       </div>
     </section>
   );
@@ -236,7 +235,7 @@ function EmptySearchState() {
 
 function NoResultsState({ query, onClear }: { query: string; onClear: () => void }) {
   return (
-    <section className="flex min-h-[360px] items-center justify-center rounded-md border border-neutral-200 bg-white p-8 text-center">
+    <section className="flex min-h-[360px] items-center justify-center rounded-xl bg-white shadow-md p-8 text-center">
       <div className="max-w-lg">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
           <SearchIcon size={22} />
@@ -315,12 +314,12 @@ export function SearchResults() {
   };
 
   return (
-    <div className="h-[calc(100vh-45px)] mt-[45px] bg-[var(--main-bg-color)] overflow-hidden p-4">
+    <div className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
       <LeftRail activeItem="search" onItemClick={() => {}} onChatClick={() => navigate('/chat')} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div className="flex h-full w-full flex-col gap-4 overflow-hidden">
-          <header className="shrink-0 rounded-md border border-neutral-200 bg-white px-5 py-3">
+          <header className="shrink-0 rounded-xl bg-white shadow-md px-5 py-3">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h1 className="text-lg font-semibold text-neutral-900">Search results</h1>

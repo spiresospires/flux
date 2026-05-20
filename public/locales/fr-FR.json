@@ -1,6 +1,7 @@
 {
   "navigation": {
     "home": "Accueil",
+    "dashboard": "Tableau de bord",
     "documents": "Documents",
     "search": "Recherche",
     "packages": "Lots",
@@ -11,7 +12,7 @@
   "banner": {
     "hideNavigation": "Masquer le rail de navigation",
     "showNavigation": "Afficher le rail de navigation",
-    "homeScope": "Accueil",
+    "homeScope": "Tous les espaces",
     "projects": "Projets",
     "searchLabel": "Recherche",
     "searchPlaceholder": "Rechercher...",

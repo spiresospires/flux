@@ -308,7 +308,7 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.28, ease: [0.32, 0, 0.16, 1] }}
-            className="fixed top-[45px] right-0 bottom-0 w-1/2 min-w-[380px] max-w-[640px] bg-white border-l border-neutral-200 shadow-2xl z-50 flex flex-col overflow-hidden"
+            className="fixed top-[60px] right-0 bottom-0 w-1/2 min-w-[380px] max-w-[640px] bg-white border-l border-neutral-200 shadow-2xl z-50 flex flex-col overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label={t('detailPanel.detailsAria', { title: data.title })}

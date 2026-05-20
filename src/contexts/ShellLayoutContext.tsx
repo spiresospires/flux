@@ -1,30 +1,21 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 
 interface ShellLayoutContextValue {
-  isLeftRailVisible: boolean;
-  setIsLeftRailVisible: (visible: boolean) => void;
-  toggleLeftRail: () => void;
+  isLeftRailVisible: true;
 }
 
 const ShellLayoutContext = createContext<ShellLayoutContextValue | undefined>(undefined);
 
 export function ShellLayoutProvider({ children }: { children: React.ReactNode }) {
-  const [isLeftRailVisible, setIsLeftRailVisible] = useState(true);
-
   useEffect(() => {
-    document.documentElement.style.setProperty('--left-rail-width', isLeftRailVisible ? '88px' : '0px');
-  }, [isLeftRailVisible]);
+    document.documentElement.style.setProperty('--left-rail-width', '88px');
+  }, []);
 
-  const value = useMemo(
-    () => ({
-      isLeftRailVisible,
-      setIsLeftRailVisible,
-      toggleLeftRail: () => setIsLeftRailVisible((v) => !v),
-    }),
-    [isLeftRailVisible]
+  return (
+    <ShellLayoutContext.Provider value={{ isLeftRailVisible: true }}>
+      {children}
+    </ShellLayoutContext.Provider>
   );
-
-  return <ShellLayoutContext.Provider value={value}>{children}</ShellLayoutContext.Provider>;
 }
 
 export function useShellLayout() {

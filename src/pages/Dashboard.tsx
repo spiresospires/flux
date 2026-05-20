@@ -721,15 +721,15 @@ export function Dashboard() {
 
   return (
     <div
-      className="h-[calc(100vh-45px)] mt-[45px] font-sans overflow-y-auto p-3"
+      className="h-[calc(100vh-60px)] mt-[60px] font-sans overflow-y-auto p-4"
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
       <LeftRail activeItem={activeItem} onItemClick={setActiveItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
-        <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-3 min-h-[calc(100vh-69px)] items-start">
-          <section className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden h-fit sticky top-0">
+        <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-4 min-h-[calc(100vh-92px)] items-start">
+          <section className="bg-white rounded-xl shadow-md overflow-hidden h-fit sticky top-0">
             <div className="divide-y divide-neutral-100">
               <button
                 onClick={() => setSelectedSection('overview')}
@@ -767,7 +767,7 @@ export function Dashboard() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="bg-white border border-neutral-200 rounded-xl shadow-sm overflow-hidden min-h-[480px]"
+            className="bg-white rounded-xl shadow-md overflow-hidden min-h-[480px]"
           >
             {selectedSection === 'overview' ? (
               <OverviewPane overdueTodos={overdueTodos} unreadNotifs={unreadNotifs} todos={filteredTodos} notifications={filteredNotifications} sharedItems={filteredSharedItems} favourites={filteredFavourites} onSelectSection={setSelectedSection} t={t} />

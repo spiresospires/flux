@@ -20,7 +20,7 @@ import {
 import { mockDocuments } from '../data/mockDocuments';
 import { statusColors } from './documentStatusColors';
 import { LeftRail } from './LeftRail';
-import { ClipboardPanel } from './ClipboardPanel';
+import { ClipboardDropdown } from './ClipboardDropdown';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -464,7 +464,6 @@ export function ChatInterface({
     });
   };
   const [inputValue, setInputValue] = useState('');
-  const [clipboardPanelOpen, setClipboardPanelOpen] = useState(false);
   const [selectedClipboardDocs, setSelectedClipboardDocs] = useState<Document[]>([]);
   const { clipboard } = useClipboard();
   const [isTyping, setIsTyping] = useState(false);
@@ -511,19 +510,35 @@ export function ChatInterface({
       </div>
     );
   };
-  const renderClipboardTrigger = () => (
-    <button
-      onClick={() => setClipboardPanelOpen(true)}
-      title={`${t('chat.clipboardTriggerAria')} (${clipboard.length})`}
-      className="w-12 h-12 rounded-full bg-white border border-neutral-200 hover:bg-[#F0F4F8] text-neutral-600 flex items-center justify-center transition-colors shrink-0 shadow-sm relative"
-      aria-label={t('chat.clipboardTriggerAria')}>
-      <PlusIcon size={18} />
-      {clipboard.length > 0 && (
-        <span className="absolute top-0 right-0 w-5 h-5 rounded-full bg-[#0461BA] text-white text-[10px] font-bold flex items-center justify-center">
-          {clipboard.length}
-        </span>
+  const addClipboardDoc = (doc: Document) => {
+    setSelectedClipboardDocs((prev) =>
+      prev.some((d) => d.id === doc.id) ? prev.filter((d) => d.id !== doc.id) : [...prev, doc]
+    );
+  };
+  const renderClipboardTrigger = (direction: 'up' | 'down' = 'up') => (
+    <ClipboardDropdown
+      align="left"
+      direction={direction}
+      onDocumentClick={addClipboardDoc}
+      selectedDocIds={selectedClipboardDocs.map((d) => d.id)}
+    >
+      {({ toggle, isOpen }) => (
+        <button
+          onClick={toggle}
+          title={`${t('chat.clipboardTriggerAria')} (${clipboard.length})`}
+          className="w-12 h-12 rounded-full bg-white border border-neutral-200 hover:bg-[#F0F4F8] text-neutral-600 flex items-center justify-center transition-colors shrink-0 shadow-sm relative"
+          aria-label={t('chat.clipboardTriggerAria')}
+          aria-expanded={isOpen}
+        >
+          <PlusIcon size={18} />
+          {clipboard.length > 0 && (
+            <span className="absolute top-0 right-0 w-5 h-5 rounded-full bg-[#0461BA] text-white text-[10px] font-bold flex items-center justify-center">
+              {clipboard.length}
+            </span>
+          )}
+        </button>
       )}
-    </button>
+    </ClipboardDropdown>
   );
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -803,22 +818,6 @@ export function ChatInterface({
       handleSend();
     }
   };
-  const suggestions = askAbout ?
-  (() => {
-    const subject = askAbout ?? '';
-    return [
-    t('chat.summariseSubject', { subject }),
-    t('chat.whoResponsible', { subject }),
-    t('chat.latestActivity', { subject }),
-    t('chat.openIssues', { subject }),
-    t('chat.recentChanges', { subject })];
-  })() :
-
-  [
-  t('chat.suggestions.specs'),
-  t('chat.suggestions.changes'),
-  t('chat.suggestions.compliance')];
-
   return (
     <motion.div
       initial={{
@@ -833,14 +832,14 @@ export function ChatInterface({
       transition={{
         duration: 0.25
       }}
-      className="fixed inset-x-0 top-[45px] bottom-0 bg-[var(--main-bg-color)] z-30 flex pl-[var(--left-rail-width,88px)]">
+      className="fixed inset-x-0 top-[60px] bottom-0 bg-[var(--main-bg-color)] z-30 flex pl-[var(--left-rail-width,88px)]">
 
       <LeftRail
         activeItem="chat"
         onItemClick={() => onExit()} />
 
       <div className="flex-1 w-full p-4">
-        <div className="w-full flex items-stretch gap-4 h-[calc(100vh-77px)]">
+        <div className="w-full flex items-stretch gap-4 h-[calc(100vh-92px)]">
 
           {/* Chat history sidebar */}
           <ChatHistorySidebar
@@ -880,7 +879,7 @@ export function ChatInterface({
             }} />
 
           {/* Right side: chat content (floating panel) */}
-          <div className="flex-1 flex flex-col min-w-0 bg-white border border-neutral-200 rounded-md shadow-sm overflow-hidden h-full">
+          <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl shadow-md overflow-hidden h-full">
       {/* Messages Area / Empty State */}
       <div
         className="flex-1 overflow-y-auto flex flex-col"
@@ -893,28 +892,11 @@ export function ChatInterface({
             <div className="w-16 h-16 bg-[#F0F4F8] rounded-full flex items-center justify-center mb-4 shadow-sm">
               <SparklesIcon size={32} className="text-[#0461BA]" />
             </div>
-            {askAbout ?
-          <>
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2 text-center">
-                {askKind === 'folder'
-                  ? t('chat.askAboutFolderTitle', { name: askAbout ?? '' })
-                  : askKind === 'document'
-                    ? t('chat.askAboutDocumentTitle', { name: askAbout ?? '' })
-                    : t('chat.askAboutGenericTitle', { name: askAbout ?? '' })}
-              </h2>
-              <p className="text-neutral-500 mb-6 text-center text-base">
-                {t('chat.suggestionHint')}
-              </p>
-            </> :
-          <>
-              <h2 className="text-3xl font-bold text-neutral-900 mb-2">
-                {t('chat.title')}
-              </h2>
-              <p className="text-neutral-500 mb-6 text-center text-lg">
-                {t('chat.subtitle')}
-              </p>
-            </>
-          }
+            <p className="text-neutral-500 mb-6 text-center text-base">
+              {askAbout
+                ? t('chat.suggestionHint')
+                : t('chat.subtitle')}
+            </p>
 
             {selectedClipboardDocs.length > 0 && (
               <div className="w-full mb-3 rounded-2xl border border-[#0461BA]/15 bg-white px-4 py-3 shadow-sm">
@@ -928,7 +910,7 @@ export function ChatInterface({
 
             {/* Centered Input for Empty State */}
             <div className="w-full max-w-[960px] mx-auto flex items-center gap-3">
-              {renderClipboardTrigger()}
+              {renderClipboardTrigger('down')}
               <div className="flex-1 relative shadow-sm rounded-full bg-white border border-neutral-200 focus-within:ring-2 focus-within:ring-[#0461BA] focus-within:border-transparent transition-all">
                 <input
                 type="text"
@@ -949,17 +931,6 @@ export function ChatInterface({
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {suggestions.map((s) =>
-            <button
-              key={s}
-              onClick={() => handleSend(s)}
-              className="px-4 py-2 bg-white border border-neutral-200 rounded-full text-sm text-neutral-600 hover:bg-[#F0F4F8] hover:text-[#0461BA] transition-colors">
-              
-                  {s}
-                </button>
-            )}
-            </div>
           </div> :
 
         <div className="max-w-[960px] mx-auto w-full px-4 py-4 space-y-4">
@@ -1086,7 +1057,7 @@ export function ChatInterface({
             className="flex-1 px-5 py-3.5 rounded-full bg-[#F0F4F8] border border-neutral-200 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent text-sm transition-shadow"
             aria-label={t('chat.messageInputAria')} />
 
-            {renderClipboardTrigger()}
+            {renderClipboardTrigger('up')}
 
             <button
             onClick={() => handleSend()}
@@ -1101,21 +1072,6 @@ export function ChatInterface({
       }
       </div>
 
-      <ClipboardPanel
-        isOpen={clipboardPanelOpen}
-        onClose={() => setClipboardPanelOpen(false)}
-        onSelect={(docs) => {
-          setSelectedClipboardDocs((prev) => {
-            const next = [...prev];
-            docs.forEach((doc) => {
-              if (!next.some((existing) => existing.id === doc.id)) {
-                next.push(doc);
-              }
-            });
-            return next;
-          });
-        }}
-      />
         </div>
       </div>
     </motion.div>);
@@ -1182,7 +1138,7 @@ function ChatHistorySidebar(p: SidebarProps) {
 
   if (!p.open) {
     return (
-      <div className="w-10 shrink-0 border-r border-neutral-200 bg-white flex flex-col items-center py-3 gap-2 rounded-md overflow-hidden shadow-sm">
+      <div className="w-10 shrink-0 bg-white flex flex-col items-center py-3 gap-2 rounded-xl overflow-hidden shadow-md">
         <button
           onClick={p.onToggle}
           title={t('chat.showHistory')}
@@ -1203,7 +1159,7 @@ function ChatHistorySidebar(p: SidebarProps) {
 
   return (
     <aside
-      className="shrink-0 border-r border-neutral-200 bg-white flex flex-col relative rounded-md overflow-hidden shadow-sm h-full"
+      className="shrink-0 bg-white flex flex-col relative rounded-xl overflow-hidden shadow-md h-full"
       style={{ width: p.width }}>
       <div className="px-3 py-3 flex items-center gap-2 border-b border-neutral-100">
         <button

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  LayoutDashboardIcon,
   MessageCircleIcon,
   SettingsIcon,
   SearchIcon,
@@ -9,10 +10,8 @@ import {
 'lucide-react';
 import { ColorCustomizer } from './ColorCustomizer';
 import { useLocalization } from '../contexts/LocalizationContext';
-import { useShellLayout } from '../contexts/ShellLayoutContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useSearch } from '../contexts/SearchContext';
-import cloughLogo from '../../artifacts/Clough_Colore.png';
 interface LeftRailProps {
   activeItem: string;
   onItemClick: (item: string) => void;
@@ -30,8 +29,7 @@ export function LeftRail({
   const { t } = useLocalization();
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [showColorCustomizer, setShowColorCustomizer] = useState(false);
-  const { isLeftRailVisible } = useShellLayout();
-  const { scope, setScope } = useScope();
+  const { scope } = useScope();
   const { lastQuery } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,6 +43,12 @@ export function LeftRail({
     activeItem;
 
   const navItems: NavItem[] = [
+    {
+      id: 'dashboard',
+      icon: LayoutDashboardIcon,
+      label: t('navigation.dashboard'),
+      onClick: () => navigate('/'),
+    },
     {
       id: 'chat',
       icon: MessageCircleIcon,
@@ -76,10 +80,6 @@ export function LeftRail({
   ];
 
   const allItems = [...navItems, ...bottomItems];
-
-  if (!isLeftRailVisible) {
-    return null;
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -139,35 +139,11 @@ export function LeftRail({
     <>
       <nav
         onKeyDown={handleKeyDown}
-        className="fixed left-0 top-[45px] h-[calc(100vh-45px)] bg-white border-r border-neutral-200 z-20 flex flex-col py-2 overflow-hidden"
+        className="fixed left-0 top-[60px] h-[calc(100vh-60px)] bg-white border-r border-neutral-200 z-20 flex flex-col py-2 overflow-hidden"
         style={{ width: 88 }}
         role="navigation"
         aria-label={t('navigation.main')}
       >
-        {/* Customer logo area */}
-        <div className="px-2 mb-3">
-          <button
-            type="button"
-            onClick={() => { navigate('/'); setScope({ kind: 'enterprise' }); }}
-            onFocus={() => setFocusedIndex(-1)}
-            className={`relative h-20 w-full rounded-md overflow-hidden border transition-colors bg-white ${
-              routeActiveItem === 'dashboard'
-                ? 'border-[#B30B16] ring-2 ring-[#0461BA] ring-offset-1'
-                : 'border-neutral-200 hover:border-[#C70010] hover:shadow-sm'
-            }`}
-            aria-label="Customer logo - go to Home dashboard"
-            aria-current={routeActiveItem === 'dashboard' ? 'page' : undefined}
-          >
-            <div className="h-full w-full p-2 flex items-center justify-center">
-              <img
-                src={cloughLogo}
-                alt=""
-                className="h-full w-full object-contain"
-              />
-            </div>
-          </button>
-        </div>
-
         {/* Main Nav Items */}
         <div className="flex-1 px-1 space-y-1">
           {navItems.map((item, index) => renderNavItem(item, index))}

@@ -1,6 +1,7 @@
 {
   "navigation": {
     "home": "Home",
+    "dashboard": "Dashboard",
     "documents": "Documents",
     "search": "Search",
     "packages": "Packages",
@@ -11,7 +12,7 @@
   "banner": {
     "hideNavigation": "Hide navigation rail",
     "showNavigation": "Show navigation rail",
-    "homeScope": "Home",
+    "homeScope": "All Workspaces",
     "projects": "Projects",
     "searchLabel": "Search",
     "searchPlaceholder": "Search...",
@@ -375,9 +376,9 @@
     "askAboutGenericTitle": "What do you want to ask Flint about {{name}}?",
     "suggestionHint": "Type a question below or pick a suggestion.",
     "title": "Ask Flint",
-    "subtitle": "Your AI engineering assistant. Ask about document specifications, project details, or compliance requirements.",
+    "subtitle": "Your AI engineering assistant.",
     "attachedDocuments": "Attached documents from clipboard",
-    "inputPlaceholder": "E.g., What is the required tensile strength for the primary support beams?",
+    "inputPlaceholder": "Ask Flint",
     "followUpPlaceholder": "Ask a follow-up question...",
     "messageInputAria": "Message input",
     "sendMessageAria": "Send message",

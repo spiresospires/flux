@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, Settings2Icon } from 'lucide-react';
+import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, SearchIcon, Settings2Icon } from 'lucide-react';
+import cloughLogo from '../../artifacts/Clough_Colore.png';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLocalization } from '../contexts/LocalizationContext';
-import { useShellLayout } from '../contexts/ShellLayoutContext';
 import { useScope } from '../contexts/ScopeContext';
 import { mockNotifications } from '../data/mockDashboard';
 import profilePhoto from '../assets/profile-user.png';
@@ -10,7 +10,6 @@ import { PROJECTS } from '../data/projects';
 
 export function BrandBanner() {
   const { t } = useLocalization();
-  const { isLeftRailVisible, toggleLeftRail } = useShellLayout();
   const { scope, setScope } = useScope();
   const LEFT_RAIL_WIDTH = 88;
   const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
@@ -106,21 +105,19 @@ export function BrandBanner() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 h-[45px] bg-white text-neutral-800 border-b border-neutral-200 flex items-center pr-3 z-[60]"
+      className="fixed top-0 left-0 right-0 h-[60px] bg-white text-neutral-800 border-b border-white flex items-center pr-3 z-[60]"
       role="banner">
 
       <div className="flex items-center gap-3">
         <div
-          className="flex items-center justify-center shrink-0"
-          style={{ width: isLeftRailVisible ? LEFT_RAIL_WIDTH : 40 }}
+          className="flex items-center justify-center shrink-0 px-2"
+          style={{ width: LEFT_RAIL_WIDTH }}
         >
-          <button
-            onClick={toggleLeftRail}
-            className="h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-[#F0F4F8] transition-colors flex items-center justify-center"
-            aria-label={isLeftRailVisible ? t('banner.hideNavigation') : t('banner.showNavigation')}
-          >
-            {isLeftRailVisible ? <PanelLeftCloseIcon size={15} /> : <PanelLeftOpenIcon size={15} />}
-          </button>
+          <img
+            src={cloughLogo}
+            alt="Clough"
+            className="h-7 w-full object-contain"
+          />
         </div>
 
         {/* Scope Selector */}
