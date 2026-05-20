@@ -990,10 +990,6 @@ export function DocumentBrowser() {
     };
   }, [groupedSections]);
   const hasMore = displayedCount < orderedDocuments.length;
-<<<<<<< HEAD
-=======
-  const hasActiveFilters = selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0;
->>>>>>> d363d2d (chore: apply workspace changes)
   const allDisplayedSelected =
     displayedDocuments.length > 0 &&
     displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));

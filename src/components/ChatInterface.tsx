@@ -1234,16 +1234,6 @@ function ChatHistorySidebar(p: SidebarProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto py-2">
-<<<<<<< HEAD
-        {pinned.length > 0 &&
-        <div className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.pinned')}</div>
-        }
-        {pinned.map((c) => renderItem(c, p, t))}
-        {recent.length > 0 &&
-        <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.recent')}</div>
-        }
-        {recent.map((c) => renderItem(c, p, t))}
-=======
         {favourites.length > 0 && (
           <>
             <div className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.pinned')}</div>
@@ -1266,7 +1256,6 @@ function ChatHistorySidebar(p: SidebarProps) {
         <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.recent')}</div>
         }
         {recent.map((c) => renderItem(c, p, false))}
->>>>>>> d363d2d (chore: apply workspace changes)
         {filtered.length === 0 &&
         <div className="px-3 py-6 text-center text-xs text-neutral-400">{t('chat.noChatsFound')}</div>
         }
@@ -1285,16 +1274,8 @@ function ChatHistorySidebar(p: SidebarProps) {
 
 }
 
-<<<<<<< HEAD
-function renderItem(
-  c: Conversation,
-  p: SidebarProps,
-  t: ReturnType<typeof useLocalization>['t']
-) {
-=======
 function renderItem(c: Conversation, p: SidebarProps, isDraggable = false) {
   const { t } = useLocalization();
->>>>>>> d363d2d (chore: apply workspace changes)
   const isActive = p.activeId === c.id;
   const isRenaming = p.renamingId === c.id;
   const menuOpen = p.menuOpenId === c.id;
