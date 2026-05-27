@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { DocumentBrowser } from './pages/DocumentBrowser';
+import { Chat } from './pages/Chat';
 import { DesignSystem } from './pages/DesignSystem';
 import { Packages } from './pages/Packages';
 import { Dashboard } from './pages/Dashboard';
@@ -30,7 +31,7 @@ export function App() {
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/documents" element={<DocumentBrowser />} />
-                    <Route path="/chat" element={<DocumentBrowser />} />
+                    <Route path="/chat" element={<Chat />} />
                     <Route path="/search" element={<SearchResults />} />
                     <Route path="/design-system" element={<DesignSystem />} />
                     <Route path="/packages" element={<Packages />} />

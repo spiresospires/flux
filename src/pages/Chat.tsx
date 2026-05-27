@@ -17,20 +17,15 @@ import {
   GripVerticalIcon,
   FileIcon } from
 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { mockDocuments } from '../data/mockDocuments';
-import { statusColors } from './documentStatusColors';
-import { LeftRail } from './LeftRail';
-import { ClipboardDropdown } from './ClipboardDropdown';
+import { statusColors } from '../components/documentStatusColors';
+import { LeftRail } from '../components/LeftRail';
+import { ClipboardDropdown } from '../components/ClipboardDropdown';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { Document } from '../types/document';
-interface ChatInterfaceProps {
-  onExit: () => void;
-  onDocumentSelect: (docId: string) => void;
-  askAbout?: string | null;
-  askKind?: 'folder' | 'document' | null;
-}
 interface ChatMessage {
   id: string;
   content: React.ReactNode;
@@ -88,12 +83,12 @@ const getSafetyDocuments = () => {
   );
   return safety.slice(0, 3);
 };
-export function ChatInterface({
-  onExit,
-  onDocumentSelect,
-  askAbout,
-  askKind
-}: ChatInterfaceProps) {
+export function Chat() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const askAbout = searchParams.get('ask');
+const onExit = () => navigate('/');
+  const onDocumentSelect = (_docId: string) => navigate('/documents');
   const { t } = useLocalization();
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const day = 86400000;

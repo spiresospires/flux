@@ -12,7 +12,6 @@ import { FilterPanel } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
 import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
-import { ChatInterface } from '../components/ChatInterface';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
 import { mockDocuments } from '../data/mockDocuments';
@@ -554,7 +553,7 @@ function ColumnHeaderDropdown({
 const ITEMS_PER_PAGE = 20;
 export function DocumentBrowser() {
   const { t } = useLocalization();
-  const { clipboard, addToClipboard, removeFromClipboard, clearClipboard, isInClipboard } = useClipboard();
+  const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
   const { currentWorkspace } = useWorkspace();
   const { setScope } = useScope();
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
@@ -571,8 +570,7 @@ export function DocumentBrowser() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const isChatMode = location.pathname === '/chat';
-  const activeRailItem = isChatMode ? 'chat' : 'documents';
+  const activeRailItem = 'documents';
   const projectFolders = useMemo(() => {
     const factor = PROJECT_SCALE[currentWorkspace] ?? 1;
     const scale = (n: number) => Math.max(0, Math.round(n * factor));
@@ -1022,19 +1020,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     fileSize: doc.fileSize || '2.4 MB',
     description: doc.description,
   });
-
-  const handleExitChat = () => {
-    navigate('/');
-  };
-  const handleDocumentSelectFromChat = (docId: string) => {
-    navigate('/');
-    setHighlightedDocId(docId);
-    setSelectedFolderId(null);
-    setSelectedStatus([]);
-    setSelectedDocType([]);
-    setSelectedProject([]);
-    setTimeout(() => setHighlightedDocId(null), 5000);
-  };
 
   const handleExport = (type: 'visible' | 'all') => {
     const colsToExport = type === 'visible' ? columns : allColumns;
@@ -1654,27 +1639,15 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
   return (
     <div
+      data-component="browser-shell"
       className="h-[calc(100vh-60px)] mt-[60px] font-sans overflow-hidden p-4"
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
 
-      {/* Chat Mode */}
-      <AnimatePresence>
-        {isChatMode &&
-          <ChatInterface
-            onExit={handleExitChat}
-            onDocumentSelect={handleDocumentSelectFromChat}
-            askAbout={new URLSearchParams(location.search).get('ask')}
-            askKind={new URLSearchParams(location.search).get('askKind') as 'folder' | 'document' | null} />
-
-        }
-      </AnimatePresence>
-
       {/* Main Layout */}
       <AnimatePresence>
-        {!isChatMode &&
-          <motion.div
+        <motion.div
             initial={{
               opacity: 0
             }}
@@ -1687,6 +1660,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             transition={{
               duration: 0.25
             }}
+            data-component="browser-layout"
             className="flex h-full gap-4 pl-[var(--left-rail-width,88px)]">
 
             {/* Left Rail */}
@@ -1725,6 +1699,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
             {/* Main Content Island */}
             <div
+              data-component="content-panel"
               className="flex-1 flex flex-col min-w-0 rounded-xl shadow-md overflow-hidden"
               style={{
                 backgroundColor: 'var(--element-bg-color, #FFFFFF)'
@@ -2306,7 +2281,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               </div>
             </div>
           </motion.div>
-        }
       </AnimatePresence>
       <DetailSlidePanel data={panelData} onClose={() => setPanelData(null)} />
     </div>);
