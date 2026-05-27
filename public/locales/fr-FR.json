@@ -77,7 +77,18 @@
     "light": "Clair",
     "lightDesc": "Thème lumineux d'origine",
     "dark": "Sombre",
-    "darkDesc": "Reposant pour les yeux"
+    "darkDesc": "Reposant pour les yeux",
+    "fluxTitle": "Style de vue",
+    "lightFloating": "Clair flottant",
+    "lightFloatingDesc": "Cartes sur fond gris",
+    "lightFlush": "Clair plat",
+    "lightFlushDesc": "Compact, bord à bord",
+    "darkFloating": "Sombre flottant",
+    "darkFloatingDesc": "Élevé sur sombre",
+    "darkFlush": "Sombre plat",
+    "darkFlushDesc": "Dense, structuré",
+    "fluxBadge": "FLUX refactor",
+    "demoBadge": "démo"
   },
   "metadata": {
     "title": "Métadonnées du document",
@@ -454,6 +465,28 @@
       "redlinesTitle": "Annotations ouvertes sur le lot Civil Foundations",
       "transmittalsTitle": "Transmittals émis à Contractor X ce mois-ci",
       "holdPointsTitle": "Points d'arrêt sur le lot de mise en service 03"
+    }
+  },
+  "feedback": {
+    "headerLabel": "Évaluer",
+    "buttonLabel": "Évaluer",
+    "buttonAriaLabel": "Évaluez votre expérience sur cette page",
+    "ariaLabel": "Retour d'expérience",
+    "question": "Comment trouvez-vous",
+    "positive": "J'adore",
+    "negative": "Pas pour moi",
+    "commentPlaceholder": "Dites-nous en plus (facultatif)…",
+    "submit": "Envoyer",
+    "submitting": "Envoi…",
+    "thankYou": "Merci pour votre retour !",
+    "thankYouSub": "Cela nous aide à améliorer l'expérience.",
+    "contexts": {
+      "dashboard": "le Tableau de bord",
+      "documentBrowsing": "la navigation documentaire",
+      "chat": "le Chat & IA",
+      "search": "la Recherche",
+      "packages": "les Lots",
+      "default": "la nouvelle expérience"
     }
   },
   "designSystem": {

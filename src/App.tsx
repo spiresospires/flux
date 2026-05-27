@@ -6,12 +6,14 @@ import { Packages } from './pages/Packages';
 import { Dashboard } from './pages/Dashboard';
 import { SearchResults } from './pages/SearchResults';
 import { BrandBanner } from './components/BrandBanner';
+import { FeedbackWidget } from './components/FeedbackWidget';
 import { ClipboardProvider } from './contexts/ClipboardContext';
 import { LocalizationProvider } from './contexts/LocalizationContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { ShellLayoutProvider } from './contexts/ShellLayoutContext';
 import { ScopeProvider } from './contexts/ScopeContext';
 import { SearchProvider } from './contexts/SearchContext';
+import { ViewStyleProvider } from './contexts/ViewStyleContext';
 
 export function App() {
   return (
@@ -19,10 +21,12 @@ export function App() {
       <WorkspaceProvider>
         <ClipboardProvider>
           <ScopeProvider>
+            <ViewStyleProvider>
             <SearchProvider>
               <ShellLayoutProvider>
                 <BrowserRouter>
                   <BrandBanner />
+                  <FeedbackWidget />
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/documents" element={<DocumentBrowser />} />
@@ -34,6 +38,7 @@ export function App() {
                 </BrowserRouter>
               </ShellLayoutProvider>
             </SearchProvider>
+            </ViewStyleProvider>
           </ScopeProvider>
         </ClipboardProvider>
       </WorkspaceProvider>

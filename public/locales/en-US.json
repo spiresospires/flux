@@ -77,7 +77,18 @@
     "light": "Light",
     "lightDesc": "Original bright theme",
     "dark": "Dark",
-    "darkDesc": "Easy on the eyes"
+    "darkDesc": "Easy on the eyes",
+    "fluxTitle": "View Style",
+    "lightFloating": "Light Floating",
+    "lightFloatingDesc": "Cards on grey",
+    "lightFlush": "Light Flush",
+    "lightFlushDesc": "Compact, edge-to-edge",
+    "darkFloating": "Dark Floating",
+    "darkFloatingDesc": "Elevated on dark",
+    "darkFlush": "Dark Flush",
+    "darkFlushDesc": "Dense, structured",
+    "fluxBadge": "FLUX refactor",
+    "demoBadge": "demo"
   },
   "metadata": {
     "title": "Document Metadata",
@@ -454,6 +465,28 @@
       "redlinesTitle": "Open redlines on Civil Foundations package",
       "transmittalsTitle": "Transmittals issued to Contractor X this month",
       "holdPointsTitle": "Hold points on Commissioning Pack 03"
+    }
+  },
+  "feedback": {
+    "headerLabel": "Rate this",
+    "buttonLabel": "Rate",
+    "buttonAriaLabel": "Rate your experience with this page",
+    "ariaLabel": "Experience feedback",
+    "question": "How's",
+    "positive": "Loving it",
+    "negative": "Not for me",
+    "commentPlaceholder": "Tell us more (optional)…",
+    "submit": "Submit",
+    "submitting": "Sending…",
+    "thankYou": "Thanks for the feedback!",
+    "thankYouSub": "It helps us improve the experience.",
+    "contexts": {
+      "dashboard": "the Dashboard",
+      "documentBrowsing": "Document Browsing",
+      "chat": "Chat & AI",
+      "search": "Search",
+      "packages": "Packages",
+      "default": "the new experience"
     }
   },
   "designSystem": {
