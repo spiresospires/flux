@@ -838,8 +838,8 @@ export function ChatInterface({
         activeItem="chat"
         onItemClick={() => onExit()} />
 
-      <div className="flex-1 w-full p-4">
-        <div className="w-full flex items-stretch gap-4 h-[calc(100vh-92px)]">
+      <div data-component="page-shell" className="flex-1 w-full p-4">
+        <div data-component="page-layout" className="w-full flex items-stretch gap-4 h-[calc(100vh-92px)]">
 
           {/* Chat history sidebar */}
           <ChatHistorySidebar
@@ -879,7 +879,7 @@ export function ChatInterface({
             }} />
 
           {/* Right side: chat content (floating panel) */}
-          <div className="flex-1 flex flex-col min-w-0 bg-white rounded-xl shadow-md overflow-hidden h-full">
+          <div data-component="content-panel" className="flex-1 flex flex-col min-w-0 bg-white rounded-xl shadow-md overflow-hidden h-full">
       {/* Messages Area / Empty State */}
       <div
         className="flex-1 overflow-y-auto flex flex-col"
@@ -1159,6 +1159,7 @@ function ChatHistorySidebar(p: SidebarProps) {
 
   return (
     <aside
+      data-component="left-panel"
       className="shrink-0 bg-white flex flex-col relative rounded-xl overflow-hidden shadow-md h-full"
       style={{ width: p.width }}>
       <div className="px-3 py-3 flex items-center gap-2 border-b border-neutral-100">
