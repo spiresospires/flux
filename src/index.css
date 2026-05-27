@@ -130,6 +130,139 @@ html[data-theme='dark'] .bg-\[\#E8F1FB\] { background-color: #1e3a5f !important;
 html[data-theme='dark'] .text-\[\#0461BA\] { color: #93c5fd !important; }
 html[data-theme='dark'] .bg-\[\#F8FAFC\] { background-color: #0f172a !important; }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   FLUSH VIEW — dense, structured layout (FLUX refactor design direction)
+   Applied via html[data-view='flush'].  All floating-view defaults remain
+   in place; these rules override only what differs in flush mode.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Main background: cool light grey fills gaps between panels in flush mode */
+html[data-view='flush'] {
+  --main-bg-color: #f4f6f9;
+}
+html[data-view='flush'][data-appearance='dark'] {
+  --main-bg-color: #0f172a;
+}
+
+/* ── Left rail (sidebar) ── */
+
+/* Dark slate navy chrome in both appearance modes for flush */
+html[data-view='flush'] [data-component='leftrail'] {
+  background-color: #1e2a3a !important;
+  border-right-color: #2d3f55 !important;
+}
+
+/* Default nav-item text on dark rail */
+html[data-view='flush'] [data-component='leftrail'] .text-neutral-500 {
+  color: #8ea5be !important;
+}
+html[data-view='flush'] [data-component='leftrail'] .hover\:text-neutral-700:hover {
+  color: #e2e8f0 !important;
+}
+html[data-view='flush'] [data-component='leftrail'] .hover\:bg-\[\#F0F4F8\]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Active nav item on dark rail */
+html[data-view='flush'] [data-component='leftrail'] .bg-\[\#E8F1FB\] {
+  background-color: rgba(148, 197, 253, 0.15) !important;
+}
+html[data-view='flush'] [data-component='leftrail'] .text-\[\#0461BA\] {
+  color: #93c5fd !important;
+}
+html[data-view='flush'] [data-component='leftrail'] .bg-\[\#0461BA\] {
+  background-color: #3b82f6 !important;
+}
+html[data-view='flush'] [data-component='leftrail'] .border-\[\#0461BA\] {
+  border-color: #3b82f6 !important;
+}
+
+/* ── All page shells: kill outer padding ── */
+/* browser-shell = DocumentBrowser  |  page-shell = Dashboard, Search, Packages */
+html[data-view='flush'] [data-component='browser-shell'],
+html[data-view='flush'] [data-component='page-shell'] {
+  padding: 0 !important;
+}
+
+/* ── All layout containers: kill inter-panel gap ── */
+/* browser-layout = DocumentBrowser  |  page-layout = Dashboard, Search, Packages */
+html[data-view='flush'] [data-component='browser-layout'],
+html[data-view='flush'] [data-component='page-layout'] {
+  gap: 0 !important;
+}
+
+/* ── Left panel (folder tree / filters): flush, cool grey background ── */
+html[data-view='flush'] [data-component='left-panel'] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: #f4f6f9 !important;
+  border-right: 1px solid #dde3ea !important;
+}
+html[data-view='flush'][data-appearance='dark'] [data-component='left-panel'] {
+  background-color: #1a2535 !important;
+  border-right-color: #2d3f55 !important;
+}
+
+/* ── Main content panel: flush, no radius, no shadow ── */
+html[data-view='flush'] [data-component='content-panel'] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ── Top bar ── */
+
+html[data-view='flush'] [data-component='topbar'] {
+  background-color: #1e2a3a !important;
+  border-bottom-color: #2d3f55 !important;
+}
+html[data-view='flush'] [data-component='topbar'] .text-neutral-800 {
+  color: #e2e8f0 !important;
+}
+html[data-view='flush'] [data-component='topbar'] .text-neutral-700 {
+  color: #cbd5e1 !important;
+}
+html[data-view='flush'] [data-component='topbar'] .text-neutral-600 {
+  color: #94a3b8 !important;
+}
+html[data-view='flush'] [data-component='topbar'] .text-neutral-400 {
+  color: #64748b !important;
+}
+/* Make white backgrounds transparent so the topbar colour shows through */
+html[data-view='flush'] [data-component='topbar'] .bg-white {
+  background-color: transparent !important;
+}
+/* Search / input fields within topbar */
+html[data-view='flush'] [data-component='topbar'] .bg-\[\#F0F4F8\] {
+  background-color: #253347 !important;
+}
+html[data-view='flush'] [data-component='topbar'] .placeholder-neutral-400::placeholder {
+  color: #64748b !important;
+}
+html[data-view='flush'] [data-component='topbar'] .border-neutral-200 {
+  border-color: #3d5270 !important;
+}
+/* The banner's own border-b uses border-white */
+html[data-view='flush'] [data-component='topbar'].border-b {
+  border-bottom: 1px solid #2d3f55 !important;
+}
+/* Scope selector button variants inside topbar */
+html[data-view='flush'] [data-component='topbar'] .border-\[#0461BA\]\/30 {
+  border-color: rgba(93, 166, 245, 0.35) !important;
+}
+html[data-view='flush'] [data-component='topbar'] .bg-\[\#E8F1FB\] {
+  background-color: #253f5a !important;
+}
+html[data-view='flush'] [data-component='topbar'] .text-\[\#0461BA\] {
+  color: #93c5fd !important;
+}
+html[data-view='flush'] [data-component='topbar'] .hover\:bg-\[\#d6e7f8\]:hover {
+  background-color: #2d4e6e !important;
+}
+/* Notification badge and profile icon */
+html[data-view='flush'] [data-component='topbar'] .tracking-wide {
+  color: #e2e8f0 !important;
+}
+
 /* Modern column resizer cursor and hit area */
 .column-resizer {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><g fill='none' stroke='%230461BA' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 12h12'/><path d='M9 9l-3 3 3 3'/><path d='M15 9l3 3-3 3'/></g></svg>") 12 12, col-resize;

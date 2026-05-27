@@ -314,12 +314,12 @@ export function SearchResults() {
   };
 
   return (
-    <div className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
+    <div data-component="page-shell" className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
       <LeftRail activeItem="search" onItemClick={() => {}} onChatClick={() => navigate('/chat')} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
-        <div className="flex h-full w-full flex-col gap-4 overflow-hidden">
-          <header className="shrink-0 rounded-xl bg-white shadow-md px-5 py-3">
+        <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">
+          <header data-component="content-panel" className="shrink-0 rounded-xl bg-white shadow-md px-5 py-3">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h1 className="text-lg font-semibold text-neutral-900">Search results</h1>

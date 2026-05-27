@@ -338,6 +338,7 @@ export function Packages() {
 
   return (
     <div
+      data-component="page-shell"
       className="h-[calc(100vh-60px)] mt-[60px] font-sans overflow-y-auto p-4"
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
@@ -490,9 +491,9 @@ function PackageLibrary({
 
   return (
     <div>
-      <div className="flex gap-3 items-start">
+      <div data-component="page-layout" className="flex gap-3 items-start">
         {/* Left filter panel (resizable) */}
-        <aside ref={panelRef} style={{ width: filterWidth }} className="shrink-0 bg-white rounded-xl shadow-md overflow-hidden">
+        <aside data-component="left-panel" ref={panelRef} style={{ width: filterWidth }} className="shrink-0 bg-white rounded-xl shadow-md overflow-hidden">
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-900">{t('packages.filters')}</h3>
             {activeCount > 0 &&
@@ -572,7 +573,7 @@ function PackageLibrary({
         </aside>
 
         {/* Right: table */}
-        <div className="flex-1 min-w-0 bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
+        <div data-component="content-panel" className="flex-1 min-w-0 bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
           {/* Header */}
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between bg-white shrink-0">
             <p className="text-xs font-medium text-neutral-600">{t('packages.packagesCount', { count: filtered.length })}</p>

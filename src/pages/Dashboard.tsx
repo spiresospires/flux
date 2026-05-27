@@ -721,6 +721,7 @@ export function Dashboard() {
 
   return (
     <div
+      data-component="page-shell"
       className="h-[calc(100vh-60px)] mt-[60px] font-sans overflow-y-auto p-4"
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
@@ -728,8 +729,8 @@ export function Dashboard() {
       <LeftRail activeItem={activeItem} onItemClick={setActiveItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
-        <div className="grid grid-cols-[280px_minmax(0,1fr)] gap-4 min-h-[calc(100vh-92px)] items-start">
-          <section className="bg-white rounded-xl shadow-md overflow-hidden h-fit sticky top-0">
+        <div data-component="page-layout" className="grid grid-cols-[280px_minmax(0,1fr)] gap-4 min-h-[calc(100vh-92px)] items-start">
+          <section data-component="left-panel" className="bg-white rounded-xl shadow-md overflow-hidden h-fit sticky top-0">
             <div className="divide-y divide-neutral-100">
               <button
                 onClick={() => setSelectedSection('overview')}
@@ -764,6 +765,7 @@ export function Dashboard() {
 
           <motion.section
             key={selectedSection}
+            data-component="content-panel"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
