@@ -87,6 +87,8 @@
     "darkFloatingDesc": "Elevated on dark",
     "darkFlush": "Dark Flush",
     "darkFlushDesc": "Dense, structured",
+    "basicFlush": "Basic Flush",
+    "basicFlushDesc": "Neutral grey, dense",
     "fluxBadge": "FLUX refactor",
     "demoBadge": "demo"
   },
@@ -469,8 +471,8 @@
   },
   "feedback": {
     "headerLabel": "Rate this",
-    "buttonLabel": "Rate",
-    "buttonAriaLabel": "Rate your experience with this page",
+    "buttonLabel": "Feedback",
+    "buttonAriaLabel": "Give feedback on your experience with this page",
     "ariaLabel": "Experience feedback",
     "question": "How's",
     "positive": "Loving it",
