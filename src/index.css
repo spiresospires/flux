@@ -250,10 +250,22 @@ html[data-view='flush'][data-appearance='basic'] [data-component='topbar'] .bg-w
 }
 /* content-panel stays white (#FFFFFF) — no override needed */
 
+/* ── Flush: stretch grid/flex rows so panels fill the full height ──
+   Floating layout uses items-start (panels size to content); flush must
+   stretch both columns to the full page height so there is no bare
+   background exposed below short content.                              */
+html[data-view='flush'] [data-component='page-layout'] {
+  align-items: stretch !important;
+}
+html[data-view='flush'] [data-component='left-panel'] {
+  height: 100% !important;       /* overrides h-fit on Dashboard left column */
+}
+
 /* ── Main content panel: flush, no radius, no shadow ── */
 html[data-view='flush'] [data-component='content-panel'] {
   border-radius: 0 !important;
   box-shadow: none !important;
+  min-height: 100% !important;   /* fills remainder when content is short */
 }
 
 /* ── Top bar ── */
