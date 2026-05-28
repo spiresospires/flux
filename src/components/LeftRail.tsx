@@ -21,15 +21,30 @@ function FlintIcon({ isHovered, isActive, size = 17 }: {
 }) {
   const sw = isActive ? 1.8 : 1.3;
   const hoverState = isHovered ? 'hover' : 'idle';
+  const baseR = isActive ? 2.0 : 1.8;
 
+  // Line draw — pathLength 0→1, staggered
   const lineMk = (delay: number) => ({
     idle: { pathLength: 1 as number, transition: { duration: 0.2 } },
     hover: { pathLength: [0, 1] as number[], transition: { duration: 0.45, delay, ease: 'easeOut' as const } },
   });
 
+  // Node radius pulse
   const nodeMk = (delay: number) => ({
-    idle: { r: isActive ? 2.0 : 1.8 },
-    hover: { r: [isActive ? 2.0 : 1.8, isActive ? 2.6 : 2.4, isActive ? 2.0 : 1.8] as number[], transition: { duration: 0.38, delay } },
+    idle: { r: baseR },
+    hover: { r: [baseR, baseR + 0.65, baseR] as number[], transition: { duration: 0.38, delay } },
+  });
+
+  // White sparkle dots — appear after lines finish drawing
+  // Positions: centroid (8, 9.33) + midpoints of each edge
+  // Line midpoints: (5.25, 7.5)  (10.75, 7.5)  (8, 13)
+  const sparkleMk = (delay: number, maxR: number) => ({
+    idle: { r: 0, opacity: 0 },
+    hover: {
+      r:       [0, maxR, 0]  as number[],
+      opacity: [0, 1,    0]  as number[],
+      transition: { duration: 0.38, delay },
+    },
   });
 
   return (
@@ -39,22 +54,30 @@ function FlintIcon({ isHovered, isActive, size = 17 }: {
       viewBox="0 0 16 16"
       fill="none"
       animate={{
+        // Dual shadow: blue brand glow + white sparkle bloom on hover
         filter: isHovered
-          ? 'drop-shadow(0 0 4px rgba(4,97,186,0.65))'
+          ? 'drop-shadow(0 0 5px rgba(4,97,186,0.5)) drop-shadow(0 0 3px rgba(255,255,255,0.9))'
           : isActive
-            ? 'drop-shadow(0 0 2px rgba(4,97,186,0.25))'
+            ? 'drop-shadow(0 0 2px rgba(4,97,186,0.3))'
             : 'drop-shadow(0 0 0px rgba(4,97,186,0))',
       }}
-      transition={{ duration: isHovered ? 0.25 : 0.55 }}
+      transition={{ duration: isHovered ? 0.2 : 0.55 }}
     >
       {/* Connection lines — top→BL, top→BR, BL→BR */}
       <motion.path d="M8 2L2.5 13"     stroke="currentColor" strokeWidth={sw} strokeLinecap="round" fill="none" initial="idle" animate={hoverState} variants={lineMk(0)} />
       <motion.path d="M8 2L13.5 13"    stroke="currentColor" strokeWidth={sw} strokeLinecap="round" fill="none" initial="idle" animate={hoverState} variants={lineMk(0.07)} />
       <motion.path d="M2.5 13L13.5 13" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" fill="none" initial="idle" animate={hoverState} variants={lineMk(0.2)} />
-      {/* Nodes — radius animates instead of scale to avoid SVG transform-origin issues */}
-      <motion.circle cx={8}    cy={2}  fill="currentColor" initial="idle" animate={hoverState} variants={nodeMk(0)} />
-      <motion.circle cx={2.5}  cy={13} fill="currentColor" initial="idle" animate={hoverState} variants={nodeMk(0.07)} />
-      <motion.circle cx={13.5} cy={13} fill="currentColor" initial="idle" animate={hoverState} variants={nodeMk(0.2)} />
+
+      {/* Nodes — each a distinct bright colour, always shown */}
+      <motion.circle cx={8}    cy={2}  fill="#F472B6" initial="idle" animate={hoverState} variants={nodeMk(0)} />     {/* hot pink   */}
+      <motion.circle cx={2.5}  cy={13} fill="#34D399" initial="idle" animate={hoverState} variants={nodeMk(0.07)} /> {/* mint teal  */}
+      <motion.circle cx={13.5} cy={13} fill="#FBBF24" initial="idle" animate={hoverState} variants={nodeMk(0.2)} />  {/* amber gold */}
+
+      {/* Finishing sparkle — white dots at centroid then each edge midpoint */}
+      <motion.circle cx={8}     cy={9.33} fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.44, 1.5)}  /> {/* centroid  — largest, leads */}
+      <motion.circle cx={5.25}  cy={7.5}  fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.50, 0.75)} /> {/* mid top→BL */}
+      <motion.circle cx={10.75} cy={7.5}  fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.53, 0.75)} /> {/* mid top→BR */}
+      <motion.circle cx={8}     cy={13}   fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.57, 0.75)} /> {/* mid BL→BR  */}
     </motion.svg>
   );
 }
