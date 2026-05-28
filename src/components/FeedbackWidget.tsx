@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUpIcon, ThumbsDownIcon, XIcon, SendIcon, MessageSquareIcon } from 'lucide-react';
+import { ThumbsUpIcon, ThumbsDownIcon, XIcon, SendIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,8 +208,9 @@ export function FeedbackWidget() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-neutral-100">
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-[#E8F1FB] flex items-center justify-center">
-                  <MessageSquareIcon size={11} className="text-[#0461BA]" />
+                <div className="flex items-center gap-0.5">
+                  <ThumbsUpIcon  size={12} className="text-[#0461BA]" />
+                  <ThumbsDownIcon size={12} className="text-neutral-400" />
                 </div>
                 <span className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">
                   {t('feedback.headerLabel')}
@@ -314,7 +315,7 @@ export function FeedbackWidget() {
                           placeholder={t('feedback.commentPlaceholder')}
                           maxLength={500}
                           rows={3}
-                          className="w-full text-sm text-neutral-800 placeholder-neutral-400 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent transition-all"
+                          className="w-full text-sm text-neutral-800 placeholder-neutral-400 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-[#0461BA] transition-all"
                         />
                         <button
                           onClick={handleSubmit}
@@ -347,7 +348,8 @@ export function FeedbackWidget() {
         aria-expanded={isOpen}
         aria-label={t('feedback.buttonAriaLabel')}
       >
-        <MessageSquareIcon size={13} strokeWidth={2} />
+        <ThumbsUpIcon  size={13} strokeWidth={2} />
+        <ThumbsDownIcon size={13} strokeWidth={2} />
         {t('feedback.buttonLabel')}
       </motion.button>
     </div>

@@ -72,6 +72,7 @@ export function CollapsibleFilterPanel({
           ease: [0.4, 0, 0.2, 1]
         }}
         ref={panelRef}
+        data-component="left-panel"
         className="h-full rounded-xl shadow-md overflow-hidden flex flex-col relative"
         style={{
           backgroundColor: 'var(--element-bg-color, #FFFFFF)'

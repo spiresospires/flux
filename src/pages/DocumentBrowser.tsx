@@ -28,7 +28,10 @@ import {
   FolderIcon,
   ChevronRightIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ChevronsUpDownIcon,
+  ListFilterIcon,
   XIcon,
   LoaderIcon,
   MoreHorizontalIcon,
@@ -425,130 +428,191 @@ interface ColumnHeaderDropdownProps {
   onSortChange: (column: ColumnKey, direction: SortDirection) => void;
   onClearFilter: (column: ColumnKey) => void;
 }
+
+/**
+ * Column header cell with inline sort-cycling and a hover-revealed filter popover.
+ *
+ * Interactions
+ * ─────────────
+ * • Click the label text → cycles sort: none → asc → desc → none (no popup needed)
+ * • Click the funnel icon → opens a compact popover with sort toggle pills + filter input
+ *
+ * Visual state
+ * ─────────────
+ * • Unsorted : faint ⇅ icon that brightens on hover
+ * • Sorted   : ↑ or ↓ in brand blue, label also blue
+ * • Filtered : funnel icon is always visible and blue; a filled dot sits beside it
+ */
 function ColumnHeaderDropdown({
   column,
   label,
   filter,
   onFilterChange,
   onSortChange,
-  onClearFilter
+  onClearFilter,
 }: ColumnHeaderDropdownProps) {
-  const { t } = useLocalization();
-  const [isOpen, setIsOpen] = useState(false);
-  const [filterValue, setFilterValue] = useState(filter?.value || '');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-  const hasActiveFilter = filter?.value || filter?.sortDirection;
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 text-left font-semibold text-xs uppercase tracking-wider transition-colors ${hasActiveFilter ? 'text-[#0461BA]' : 'text-neutral-700 hover:text-neutral-900'}`}>
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterValue, setFilterValue] = useState(filter?.value ?? '');
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-        {label}
-        {filter?.sortDirection === 'asc' && <ChevronUpIcon size={14} />}
-        {filter?.sortDirection === 'desc' && <ChevronDownIcon size={14} />}
-        {!filter?.sortDirection &&
-          <ChevronDownIcon size={12} className="opacity-50" />
-        }
-        {filter?.value &&
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0461BA]" />
-        }
+  // Keep local input in sync if an external clear is applied
+  useEffect(() => { setFilterValue(filter?.value ?? ''); }, [filter?.value]);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!filterOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node))
+        setFilterOpen(false);
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [filterOpen]);
+
+  const sortDir   = filter?.sortDirection ?? null;
+  const hasFilter = !!filter?.value;
+  const hasAny    = hasFilter || !!sortDir;
+
+  // Click label → cycle sort none→asc→desc→none
+  const cycleSort = () => {
+    const next: SortDirection = !sortDir ? 'asc' : sortDir === 'asc' ? 'desc' : null;
+    onSortChange(column, next);
+  };
+
+  // Toggle one sort direction (clicking the active one clears it)
+  const toggleSort = (dir: 'asc' | 'desc') =>
+    onSortChange(column, sortDir === dir ? null : dir);
+
+  return (
+    <div className="relative group flex items-center gap-1 min-w-0" ref={wrapperRef}>
+
+      {/* ── Sort-cycling label ── */}
+      <button
+        onClick={cycleSort}
+        className={`flex items-center gap-1 font-semibold text-xs uppercase tracking-wider transition-colors min-w-0 ${
+          sortDir ? 'text-[#0461BA]' : 'text-neutral-600 hover:text-neutral-900'
+        }`}
+        title={`Click to sort by ${label}`}
+      >
+        <span className="truncate">{label}</span>
+
+        {sortDir === 'asc'  && <ArrowUpIcon   size={11} strokeWidth={2.5} className="shrink-0" />}
+        {sortDir === 'desc' && <ArrowDownIcon  size={11} strokeWidth={2.5} className="shrink-0" />}
+        {!sortDir && (
+          <ChevronsUpDownIcon
+            size={10}
+            className="shrink-0 opacity-20 group-hover:opacity-50 transition-opacity"
+          />
+        )}
       </button>
 
-      <AnimatePresence>
-        {isOpen &&
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: -4
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            exit={{
-              opacity: 0,
-              y: -4
-            }}
-            transition={{
-              duration: 0.15
-            }}
-            className="absolute top-full left-0 mt-2 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg z-50">
+      {/* ── Filter trigger ── */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setFilterOpen(v => !v); }}
+        title={`Filter ${label}`}
+        className={`shrink-0 rounded transition-all duration-150 ${
+          hasFilter
+            ? 'opacity-100 text-[#0461BA]'
+            : 'opacity-0 group-hover:opacity-35 hover:!opacity-80 text-neutral-500'
+        }`}
+      >
+        <ListFilterIcon size={12} strokeWidth={hasFilter ? 2.5 : 1.5} />
+      </button>
 
-            <div className="p-3 border-b border-neutral-100">
+      {/* Active-filter dot */}
+      {hasFilter && (
+        <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#0461BA]" />
+      )}
+
+      {/* ── Compact popover ── */}
+      <AnimatePresence>
+        {filterOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -5, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0,  scale: 1    }}
+            exit={{    opacity: 0, y: -5, scale: 0.96 }}
+            transition={{ duration: 0.12, ease: 'easeOut' }}
+            className="absolute top-full left-0 mt-2 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+          >
+            {/* Sort pills — icon-only, toggle on click */}
+            <div className="flex gap-1.5 p-2 border-b border-neutral-100">
+              <button
+                onClick={() => toggleSort('asc')}
+                title="Sort A → Z"
+                className={`flex-1 flex items-center justify-center h-7 rounded-lg transition-colors ${
+                  sortDir === 'asc'
+                    ? 'bg-[#E8F1FB] text-[#0461BA] ring-1 ring-[#0461BA]/25'
+                    : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700'
+                }`}
+              >
+                <ArrowUpIcon size={13} strokeWidth={sortDir === 'asc' ? 2.5 : 1.5} />
+              </button>
+
+              <button
+                onClick={() => toggleSort('desc')}
+                title="Sort Z → A"
+                className={`flex-1 flex items-center justify-center h-7 rounded-lg transition-colors ${
+                  sortDir === 'desc'
+                    ? 'bg-[#E8F1FB] text-[#0461BA] ring-1 ring-[#0461BA]/25'
+                    : 'bg-neutral-100 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700'
+                }`}
+              >
+                <ArrowDownIcon size={13} strokeWidth={sortDir === 'desc' ? 2.5 : 1.5} />
+              </button>
+            </div>
+
+            {/* Filter input */}
+            <div className="p-2 pb-1.5">
               <div className="relative">
                 <SearchIcon
-                  size={14}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-
+                  size={12}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+                />
                 <input
                   type="text"
-                  placeholder={t('documentBrowser.filterColumn', { label: label.toLowerCase() })}
+                  placeholder={`Filter…`}
                   value={filterValue}
                   onChange={(e) => {
                     setFilterValue(e.target.value);
                     onFilterChange(column, e.target.value);
                   }}
-                  className="w-full pl-8 pr-3 py-2 text-sm border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent"
-                  autoFocus />
-
+                  className="w-full pl-7 pr-6 py-1.5 text-xs bg-[#F8FAFC] border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent focus:bg-white transition-colors"
+                  autoFocus
+                />
+                {filterValue && (
+                  <button
+                    onClick={() => { setFilterValue(''); onFilterChange(column, ''); }}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  >
+                    <XIcon size={11} />
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="p-2">
-              <button
-                onClick={() => {
-                  onSortChange(column, 'asc');
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'asc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
-
-                <ChevronUpIcon size={14} />
-                {t('documentBrowser.sortAscending')}
-              </button>
-              <button
-                onClick={() => {
-                  onSortChange(column, 'desc');
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${filter?.sortDirection === 'desc' ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-50'}`}>
-
-                <ChevronDownIcon size={14} />
-                {t('documentBrowser.sortDescending')}
-              </button>
-            </div>
-
-            {hasActiveFilter &&
-              <div className="p-2 border-t border-neutral-100">
+            {/* Clear everything — shown only when sort or filter is active */}
+            {hasAny && (
+              <div className="px-2 pb-2">
                 <button
                   onClick={() => {
                     setFilterValue('');
                     onClearFilter(column);
-                    setIsOpen(false);
+                    onSortChange(column, null);
+                    setFilterOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-error-600 hover:bg-error-50 rounded-md transition-colors">
-
-                  <XIcon size={14} />
-                  {t('documentBrowser.clearFilter')}
+                  title="Clear sort and filter"
+                  className="w-full flex items-center justify-center gap-1 h-6 rounded-lg text-[11px] text-neutral-400 hover:text-red-500 hover:bg-red-50 border border-dashed border-neutral-200 hover:border-red-200 transition-colors"
+                >
+                  <XIcon size={10} />
+                  <span>clear</span>
                 </button>
               </div>
-            }
+            )}
           </motion.div>
-        }
+        )}
       </AnimatePresence>
-    </div>);
-
+    </div>
+  );
 }
 const ITEMS_PER_PAGE = 20;
 export function DocumentBrowser() {

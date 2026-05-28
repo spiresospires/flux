@@ -2,6 +2,21 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+/* ── Documents nav item: amber "paint-in" highlight ────────────────────────
+   Plays once when the Documents icon appears in the left rail (i.e. when the
+   user selects a project workspace).  No fill-mode: the browser removes the
+   override at completion and the normal Tailwind text colour takes back over.
+   ────────────────────────────────────────────────────────────────────────── */
+@keyframes docs-nav-appear {
+  0%          { color: rgb(115 115 115); }   /* neutral-500 — start grey      */
+  12%         { color: #FBBF24; }            /* amber-400  — fast paint-in    */
+  72%         { color: #FBBF24; }            /* amber-400  — hold             */
+  100%        { color: rgb(115 115 115); }   /* neutral-500 — fade back       */
+}
+.animate-docs-appear {
+  animation: docs-nav-appear 1.3s ease-in-out;
+}
+
 :root {
   /* ─────────────────────────────────────────────────────────────────────────
    * LAYOUT GAP

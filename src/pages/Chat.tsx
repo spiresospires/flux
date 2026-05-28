@@ -25,6 +25,8 @@ import { ClipboardDropdown } from '../components/ClipboardDropdown';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { FlintIcon } from '../components/FlintIcon';
+import { useUserPref } from '../hooks/useUserPref';
 import { Document } from '../types/document';
 interface ChatMessage {
   id: string;
@@ -407,8 +409,16 @@ const onExit = () => navigate('/');
     }
   }, [askAbout]);
   const scopedConversations = conversations.filter((c) => scopesEqual(c.scope, scope));
-  const [historyOpen, setHistoryOpen] = useState(true);
-  const [historyWidth, setHistoryWidth] = useState(288);
+  // ── Persisted UI preferences ───────────────────────────────────────────────
+  // useUserPref stores to localStorage now.  When the FusionLive Oracle
+  // user-preferences table is available, see src/hooks/useUserPref.ts for the
+  // API wiring instructions — no changes needed here.
+  //
+  // 'chat.historyOpen'  → whether the conversation history sidebar is expanded.
+  //                       Defaults to false (collapsed) on first visit.
+  // 'chat.historyWidth' → pixel width of the sidebar when expanded.
+  const [historyOpen, setHistoryOpen] = useUserPref<boolean>('chat.historyOpen', false);
+  const [historyWidth, setHistoryWidth] = useUserPref<number>('chat.historyWidth', 288);
   const resizingRef = useRef(false);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -444,21 +454,18 @@ const onExit = () => navigate('/');
   );
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = useMemo(() => active?.messages ?? [], [active]);
-  const setMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
-    setConversations((prev) => {
-      let id = activeId;
-      let list = prev;
-      if (!id) {
-        id = 'c-' + Date.now();
-        list = [{ id, title: t('chat.newChat'), favourited: false, scope, updatedAt: Date.now(), messages: [] }, ...prev];
-        setActiveId(id);
-      }
-      return list.map((c) =>
-      c.id === id ? { ...c, messages: updater(c.messages), updatedAt: Date.now() } : c
-      );
-    });
-  };
   const [inputValue, setInputValue] = useState('');
+  const [iconHovered, setIconHovered] = useState(false);
+
+  // Auto-play the bloom animation once whenever the empty state becomes visible
+  // (initial load, or switching to a new/empty conversation).
+  useEffect(() => {
+    if (messages.length !== 0) return;
+    setIconHovered(true);
+    const t = setTimeout(() => setIconHovered(false), 1200); // full sequence ~1.1 s
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]); // re-evaluate on conversation switch, not on every new message
   const [selectedClipboardDocs, setSelectedClipboardDocs] = useState<Document[]>([]);
   const { clipboard } = useClipboard();
   const [isTyping, setIsTyping] = useState(false);
@@ -758,53 +765,62 @@ const onExit = () => navigate('/');
     const text = overrideValue || inputValue;
     const attachments = selectedClipboardDocs;
     if (!text.trim() && attachments.length === 0) return;
+
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       content: text,
       sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       attachments
     };
-    // Auto-title from first user message
-    setConversations((prev) => {
-      let id = activeId;
-      let list = prev;
-      if (!id) {
-        const titleSource = text.trim() || attachments.map((doc) => doc.id).join(', ');
-        id = 'c-' + Date.now();
-        list = [{ id, title: titleSource.slice(0, 40), favourited: false, scope, updatedAt: Date.now(), messages: [] }, ...prev];
-        setActiveId(id);
-      }
-      return list.map((c) => {
-        if (c.id !== id) return c;
+
+    // Resolve the conversation ID now, synchronously, before any async work.
+    // If we let setConversations resolve it internally and then call setMessages
+    // in a setTimeout, the setTimeout closure captures the stale activeId (null
+    // for a brand-new conversation) and creates a second orphan conversation —
+    // which makes the user's first message appear to vanish.
+    const titleSource = text.trim() || attachments.map((d) => d.id).join(', ');
+    const resolvedId = activeId ?? 'c-' + Date.now();
+
+    if (!activeId) {
+      // New conversation — create it with the user message already included.
+      setConversations((prev) => [
+        { id: resolvedId, title: titleSource.slice(0, 40), favourited: false, scope, updatedAt: Date.now(), messages: [userMsg] },
+        ...prev,
+      ]);
+      setActiveId(resolvedId);
+    } else {
+      // Existing conversation — append user message and optionally auto-title.
+      setConversations((prev) => prev.map((c) => {
+        if (c.id !== resolvedId) return c;
         const isFirstUser = !c.messages.some((m) => m.sender === 'user');
-        const titleSource = text.trim() || attachments.map((doc) => doc.id).join(', ');
         return {
           ...c,
           title: isFirstUser ? titleSource.slice(0, 40) : c.title,
           messages: [...c.messages, userMsg],
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
         };
-      });
-    });
+      }));
+    }
+
     setInputValue('');
     setSelectedClipboardDocs([]);
     setIsTyping(true);
+
     setTimeout(() => {
       setIsTyping(false);
       const flintMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         content: buildResponseForQuery(text, attachments),
         sender: 'flint',
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, flintMsg]);
+      // Use resolvedId directly — avoids any stale-closure issue with activeId.
+      setConversations((prev) => prev.map((c) =>
+        c.id === resolvedId
+          ? { ...c, messages: [...c.messages, flintMsg], updatedAt: Date.now() }
+          : c
+      ));
     }, 1200);
   };
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -884,8 +900,12 @@ const onExit = () => navigate('/');
         
         {messages.length === 0 ?
         <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
-            <div className="w-16 h-16 bg-[#F0F4F8] rounded-full flex items-center justify-center mb-4 shadow-sm">
-              <SparklesIcon size={32} className="text-[#0461BA]" />
+            <div
+              className="mb-6 cursor-default"
+              onMouseEnter={() => setIconHovered(true)}
+              onMouseLeave={() => setIconHovered(false)}
+            >
+              <FlintIcon isHovered={iconHovered} size={88} />
             </div>
             <p className="text-neutral-500 mb-6 text-center text-base">
               {askAbout
