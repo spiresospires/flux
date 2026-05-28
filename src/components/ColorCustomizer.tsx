@@ -253,7 +253,7 @@ export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
     },
   ];
 
-  const panelTitle = isFluxProject ? t('appearance.fluxTitle') : t('appearance.title');
+  const panelTitle = t('appearance.fluxTitle');
 
   return (
     <AnimatePresence>
@@ -278,20 +278,12 @@ export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
               <h3 className="text-sm font-semibold text-neutral-900">{panelTitle}</h3>
             </div>
 
-            {isFluxProject ? (
-              <FluxPicker
-                currentStyle={style}
-                onSelect={setFluxStyle}
-                options={fluxOptions}
-                t={t}
-              />
-            ) : (
-              <StandardPicker
-                appearance={style.appearance}
-                onSelect={setAppearance}
-                options={appearanceOptions}
-              />
-            )}
+            <FluxPicker
+              currentStyle={style}
+              onSelect={setFluxStyle}
+              options={fluxOptions}
+              t={t}
+            />
           </motion.div>
         </>
       )}

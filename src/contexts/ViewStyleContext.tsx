@@ -6,8 +6,6 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { PROJECTS } from '../data/projects';
-import { useScope } from './ScopeContext';
 
 export type Appearance = 'light' | 'dark' | 'basic';
 export type Layout = 'floating' | 'flush';
@@ -65,50 +63,32 @@ function applyViewStyle(style: ViewStyle) {
 const ViewStyleContext = createContext<ViewStyleContextType | undefined>(undefined);
 
 export function ViewStyleProvider({ children }: { children: React.ReactNode }) {
-  const { scope } = useScope();
-
-  const isFluxProject = useMemo(
-    () => scope.kind === 'project' && PROJECTS.some(p => p.id === scope.id && p.isFluxRefactor),
-    [scope]
-  );
-
-  // Persisted FLUX project preference (appearance + layout together)
-  const [fluxStyle, setFluxStyleState] = useState<ViewStyle>(
+  // View style (appearance + layout) is a global UX setting — applies across all projects.
+  const [viewStyle, setViewStyleState] = useState<ViewStyle>(
     () => loadFluxStyle() ?? DEFAULT_VIEW_STYLE
-  );
-
-  // Global appearance for non-FLUX projects (synced with the legacy `theme` key)
-  const [globalAppearance, setGlobalAppearanceState] = useState<Appearance>(
-    () => (localStorage.getItem(GLOBAL_APPEARANCE_KEY) as Appearance | null) ?? 'light'
-  );
-
-  // The currently active style depends on which project is selected
-  const currentStyle = useMemo<ViewStyle>(
-    () =>
-      isFluxProject
-        ? fluxStyle
-        : { appearance: globalAppearance, layout: 'floating' },
-    [isFluxProject, fluxStyle, globalAppearance]
   );
 
   // Synchronise root data attributes before the browser paints to avoid flash
   useLayoutEffect(() => {
-    applyViewStyle(currentStyle);
-  }, [currentStyle]);
+    applyViewStyle(viewStyle);
+  }, [viewStyle]);
 
   const setFluxStyle = useCallback((style: ViewStyle) => {
-    setFluxStyleState(style);
+    setViewStyleState(style);
     localStorage.setItem(FLUX_STYLE_KEY, JSON.stringify(style));
   }, []);
 
   const setAppearance = useCallback((appearance: Appearance) => {
-    setGlobalAppearanceState(appearance);
-    localStorage.setItem(GLOBAL_APPEARANCE_KEY, appearance);
+    setViewStyleState(prev => {
+      const next = { ...prev, appearance };
+      localStorage.setItem(FLUX_STYLE_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const value = useMemo(
-    () => ({ style: currentStyle, isFluxProject, setFluxStyle, setAppearance }),
-    [currentStyle, isFluxProject, setFluxStyle, setAppearance]
+    () => ({ style: viewStyle, isFluxProject: true as const, setFluxStyle, setAppearance }),
+    [viewStyle, setFluxStyle, setAppearance]
   );
 
   return <ViewStyleContext.Provider value={value}>{children}</ViewStyleContext.Provider>;
