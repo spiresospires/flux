@@ -78,16 +78,25 @@ export function BrandBanner() {
     return t('common.daysAgo', { count: days });
   };
 
+  // Single document-level handler closes whichever menu was open when the
+  // user clicks/taps outside both the anchor button and the portal menu.
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const t = event.target as Node;
-      if (
-        !scopeDropdownRef.current?.contains(t) &&
-        !scopeMenuRef.current?.contains(t)
-      ) setScopeMenuOpen(false);
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = (event instanceof TouchEvent ? event.touches[0]?.target : event.target) as Node | null;
+      if (!target) return;
+      if (!scopeDropdownRef.current?.contains(target) && !scopeMenuRef.current?.contains(target))
+        setScopeMenuOpen(false);
+      if (!notifButtonRef.current?.contains(target) && !notifMenuRef.current?.contains(target))
+        setShowNotifMenu(false);
+      if (!profileButtonRef.current?.contains(target) && !profileMenuRef.current?.contains(target))
+        setShowProfileMenu(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
   }, []);
 
   useEffect(() => {
@@ -259,19 +268,19 @@ export function BrandBanner() {
         <div
           ref={notifButtonRef}
           className="relative"
-          onMouseEnter={() => {
-            if (notifButtonRef.current) {
-              const r = notifButtonRef.current.getBoundingClientRect();
-              setNotifMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
-            }
-            setShowNotifMenu(true);
-          }}
-          onMouseLeave={() => setShowNotifMenu(false)}
         >
           <button
-            onClick={openNotificationsArea}
+            onClick={() => {
+              if (notifButtonRef.current) {
+                const r = notifButtonRef.current.getBoundingClientRect();
+                setNotifMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+              }
+              setShowNotifMenu(prev => !prev);
+            }}
             className="relative h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-[#F0F4F8] transition-colors flex items-center justify-center"
             aria-label={t('banner.notifications')}
+            aria-expanded={showNotifMenu}
+            aria-haspopup="true"
           >
             <BellIcon size={15} />
             <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#E10613] text-white text-[10px] leading-4 text-center font-semibold">
@@ -284,8 +293,6 @@ export function BrandBanner() {
               ref={notifMenuRef}
               style={{ position: 'fixed', top: notifMenuPos.top, right: notifMenuPos.right, width: 320, zIndex: 9999 }}
               className="bg-white border border-neutral-200 rounded-md shadow-xl overflow-hidden"
-              onMouseEnter={() => setShowNotifMenu(true)}
-              onMouseLeave={() => setShowNotifMenu(false)}
             >
               <div className="px-3 py-2 border-b border-neutral-100">
                 <p className="text-xs font-semibold text-neutral-800">{t('banner.notifications')}</p>
@@ -295,7 +302,7 @@ export function BrandBanner() {
                 {notifPreview.map((notif) => (
                   <button
                     key={notif.id}
-                    onClick={openNotificationsArea}
+                    onClick={() => { openNotificationsArea(); setShowNotifMenu(false); }}
                     className="w-full text-left px-3 py-2.5 border-b border-neutral-100 last:border-b-0 hover:bg-[#F0F4F8] transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -315,18 +322,19 @@ export function BrandBanner() {
         <div
           ref={profileButtonRef}
           className="relative"
-          onMouseEnter={() => {
-            if (profileButtonRef.current) {
-              const r = profileButtonRef.current.getBoundingClientRect();
-              setProfileMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
-            }
-            setShowProfileMenu(true);
-          }}
-          onMouseLeave={() => setShowProfileMenu(false)}
         >
           <button
+            onClick={() => {
+              if (profileButtonRef.current) {
+                const r = profileButtonRef.current.getBoundingClientRect();
+                setProfileMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+              }
+              setShowProfileMenu(prev => !prev);
+            }}
             className="h-7 w-7 rounded-full border border-neutral-200 overflow-hidden bg-[#F0F4F8] flex items-center justify-center"
             aria-label="Profile"
+            aria-expanded={showProfileMenu}
+            aria-haspopup="true"
           >
             <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
           </button>
@@ -336,8 +344,6 @@ export function BrandBanner() {
               ref={profileMenuRef}
               style={{ position: 'fixed', top: profileMenuPos.top, right: profileMenuPos.right, width: 176, zIndex: 9999 }}
               className="bg-white border border-neutral-200 rounded-md shadow-xl overflow-hidden"
-              onMouseEnter={() => setShowProfileMenu(true)}
-              onMouseLeave={() => setShowProfileMenu(false)}
             >
               <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-[#F0F4F8] transition-colors">
                 <Settings2Icon size={14} />
