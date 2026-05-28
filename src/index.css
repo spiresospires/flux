@@ -3,6 +3,16 @@
 @import 'tailwindcss/utilities';
 
 :root {
+  /* ─────────────────────────────────────────────────────────────────────────
+   * LAYOUT GAP
+   * Controls the outer padding on every page shell AND the gap between
+   * floating panels. Change this single value to resize all spacing uniformly
+   * across every page — no prompt needed, no Tailwind class hunting.
+   *
+   * Default: 1rem (16 px — equivalent to Tailwind gap-4 / p-4)
+   * ───────────────────────────────────────────────────────────────────────── */
+  --layout-gap: 1rem;
+
   /* Color Customizer Variables */
   --main-bg-color: #EAEEF6;
   --element-bg-color: #FFFFFF;
@@ -179,15 +189,29 @@ html[data-view='flush'][data-appearance='dark'] [data-component='leftrail'] .bor
   border-color: #3b82f6 !important;
 }
 
-/* ── All page shells: kill outer padding ── */
-/* browser-shell = DocumentBrowser  |  page-shell = Dashboard, Search, Packages */
+/* ── Floating view: apply --layout-gap to all shells and layout containers ──
+   These rules override the hardcoded Tailwind p-4 / gap-3 / gap-4 classes
+   (attribute selector specificity equals class selector; these rules come
+   later in the file so they win). To change spacing globally, edit
+   --layout-gap in :root above — touch nothing else.                         */
+[data-component='browser-shell'],
+[data-component='page-shell'] {
+  padding: var(--layout-gap);
+}
+
+[data-component='browser-layout'],
+[data-component='page-layout'] {
+  gap: var(--layout-gap);
+}
+
+/* ── Flush view: zero out padding and gap ── */
+/* browser-shell = DocumentBrowser  |  page-shell = Dashboard, Chat, Search, Packages */
 html[data-view='flush'] [data-component='browser-shell'],
 html[data-view='flush'] [data-component='page-shell'] {
   padding: 0 !important;
 }
 
-/* ── All layout containers: kill inter-panel gap ── */
-/* browser-layout = DocumentBrowser  |  page-layout = Dashboard, Search, Packages */
+/* browser-layout = DocumentBrowser  |  page-layout = Dashboard, Chat, Search, Packages */
 html[data-view='flush'] [data-component='browser-layout'],
 html[data-view='flush'] [data-component='page-layout'] {
   gap: 0 !important;
