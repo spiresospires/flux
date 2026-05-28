@@ -10,74 +10,162 @@ import {
 } from 'lucide-react';
 
 // ─── Flint AI icon ────────────────────────────────────────────────────────────
-// Three nodes in a triangle joined by lines. On hover the lines re-draw
-// themselves (pathLength 0→1, staggered) and the nodes pulse their radius.
-// A soft blue drop-shadow breathes in on hover and lingers as a gentle glow.
+// Bloom network: 1 centre node + 8 outer nodes connected by spokes.
+//
+// Idle  : each outer node drifts in its own direction at its own speed.
+//         Unique amplitude (1–1.3 SVG units) and duration (2.6–3.5 s) so no
+//         two nodes sync.  Uses module-level animate/transition constants so
+//         Framer Motion never restarts the loop on re-render.
+//
+// Hover : spokes draw outward (staggered 38 ms), nodes radius-pulse, centre
+//         pulses, then a white corona ring expands and 4 sparkle dots flash at
+//         cardinal spoke midpoints.
 
-function FlintIcon({ isHovered, isActive, size = 17 }: {
+const _FCX = 12, _FCY = 12, _FR = 8.2;
+
+const _FOUTER = Array.from({ length: 8 }, (_, i) => {
+  const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+  return {
+    x: _FCX + _FR * Math.cos(a),
+    y: _FCY + _FR * Math.sin(a),
+    color: (['#F472B6','#34D399','#FBBF24','#A78BFA',
+             '#F472B6','#34D399','#FBBF24','#A78BFA'] as const)[i],
+  };
+});
+
+const _FDRIFT = [
+  { dx:  1.3, dy: -0.8, dur: 3.2 },
+  { dx:  0.7, dy:  1.1, dur: 2.7 },
+  { dx: -1.1, dy:  0.5, dur: 3.5 },
+  { dx:  0.9, dy:  0.9, dur: 2.9 },
+  { dx: -0.8, dy: -1.2, dur: 3.1 },
+  { dx:  1.0, dy: -0.7, dur: 2.6 },
+  { dx: -1.2, dy:  0.6, dur: 3.4 },
+  { dx:  0.5, dy:  1.0, dur: 3.0 },
+];
+
+// Stable refs — prevents Framer Motion restarting the drift on re-render
+const _FDRIFT_ANIMS = _FDRIFT.map(d => ({
+  x: [0, d.dx, -d.dx * 0.6, d.dx * 0.25, 0] as number[],
+  y: [0, d.dy,  d.dy * 0.35, -d.dy * 0.5, 0] as number[],
+}));
+const _FDRIFT_TRANS = _FDRIFT.map(d => ({
+  duration: d.dur,
+  repeat: Infinity,
+  ease: 'easeInOut' as const,
+  repeatType: 'loop' as const,
+}));
+
+function FlintIcon({ isHovered, isActive, size = 20 }: {
   isHovered: boolean;
   isActive: boolean;
   size?: number;
 }) {
-  const sw = isActive ? 1.8 : 1.3;
   const hoverState = isHovered ? 'hover' : 'idle';
-  const baseR = isActive ? 2.0 : 1.8;
+  const sw       = isActive ? 1.1 : 0.85;
+  const outerR   = 1.45;
+  const centreR  = isActive ? 2.3 : 2.1;
 
-  // Line draw — pathLength 0→1, staggered
   const lineMk = (delay: number) => ({
-    idle: { pathLength: 1 as number, transition: { duration: 0.2 } },
-    hover: { pathLength: [0, 1] as number[], transition: { duration: 0.45, delay, ease: 'easeOut' as const } },
-  });
-
-  // Node radius pulse
-  const nodeMk = (delay: number) => ({
-    idle: { r: baseR },
-    hover: { r: [baseR, baseR + 0.65, baseR] as number[], transition: { duration: 0.38, delay } },
-  });
-
-  // White sparkle dots — appear after lines finish drawing
-  // Positions: centroid (8, 9.33) + midpoints of each edge
-  // Line midpoints: (5.25, 7.5)  (10.75, 7.5)  (8, 13)
-  const sparkleMk = (delay: number, maxR: number) => ({
-    idle: { r: 0, opacity: 0 },
-    hover: {
-      r:       [0, maxR, 0]  as number[],
-      opacity: [0, 1,    0]  as number[],
-      transition: { duration: 0.38, delay },
-    },
+    idle: { pathLength: 1, transition: { duration: 0.15 } },
+    hover: { pathLength: [0, 1] as number[], transition: { duration: 0.38, delay, ease: 'easeOut' as const } },
   });
 
   return (
     <motion.svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
+      width={size} height={size}
+      viewBox="0 0 24 24"
       fill="none"
       animate={{
-        // Dual shadow: blue brand glow + white sparkle bloom on hover
         filter: isHovered
-          ? 'drop-shadow(0 0 5px rgba(4,97,186,0.5)) drop-shadow(0 0 3px rgba(255,255,255,0.9))'
+          ? 'drop-shadow(0 0 5px rgba(4,97,186,0.5)) drop-shadow(0 0 3px rgba(255,255,255,0.85))'
           : isActive
-            ? 'drop-shadow(0 0 2px rgba(4,97,186,0.3))'
+            ? 'drop-shadow(0 0 3px rgba(4,97,186,0.3))'
             : 'drop-shadow(0 0 0px rgba(4,97,186,0))',
       }}
-      transition={{ duration: isHovered ? 0.2 : 0.55 }}
+      transition={{ duration: isHovered ? 0.2 : 0.6 }}
     >
-      {/* Connection lines — top→BL, top→BR, BL→BR */}
-      <motion.path d="M8 2L2.5 13"     stroke="currentColor" strokeWidth={sw} strokeLinecap="round" fill="none" initial="idle" animate={hoverState} variants={lineMk(0)} />
-      <motion.path d="M8 2L13.5 13"    stroke="currentColor" strokeWidth={sw} strokeLinecap="round" fill="none" initial="idle" animate={hoverState} variants={lineMk(0.07)} />
-      <motion.path d="M2.5 13L13.5 13" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" fill="none" initial="idle" animate={hoverState} variants={lineMk(0.2)} />
+      {/* Spokes — draw outward on hover, staggered every 38 ms */}
+      {_FOUTER.map((node, i) => (
+        <motion.path
+          key={`spoke-${i}`}
+          d={`M${_FCX},${_FCY}L${node.x.toFixed(2)},${node.y.toFixed(2)}`}
+          stroke="currentColor"
+          strokeWidth={sw}
+          strokeLinecap="round"
+          fill="none"
+          initial="idle"
+          animate={hoverState}
+          variants={lineMk(i * 0.038)}
+        />
+      ))}
 
-      {/* Nodes — each a distinct bright colour, always shown */}
-      <motion.circle cx={8}    cy={2}  fill="#F472B6" initial="idle" animate={hoverState} variants={nodeMk(0)} />     {/* hot pink   */}
-      <motion.circle cx={2.5}  cy={13} fill="#34D399" initial="idle" animate={hoverState} variants={nodeMk(0.07)} /> {/* mint teal  */}
-      <motion.circle cx={13.5} cy={13} fill="#FBBF24" initial="idle" animate={hoverState} variants={nodeMk(0.2)} />  {/* amber gold */}
+      {/* Outer nodes — drifting g wrapper, radius pulse on hover */}
+      {_FOUTER.map((node, i) => (
+        <motion.g
+          key={`outer-${i}`}
+          animate={_FDRIFT_ANIMS[i]}
+          transition={_FDRIFT_TRANS[i]}
+        >
+          <motion.circle
+            cx={node.x} cy={node.y}
+            fill={node.color}
+            initial={{ r: outerR }}
+            animate={{ r: isHovered ? [outerR, outerR + 0.55, outerR] : outerR }}
+            transition={{ duration: 0.34, delay: i * 0.04 }}
+          />
+        </motion.g>
+      ))}
 
-      {/* Finishing sparkle — white dots at centroid then each edge midpoint */}
-      <motion.circle cx={8}     cy={9.33} fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.44, 1.5)}  /> {/* centroid  — largest, leads */}
-      <motion.circle cx={5.25}  cy={7.5}  fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.50, 0.75)} /> {/* mid top→BL */}
-      <motion.circle cx={10.75} cy={7.5}  fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.53, 0.75)} /> {/* mid top→BR */}
-      <motion.circle cx={8}     cy={13}   fill="white" initial="idle" animate={hoverState} variants={sparkleMk(0.57, 0.75)} /> {/* mid BL→BR  */}
+      {/* Centre node — brand blue, pulses on hover */}
+      <motion.circle
+        cx={_FCX} cy={_FCY}
+        r={centreR}
+        fill="#0461BA"
+        animate={{ r: isHovered ? [centreR, centreR + 0.9, centreR] : centreR }}
+        transition={{ duration: 0.4, delay: 0.12 }}
+      />
+
+      {/* White corona ring — expands and fades after spokes finish */}
+      <motion.circle
+        cx={_FCX} cy={_FCY}
+        fill="none"
+        stroke="white"
+        initial="idle"
+        animate={hoverState}
+        variants={{
+          idle: { r: centreR, opacity: 0, strokeWidth: 1.5 },
+          hover: {
+            r: [centreR, centreR + 7],
+            opacity: [0, 0.9, 0],
+            strokeWidth: [2.5, 0.2],
+            transition: { duration: 0.52, delay: 0.5 },
+          },
+        }}
+      />
+
+      {/* White sparkle dots at cardinal spoke midpoints (nodes 0, 2, 4, 6) */}
+      {([0, 2, 4, 6] as const).map((idx) => {
+        const n = _FOUTER[idx];
+        return (
+          <motion.circle
+            key={`spark-${idx}`}
+            cx={(_FCX + n.x) / 2}
+            cy={(_FCY + n.y) / 2}
+            fill="white"
+            initial="idle"
+            animate={hoverState}
+            variants={{
+              idle: { r: 0, opacity: 0 },
+              hover: {
+                r: [0, 0.85, 0],
+                opacity: [0, 1, 0],
+                transition: { duration: 0.3, delay: 0.52 + idx * 0.04 },
+              },
+            }}
+          />
+        );
+      })}
     </motion.svg>
   );
 }
@@ -206,11 +294,11 @@ export function LeftRail({
           <FlintIcon
             isHovered={hoveredId === 'chat'}
             isActive={isActive}
-            size={17}
+            size={20}
           />
         ) : (
           <Icon
-            size={17}
+            size={20}
             className={`flex-shrink-0 ${isActive || isSettings && showColorCustomizer ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`}
           />
         )}
