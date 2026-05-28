@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, SearchIcon, Settings2Icon } from 'lucide-react';
 import cloughLogo from '../../artifacts/Clough_Colore.png';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -18,9 +19,20 @@ export function BrandBanner() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
+  const scopeMenuRef = useRef<HTMLDivElement>(null);
   const scopeMeasureRef = useRef<HTMLSpanElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const notifButtonRef = useRef<HTMLDivElement>(null);
+  const notifMenuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const [scopeButtonWidth, setScopeButtonWidth] = useState<number | undefined>(undefined);
+
+  // Portal anchor positions — calculated when a menu opens so popups render
+  // via createPortal at document.body, escaping all parent stacking contexts.
+  const [scopeMenuPos, setScopeMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const [notifMenuPos, setNotifMenuPos] = useState({ top: 0, right: 0 });
+  const [profileMenuPos, setProfileMenuPos] = useState({ top: 0, right: 0 });
   const navigate = useNavigate();
 
   const longestScopeName = useMemo(() => {
@@ -68,11 +80,12 @@ export function BrandBanner() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (scopeDropdownRef.current && !scopeDropdownRef.current.contains(event.target as Node)) {
-        setScopeMenuOpen(false);
-      }
+      const t = event.target as Node;
+      if (
+        !scopeDropdownRef.current?.contains(t) &&
+        !scopeMenuRef.current?.contains(t)
+      ) setScopeMenuOpen(false);
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -105,18 +118,19 @@ export function BrandBanner() {
 
   return (
     <div
+      data-component="topbar"
       className="fixed top-0 left-0 right-0 h-[60px] bg-white text-neutral-800 border-b border-white flex items-center pr-3 z-[60]"
       role="banner">
 
       <div className="flex items-center gap-3">
         <div
-          className="flex items-center justify-center shrink-0 px-2"
+          className="flex items-center justify-center shrink-0 px-1"
           style={{ width: LEFT_RAIL_WIDTH }}
         >
           <img
             src={cloughLogo}
             alt="Clough"
-            className="h-7 w-full object-contain"
+            className="h-10 w-full object-contain"
           />
         </div>
 
@@ -135,7 +149,13 @@ export function BrandBanner() {
           </span>
 
           <button
-            onClick={() => setScopeMenuOpen(!scopeMenuOpen)}
+            onClick={() => {
+              if (!scopeMenuOpen && scopeDropdownRef.current) {
+                const r = scopeDropdownRef.current.getBoundingClientRect();
+                setScopeMenuPos({ top: r.bottom + 6, left: r.left, width: Math.max(r.width, 220) });
+              }
+              setScopeMenuOpen(!scopeMenuOpen);
+            }}
             style={{ width: scopeButtonWidth }}
             className={`h-7 px-2.5 rounded-md border inline-flex items-center gap-2 text-xs font-medium transition-colors ${
               scope.kind === 'enterprise'
@@ -159,16 +179,15 @@ export function BrandBanner() {
             />
           </button>
 
-          {scopeMenuOpen && (
+          {scopeMenuOpen && createPortal(
             <div
+              ref={scopeMenuRef}
               role="listbox"
-              className="absolute left-0 right-0 top-full mt-1.5 z-20 bg-white border border-neutral-200 rounded-md shadow-lg overflow-hidden"
+              style={{ position: 'fixed', top: scopeMenuPos.top, left: scopeMenuPos.left, minWidth: scopeMenuPos.width, zIndex: 9999 }}
+              className="bg-white border border-neutral-200 rounded-md shadow-xl overflow-hidden"
             >
               <button
-                onClick={() => {
-                  setScope({ kind: 'enterprise' });
-                  setScopeMenuOpen(false);
-                }}
+                onClick={() => { setScope({ kind: 'enterprise' }); setScopeMenuOpen(false); }}
                 role="option"
                 aria-selected={scope.kind === 'enterprise'}
                 className="w-full px-3 py-2 inline-flex items-center gap-2 text-sm hover:bg-violet-50 text-left"
@@ -177,9 +196,7 @@ export function BrandBanner() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-neutral-900">{t('banner.homeScope')}</div>
                 </div>
-                {scope.kind === 'enterprise' && (
-                  <CheckIcon size={14} className="text-violet-600 shrink-0" />
-                )}
+                {scope.kind === 'enterprise' && <CheckIcon size={14} className="text-violet-600 shrink-0" />}
               </button>
               <div className="border-t border-neutral-100 px-2 py-2">
                 <div className="relative">
@@ -201,23 +218,19 @@ export function BrandBanner() {
                 return (
                   <button
                     key={proj.id}
-                    onClick={() => {
-                      setScope({ kind: 'project', id: proj.id, name: proj.name });
-                      setScopeMenuOpen(false);
-                    }}
+                    onClick={() => { setScope({ kind: 'project', id: proj.id, name: proj.name }); setScopeMenuOpen(false); }}
                     role="option"
                     aria-selected={selected}
                     className="w-full px-3 py-2 inline-flex items-center gap-2 text-sm hover:bg-[#E8F1FB] text-left"
                   >
                     <Building2Icon size={14} className="text-[#0461BA] shrink-0" />
                     <span className="flex-1 truncate text-neutral-900">{proj.name}</span>
-                    {selected && (
-                      <CheckIcon size={14} className="text-[#0461BA] shrink-0" />
-                    )}
+                    {selected && <CheckIcon size={14} className="text-[#0461BA] shrink-0" />}
                   </button>
                 );
               })}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
@@ -244,8 +257,15 @@ export function BrandBanner() {
 
       <div className="flex items-center gap-2 ml-auto">
         <div
+          ref={notifButtonRef}
           className="relative"
-          onMouseEnter={() => setShowNotifMenu(true)}
+          onMouseEnter={() => {
+            if (notifButtonRef.current) {
+              const r = notifButtonRef.current.getBoundingClientRect();
+              setNotifMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+            }
+            setShowNotifMenu(true);
+          }}
           onMouseLeave={() => setShowNotifMenu(false)}
         >
           <button
@@ -259,8 +279,14 @@ export function BrandBanner() {
             </span>
           </button>
 
-          {showNotifMenu && (
-            <div className="absolute top-full right-0 mt-1.5 w-80 bg-white border border-neutral-200 rounded-md shadow-lg overflow-hidden">
+          {showNotifMenu && createPortal(
+            <div
+              ref={notifMenuRef}
+              style={{ position: 'fixed', top: notifMenuPos.top, right: notifMenuPos.right, width: 320, zIndex: 9999 }}
+              className="bg-white border border-neutral-200 rounded-md shadow-xl overflow-hidden"
+              onMouseEnter={() => setShowNotifMenu(true)}
+              onMouseLeave={() => setShowNotifMenu(false)}
+            >
               <div className="px-3 py-2 border-b border-neutral-100">
                 <p className="text-xs font-semibold text-neutral-800">{t('banner.notifications')}</p>
                 <p className="text-[11px] text-neutral-500">{t('banner.unreadUpdates', { count: unreadCount })}</p>
@@ -281,13 +307,21 @@ export function BrandBanner() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
         <div
+          ref={profileButtonRef}
           className="relative"
-          onMouseEnter={() => setShowProfileMenu(true)}
+          onMouseEnter={() => {
+            if (profileButtonRef.current) {
+              const r = profileButtonRef.current.getBoundingClientRect();
+              setProfileMenuPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+            }
+            setShowProfileMenu(true);
+          }}
           onMouseLeave={() => setShowProfileMenu(false)}
         >
           <button
@@ -297,13 +331,20 @@ export function BrandBanner() {
             <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
           </button>
 
-          {showProfileMenu && (
-            <div className="absolute top-full right-0 mt-1.5 w-44 bg-white border border-neutral-200 rounded-md shadow-lg overflow-hidden">
+          {showProfileMenu && createPortal(
+            <div
+              ref={profileMenuRef}
+              style={{ position: 'fixed', top: profileMenuPos.top, right: profileMenuPos.right, width: 176, zIndex: 9999 }}
+              className="bg-white border border-neutral-200 rounded-md shadow-xl overflow-hidden"
+              onMouseEnter={() => setShowProfileMenu(true)}
+              onMouseLeave={() => setShowProfileMenu(false)}
+            >
               <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-[#F0F4F8] transition-colors">
                 <Settings2Icon size={14} />
                 Profile Settings
               </button>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
