@@ -178,6 +178,29 @@ The `ColumnHeaderDropdown` component was redesigned for modern UX:
 
 ---
 
+## Document Browser — Detail Panel (`src/components/DetailSlidePanel.tsx`)
+
+The detail panel supports two rendering variants via the `variant` prop:
+
+| Variant | Behaviour |
+|---|---|
+| `'drawer'` (default) | Fixed overlay, slides in from the right with backdrop. Used everywhere except DocumentBrowser. |
+| `'split'` | Inline flex column, no backdrop, no fixed positioning. Used in DocumentBrowser. |
+
+**Split layout (DocumentBrowser):**
+- Panel renders as a `w-[360px] shrink-0 h-full` flex sibling of `content-panel` inside `browser-layout`.
+- `content-panel` has `transition-all duration-200` — smoothly compresses as the panel opens.
+- `browser-layout` has `items-stretch` so all columns fill full height.
+- Animation: `opacity+x` slide-in (`x: 20 → 0`, 200 ms ease-out). No backdrop.
+- **Active row highlight**: the row matching `panelData.docId` gets `bg-[#F0F6FF] ring-1 ring-inset ring-[#0461BA]/20` — lighter than the selection blue so the two states are visually distinct.
+
+**Shared inner content (`PanelInner`):**
+Both variants use the same `PanelInner` component for header and body. Only the outer `motion.aside` wrapper differs. `px`/`py` props allow tighter padding in the narrower split panel (`px-4 py-4`) vs the drawer (`px-6 py-5`).
+
+**Drawer variant** is preserved intact — no other call-sites need updating.
+
+---
+
 ## BrandBanner Dropdowns (`src/components/BrandBanner.tsx`)
 
 All three dropdown menus (scope selector, notifications, profile) use `createPortal(content, document.body)` with `position: fixed` / `zIndex: 9999`.

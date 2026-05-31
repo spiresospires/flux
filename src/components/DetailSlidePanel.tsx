@@ -45,6 +45,9 @@ export interface DetailPanelData {
 interface DetailSlidePanelProps {
   data: DetailPanelData | null;
   onClose: () => void;
+  /** 'drawer' (default) — fixed overlay that slides in from the right.
+   *  'split'            — inline flex column; caller controls width.  */
+  variant?: 'drawer' | 'split';
 }
 
 const typeConfig: Record<DetailPanelObjectType, { icon: React.ElementType; label: string; color: string }> = {
@@ -281,16 +284,101 @@ function GenericDetail({ data }: { data: DetailPanelData }) {
   );
 }
 
-export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
+// ── Shared inner content (header + body) used by both variants ───────────────
+function PanelInner({
+  data,
+  onClose,
+  px = 'px-6',
+  py = 'py-5',
+}: {
+  data: DetailPanelData;
+  onClose: () => void;
+  px?: string;
+  py?: string;
+}) {
   const { t } = useLocalization();
-  const isOpen = data !== null;
-  const typeLabel = data ? t(`detailPanel.types.${data.objectType}`) : '';
+  const typeLabel = t(`detailPanel.types.${data.objectType}`);
+  const cfg = typeConfig[data.objectType];
+  const Icon = cfg.icon;
 
   return (
+    <>
+      {/* Header */}
+      <div className={`flex items-start gap-3 ${px} py-4 border-b border-neutral-100 bg-[#F0F4F8] shrink-0`}>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.color}`}>
+          <Icon size={17} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
+              {typeLabel}
+            </span>
+            {data.status && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${statusColors[data.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
+                {translateStatusLabel(t, data.status)}
+              </span>
+            )}
+          </div>
+          <h2 className="text-sm font-semibold text-neutral-900 leading-snug line-clamp-2">
+            {data.title}
+          </h2>
+          {data.project && (
+            <p className="text-xs text-neutral-500 mt-0.5">{data.project}</p>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
+          aria-label={t('detailPanel.closePanel')}
+        >
+          <XIcon size={16} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className={`flex-1 overflow-y-auto ${px} ${py}`}>
+        {data.objectType === 'document'    && <DocumentDetail    data={data} />}
+        {data.objectType === 'transmittal' && <TransmittalDetail data={data} />}
+        {data.objectType === 'review'      && <ReviewDetail      data={data} />}
+        {data.objectType === 'workflow'    && <WorkflowDetail    data={data} />}
+        {(data.objectType === 'package' || data.objectType === 'folder' ||
+          data.objectType === 'search'  || data.objectType === 'report') &&
+          <GenericDetail data={data} />}
+      </div>
+    </>
+  );
+}
+
+export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSlidePanelProps) {
+  const { t } = useLocalization();
+
+  // ── Split variant: inline flex column, no backdrop, no fixed positioning ──
+  if (variant === 'split') {
+    return (
+      <AnimatePresence>
+        {data && (
+          <motion.aside
+            key="split-panel"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="flex flex-col h-full overflow-hidden bg-white rounded-xl shadow-md"
+            role="complementary"
+            aria-label={t('detailPanel.detailsAria', { title: data.title })}
+          >
+            <PanelInner data={data} onClose={onClose} px="px-4" py="py-4" />
+          </motion.aside>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  // ── Drawer variant (default): fixed overlay sliding in from the right ──
+  return (
     <AnimatePresence>
-      {isOpen && data && (
+      {data && (
         <>
-          {/* Backdrop */}
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
@@ -300,10 +388,8 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
             className="fixed inset-0 bg-black/40 z-40"
             onClick={onClose}
           />
-
-          {/* Panel */}
           <motion.aside
-            key="panel"
+            key="drawer-panel"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -313,52 +399,7 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
             aria-modal="true"
             aria-label={t('detailPanel.detailsAria', { title: data.title })}
           >
-            {/* Header */}
-            <div className="flex items-start gap-3 px-6 py-4 border-b border-neutral-100 bg-[#F0F4F8]">
-              {(() => {
-                const cfg = typeConfig[data.objectType];
-                const Icon = cfg.icon;
-                return (
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.color}`}>
-                    <Icon size={17} />
-                  </div>
-                );
-              })()}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                    {typeLabel}
-                  </span>
-                  {data.status && (
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${statusColors[data.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
-                      {translateStatusLabel(t, data.status)}
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-base font-semibold text-neutral-900 leading-snug line-clamp-2">
-                  {data.title}
-                </h2>
-                {data.project && (
-                  <p className="text-xs text-neutral-500 mt-0.5">{data.project}</p>
-                )}
-              </div>
-              <button
-                onClick={onClose}
-                className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
-                aria-label={t('detailPanel.closePanel')}
-              >
-                <XIcon size={16} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              {data.objectType === 'document' && <DocumentDetail data={data} />}
-              {data.objectType === 'transmittal' && <TransmittalDetail data={data} />}
-              {data.objectType === 'review' && <ReviewDetail data={data} />}
-              {data.objectType === 'workflow' && <WorkflowDetail data={data} />}
-              {(data.objectType === 'package' || data.objectType === 'folder' || data.objectType === 'search' || data.objectType === 'report') && <GenericDetail data={data} />}
-            </div>
+            <PanelInner data={data} onClose={onClose} />
           </motion.aside>
         </>
       )}

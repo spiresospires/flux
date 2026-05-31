@@ -1128,7 +1128,13 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     return (
       <tr
         key={doc.id}
-        className={`transition-colors group ${isSelected || highlightedDocId === doc.id ? 'bg-[#E8F1FB]' : 'hover:bg-neutral-50'}`}
+        className={`transition-colors group ${
+          isSelected || highlightedDocId === doc.id
+            ? 'bg-[#E8F1FB]'
+            : panelData?.docId === doc.id
+              ? 'bg-[#F0F6FF] ring-1 ring-inset ring-[#0461BA]/20'
+              : 'hover:bg-neutral-50'
+        }`}
       >
         <td className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
           <SelectionCheckboxButton
@@ -1725,7 +1731,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               duration: 0.25
             }}
             data-component="browser-layout"
-            className="flex h-full gap-4 pl-[var(--left-rail-width,88px)]">
+            className="flex h-full gap-4 pl-[var(--left-rail-width,88px)] items-stretch">
 
             {/* Left Rail */}
             <LeftRail
@@ -1764,7 +1770,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             {/* Main Content Island */}
             <div
               data-component="content-panel"
-              className="flex-1 flex flex-col min-w-0 rounded-xl shadow-md overflow-hidden"
+              className="flex-1 flex flex-col min-w-0 rounded-xl shadow-md overflow-hidden transition-all duration-200"
               style={{
                 backgroundColor: 'var(--element-bg-color, #FFFFFF)'
               }}>
@@ -2344,9 +2350,20 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 }
               </div>
             </div>
+
+            {/* Split detail panel — third flex column, sits alongside the grid */}
+            {panelData && (
+              <div className="w-[360px] shrink-0 h-full">
+                <DetailSlidePanel
+                  data={panelData}
+                  onClose={() => setPanelData(null)}
+                  variant="split"
+                />
+              </div>
+            )}
+
           </motion.div>
       </AnimatePresence>
-      <DetailSlidePanel data={panelData} onClose={() => setPanelData(null)} />
     </div>);
 
 }
