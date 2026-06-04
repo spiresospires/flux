@@ -622,7 +622,6 @@ export function DocumentBrowser() {
   const { setScope } = useScope();
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('compact-table');
   const [sortBy] = useState<'dateModified' | 'title' | 'id'>(
@@ -838,9 +837,6 @@ export function DocumentBrowser() {
         selectedDocType.includes(doc.documentType)
       );
     }
-    if (selectedProject.length > 0) {
-      filtered = filtered.filter((doc) => selectedProject.includes(doc.project));
-    }
     if (selectedCategories.length > 0) {
       filtered = filtered.filter((doc) =>
         doc.tags.some((tag) =>
@@ -897,7 +893,6 @@ export function DocumentBrowser() {
   }, [
     selectedStatus,
     selectedDocType,
-    selectedProject,
     selectedCategories,
     sortBy,
     selectedFolderIds,
@@ -910,7 +905,6 @@ export function DocumentBrowser() {
   }, [
     selectedStatus,
     selectedDocType,
-    selectedProject,
     selectedCategories,
     selectedFolderId,
     leftPanelMode,
@@ -1039,6 +1033,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     };
   }, [groupedSections]);
   const hasMore = displayedCount < orderedDocuments.length;
+  const hasActiveColumnFilters = columnFilters.size > 0 && [...columnFilters.values()].some(f => f.value);
   const allDisplayedSelected =
     displayedDocuments.length > 0 &&
     displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
@@ -1753,8 +1748,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   onStatusChange={setSelectedStatus}
                   selectedDocType={selectedDocType}
                   onDocTypeChange={setSelectedDocType}
-                  selectedProject={selectedProject}
-                  onProjectChange={setSelectedProject}
                   selectedCategories={selectedCategories}
                   onCategoryChange={setSelectedCategories} /> :
 
@@ -1818,14 +1811,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </button>
                         </span>
                       ))}
-                      {selectedProject.map((p) => (
-                        <span key={p} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
-                          Project: <span className="font-semibold">{p}</span>
-                          <button onClick={() => setSelectedProject((prev) => prev.filter((x) => x !== p))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${p} filter`}>
-                            <XIcon size={12} />
-                          </button>
-                        </span>
-                      ))}
                       {selectedCategories.map((category) => (
                         <span key={category} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
                           Category: <span className="font-semibold">{category}</span>
@@ -1834,9 +1819,9 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0) && (
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedCategories([]); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -1890,14 +1875,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </button>
                         </span>
                       ))}
-                      {selectedProject.map((p) => (
-                        <span key={p} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
-                          Project: <span className="font-semibold">{p}</span>
-                          <button onClick={() => setSelectedProject((prev) => prev.filter((x) => x !== p))} className="ml-1 hover:text-red-500 transition-colors" aria-label={`Remove ${p} filter`}>
-                            <XIcon size={12} />
-                          </button>
-                        </span>
-                      ))}
                       {selectedCategories.map((category) => (
                         <span key={category} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
                           Category: <span className="font-semibold">{category}</span>
@@ -1906,9 +1883,9 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedProject.length > 0 || selectedCategories.length > 0) && (
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedProject([]); setSelectedCategories([]); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedCategories([]); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -2019,7 +1996,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
               {/* Content Area */}
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                {filteredDocuments.length === 0 && leftPanelMode !== 'folder' ?
+                {filteredDocuments.length === 0 && leftPanelMode !== 'folder' && !(hasActiveColumnFilters && (viewMode === 'compact-table' || viewMode === 'table')) ?
                   <div className="flex flex-col items-center justify-center h-full max-h-[400px] bg-white rounded-lg border border-neutral-200 border-dashed">
                     <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-3">
                       <SearchIcon size={24} className="text-neutral-400" />
@@ -2268,7 +2245,14 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-neutral-100">
-                                {groupByColumn ?
+                                {filteredDocuments.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={columns.length + 2} className="py-12 text-center">
+                                      <p className="text-sm font-medium text-neutral-600">No documents match the column filter</p>
+                                      <p className="text-xs text-neutral-400 mt-1">Clear the filter above to show results</p>
+                                    </td>
+                                  </tr>
+                                ) : groupByColumn ?
                                   groupedSections.map((section) => {
                                     const isCollapsed = collapsedGroups.has(section.key);
                                     return (
