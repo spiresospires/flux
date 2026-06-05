@@ -2,6 +2,8 @@
 
 > **Purpose**: Single reference for future Claude sessions. Read this first. It covers architecture, every completed feature, key decisions, and known constraints.
 
+> **Shared log rule**: This file should remain branch-agnostic where possible. Flux-2 branch chronology and experimental implementation history belongs in `docs/flux-2/FLUX2_WORKLOG.md`.
+
 ---
 
 ## 1. Project Overview
@@ -156,25 +158,14 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 
 ---
 
-## 5. Completed Features (Chronological)
+## 5. Shared Milestones
 
-| # | Feature | Files Changed |
-|---|---|---|
-| 1 | Dashboard: white header background on Highlights Overview nav | `Dashboard.tsx` |
-| 2 | Dashboard: top-align left panel with right content panel | `Dashboard.tsx` — `sticky top-3` → `sticky top-0` |
-| 3 | BrandBanner: dynamic scope dropdown width (capped 100px from search input) | `BrandBanner.tsx` |
-| 4 | BrandBanner: chevron pushed to far right; project search input replaces "PROJECTS" label | `BrandBanner.tsx` |
-| 5 | Logo click resets to enterprise scope | `LeftRail.tsx` |
-| 6 | Documents nav item hidden on enterprise scope | `LeftRail.tsx` |
-| 7 | Nav order: Chat → Search → Documents | `LeftRail.tsx` |
-| 8 | Dashboard: resets to overview when scope switches to enterprise | `Dashboard.tsx` |
-| 9 | EDMS filename sanitisation rules documented | `CLAUDE.md` |
-| 10 | Search result cards: compact redesign, project workspace badge, amber folder icon link, right margin | `SearchResults.tsx` |
-| 11 | Single source of truth for projects | `src/data/projects.ts` (new), `mockDocuments.ts`, `searchData.ts`, `BrandBanner.tsx` |
-| 12 | `projectId` + `projectName` on search records for scope-switching on navigation | `search.ts`, `searchData.ts` |
-| 13 | DocumentBrowser: reads `location.state` and switches scope on search-card navigation | `DocumentBrowser.tsx` |
-| 14 | Search persistence: `SearchContext` + LeftRail Search button uses `lastQuery` | `SearchContext.tsx` (new), `App.tsx`, `LeftRail.tsx`, `SearchResults.tsx` |
-| 15 | FilterBar consolidation: removed duplicate stats row, unified dynamic filter pills | `SearchResults.tsx` |
+- Shared implementation guardrails are maintained in `CLAUDE.md`.
+- Shared architecture integration guidance is maintained in `ARCHITECTURE.md`.
+- Feature-level behavior specifications are maintained in `docs/`.
+
+Branch-local chronology and Flux-2 implementation iterations were moved to:
+- `docs/flux-2/FLUX2_WORKLOG.md`
 
 ---
 

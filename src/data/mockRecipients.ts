@@ -1,0 +1,22 @@
+export const mockRecipients: string[] = [
+  'John Smith <john.smith@flux.local>',
+  'Sarah Johnson <sarah.johnson@flux.local>',
+  'Mike Chen <mike.chen@flux.local>',
+  'Lisa Wong <lisa.wong@flux.local>',
+  'David Kumar <david.kumar@flux.local>',
+  'Emily Rodriguez <emily.rodriguez@flux.local>',
+  'Robert Lee <robert.lee@flux.local>',
+  'Maria Garcia <maria.garcia@flux.local>',
+  'James Wilson <james.wilson@flux.local>',
+  'Patricia Brown <patricia.brown@flux.local>',
+  'Thomas Anderson <thomas.anderson@flux.local>',
+  'Nancy Miller <nancy.miller@flux.local>',
+  'Jennifer Martinez <jennifer.martinez@flux.local>',
+  'Michael Chang <michael.chang@flux.local>',
+  'Daniel Kim <daniel.kim@flux.local>',
+  'Susan Taylor <susan.taylor@flux.local>',
+  'Kevin White <kevin.white@flux.local>',
+  'Laura Thompson <laura.thompson@flux.local>',
+  'Christopher Davis <christopher.davis@flux.local>',
+  'Margaret Robinson <margaret.robinson@flux.local>'
+];

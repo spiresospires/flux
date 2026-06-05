@@ -14,6 +14,8 @@ import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
+import { CreateCommunicationDialog } from '../components/communication/CreateCommunicationDialog';
+import type { CommunicationFormState, LinkedDocumentItem } from '../components/communication/types';
 import { mockDocuments } from '../data/mockDocuments';
 import { mockFolders } from '../data/mockFolders';
 import {
@@ -696,6 +698,9 @@ export function DocumentBrowser() {
   const [openActionSubmenuKey, setOpenActionSubmenuKey] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
+  const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = useState(false);
+  const [communicationInitialDocuments, setCommunicationInitialDocuments] = useState<LinkedDocumentItem[]>([]);
+  const [communicationNotice, setCommunicationNotice] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   // Column filters for table view
@@ -1085,6 +1090,71 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     description: doc.description,
   });
 
+  const toLinkedDocument = (doc: Document): LinkedDocumentItem => ({
+    id: doc.id,
+    reference: doc.id,
+    title: doc.title,
+    revision: doc.revisionNumber,
+    status: doc.status,
+    type: doc.documentType,
+  });
+
+  const detailToLinkedDocument = (data: DetailPanelData): LinkedDocumentItem => ({
+    id: data.docId || data.objectId,
+    reference: data.docId || data.objectId,
+    title: data.title,
+    revision: data.revision,
+    status: data.status,
+    type: data.objectType,
+  });
+
+  const openCreateCommunication = (primaryDocumentId: string) => {
+    const primary = projectDocuments.find((doc) => doc.id === primaryDocumentId);
+
+    const selectionContext =
+      selectedDocumentIds.has(primaryDocumentId) && selectedDocumentIds.size > 1
+        ? projectDocuments.filter((doc) => selectedDocumentIds.has(doc.id)).map(toLinkedDocument)
+        : primary
+          ? [toLinkedDocument(primary)]
+          : [];
+
+    const fallbackFromPanel =
+      selectionContext.length === 0 && panelData && panelData.objectType === 'document'
+        ? [detailToLinkedDocument(panelData)]
+        : [];
+
+    const merged = [...selectionContext, ...fallbackFromPanel];
+    const deduped = Array.from(new Map(merged.map((doc) => [doc.id, doc])).values());
+
+    setCommunicationInitialDocuments(deduped);
+    setIsCommunicationDialogOpen(true);
+  };
+
+  const showCommunicationNotice = (message: string) => {
+    setCommunicationNotice(message);
+    window.setTimeout(() => setCommunicationNotice(null), 2800);
+  };
+
+  const handleSendCommunication = (payload: CommunicationFormState) => {
+    // Backend integration point: replace this stub with API call.
+    const label = payload.messageType === 'general'
+      ? t('communication.type.general.label')
+      : payload.messageType === 'rfi'
+        ? t('communication.type.rfi.shortLabel')
+        : t('communication.type.tq.shortLabel');
+    showCommunicationNotice(t('communication.toast.sent', { type: label }));
+  };
+
+  const handleSaveCommunicationDraft = (payload: CommunicationFormState) => {
+    // Backend integration point: replace this stub with API call.
+    const label = payload.messageType === 'general'
+      ? t('communication.type.general.label')
+      : payload.messageType === 'rfi'
+        ? t('communication.type.rfi.shortLabel')
+        : t('communication.type.tq.shortLabel');
+    showCommunicationNotice(t('communication.toast.draftSaved', { type: label }));
+  };
+
   const handleExport = (type: 'visible' | 'all') => {
     const colsToExport = type === 'visible' ? columns : allColumns;
 
@@ -1297,7 +1367,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Message Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Message API */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openCreateCommunication(doc.id); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><MessageSquareIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Message</span>
@@ -2346,7 +2416,25 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             </div>
           </motion.div>
       </AnimatePresence>
-      <DetailSlidePanel data={panelData} onClose={() => setPanelData(null)} />
+      <DetailSlidePanel
+        data={panelData}
+        onClose={() => setPanelData(null)}
+        onMessageDocument={(documentId) => openCreateCommunication(documentId)}
+      />
+
+      <CreateCommunicationDialog
+        isOpen={isCommunicationDialogOpen}
+        initialDocuments={communicationInitialDocuments}
+        onClose={() => setIsCommunicationDialogOpen(false)}
+        onSend={handleSendCommunication}
+        onSaveDraft={handleSaveCommunicationDraft}
+      />
+
+      {communicationNotice &&
+      <div className="fixed bottom-6 right-6 bg-neutral-900 text-white text-sm px-4 py-2.5 rounded-md shadow-lg z-50">
+          {communicationNotice}
+        </div>
+      }
     </div>);
 
 }

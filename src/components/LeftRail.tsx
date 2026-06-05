@@ -6,8 +6,8 @@ import {
   LayoutDashboardIcon,
   SettingsIcon,
   SearchIcon,
-  PackageIcon,
   FolderIcon,
+  ShieldIcon,
 } from 'lucide-react';
 import { ColorCustomizer } from './ColorCustomizer';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -59,6 +59,7 @@ export function LeftRail({
     location.pathname.startsWith('/documents') ? 'documents' :
     location.pathname.startsWith('/search') ? 'search' :
     location.pathname.startsWith('/packages') ? 'packages' :
+    location.pathname.startsWith('/admin') ? 'admin' :
     location.pathname.startsWith('/chat') ? 'chat' :
     activeItem;
 
@@ -89,6 +90,12 @@ export function LeftRail({
           onClick: () => navigate('/documents'),
         }]
       : []),
+    {
+      id: 'admin',
+      icon: ShieldIcon,
+      label: t('navigation.admin'),
+      onClick: () => navigate('/admin'),
+    },
   ];
 
   const bottomItems: NavItem[] = [

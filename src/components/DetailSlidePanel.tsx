@@ -45,6 +45,7 @@ export interface DetailPanelData {
 interface DetailSlidePanelProps {
   data: DetailPanelData | null;
   onClose: () => void;
+  onMessageDocument?: (documentId: string) => void;
 }
 
 const typeConfig: Record<DetailPanelObjectType, { icon: React.ElementType; label: string; color: string }> = {
@@ -116,7 +117,7 @@ function ActionIconButton({ icon: Icon, label, onClick }: { icon: React.ElementT
   );
 }
 
-function DocumentDetail({ data }: { data: DetailPanelData }) {
+function DocumentDetail({ data, onMessageDocument }: { data: DetailPanelData; onMessageDocument?: (documentId: string) => void }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-6">
@@ -131,7 +132,7 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
         <ActionIconButton icon={StarIcon} label="Favourite" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
         <ActionIconButton icon={LinkIcon} label="Share link" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
         <ActionIconButton icon={FilesIcon} label="Renditions" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
-        <ActionIconButton icon={MessageSquareIcon} label="Message" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={MessageSquareIcon} label="Message" onClick={(e) => { e.preventDefault(); onMessageDocument?.(data.docId || data.objectId); }} />
         <ActionIconButton icon={BriefcaseIcon} label="Briefcase" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
       </div>
 
@@ -281,7 +282,7 @@ function GenericDetail({ data }: { data: DetailPanelData }) {
   );
 }
 
-export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
+export function DetailSlidePanel({ data, onClose, onMessageDocument }: DetailSlidePanelProps) {
   const { t } = useLocalization();
   const isOpen = data !== null;
   const typeLabel = data ? t(`detailPanel.types.${data.objectType}`) : '';
@@ -353,7 +354,7 @@ export function DetailSlidePanel({ data, onClose }: DetailSlidePanelProps) {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
-              {data.objectType === 'document' && <DocumentDetail data={data} />}
+              {data.objectType === 'document' && <DocumentDetail data={data} onMessageDocument={onMessageDocument} />}
               {data.objectType === 'transmittal' && <TransmittalDetail data={data} />}
               {data.objectType === 'review' && <ReviewDetail data={data} />}
               {data.objectType === 'workflow' && <WorkflowDetail data={data} />}

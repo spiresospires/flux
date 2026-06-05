@@ -6,6 +6,8 @@ import { DesignSystem } from './pages/DesignSystem';
 import { Packages } from './pages/Packages';
 import { Dashboard } from './pages/Dashboard';
 import { SearchResults } from './pages/SearchResults';
+import { Admin } from './pages/Admin';
+import { AdminNotificationTemplates } from './pages/AdminNotificationTemplates';
 import { BrandBanner } from './components/BrandBanner';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { ClipboardProvider } from './contexts/ClipboardContext';
@@ -33,6 +35,8 @@ export function App() {
                     <Route path="/documents" element={<DocumentBrowser />} />
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/search" element={<SearchResults />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/notification-templates" element={<AdminNotificationTemplates />} />
                     <Route path="/design-system" element={<DesignSystem />} />
                     <Route path="/packages" element={<Packages />} />
                   </Routes>

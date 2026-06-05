@@ -5,6 +5,7 @@
     "documents": "Documents",
     "search": "Recherche",
     "packages": "Lots",
+    "admin": "Admin",
     "chat": "Flint",
     "settings": "Paramètres",
     "main": "Navigation principale"
@@ -65,6 +66,417 @@
     "removeFromClipboard": "Retirer {{id}} du presse-papiers",
     "addToPrompt": "Ajouter à l'invite",
     "addCountToPrompt": "Ajouter ({{count}}) à l'invite"
+  },
+  "communication": {
+    "dialogTitle": "Créer une communication",
+    "dialogDescription": "Créez un message général, une RFI ou une TQ depuis un flux unique.",
+    "closeDialogAria": "Fermer la boîte de création de communication",
+    "messageTypeLabel": "Type de message",
+    "toLabel": "À",
+    "toPlaceholder": "Ajouter des destinataires",
+    "ccLabel": "Cc",
+    "ccPlaceholder": "Optionnel",
+    "recipientHint": "Appuyez sur Entrée, virgule ou point-virgule pour ajouter des destinataires.",
+    "suggestionsLabel": "Suggestions de destinataires",
+    "removeRecipient": "Retirer le destinataire {{recipient}}",
+    "subjectLabel": "Objet",
+    "priorityLabel": "Priorité",
+    "bodyLabel": "Corps du message",
+    "attachmentsLabel": "Pièces jointes",
+    "addAttachmentsAria": "Ajouter des pièces jointes",
+    "remove": "Retirer",
+    "linkedDocumentsTitle": "Documents liés",
+    "linkedCount": "{{count}} liés",
+    "noLinkedDocuments": "Aucun document lié.",
+    "reference": "Référence",
+    "title": "Titre",
+    "revision": "Révision",
+    "status": "Statut",
+    "typeLabel": "Type",
+    "action": "Action",
+    "notAvailable": "Non disponible",
+    "removeLinkedDocumentAria": "Retirer le document lié {{reference}}",
+    "requiredResponseDateLabel": "Date de réponse requise",
+    "optionalCategoryLabel": "Catégorie optionnelle",
+    "optionalPlaceholder": "Optionnel",
+    "saveDraft": "Enregistrer le brouillon",
+    "cancel": "Annuler",
+    "send": "Envoyer",
+    "readyHint": "Prêt à envoyer ou enregistrer en brouillon.",
+    "resolveValidationHint": "Veuillez corriger les erreurs de validation avant l'envoi.",
+    "footerGuidance": "Les jetons, la recherche de destinataires et l'intégration backend peuvent être ajoutés ultérieurement sans changer ce flux unifié.",
+    "confirmDiscardChanges": "Ignorer les modifications non enregistrées ?",
+    "defaultSubject": "Concernant {{reference}}",
+    "priority": {
+      "low": "Faible",
+      "normal": "Normale",
+      "high": "Élevée",
+      "urgent": "Urgente"
+    },
+    "type": {
+      "general": {
+        "label": "Message général",
+        "description": "Communication simple pour partager des informations avec les utilisateurs du projet."
+      },
+      "rfi": {
+        "label": "Demande d'information (RFI)",
+        "shortLabel": "RFI",
+        "description": "Question formelle nécessitant une réponse suivie."
+      },
+      "tq": {
+        "label": "Question technique (TQ)",
+        "shortLabel": "TQ",
+        "description": "Demande de clarification technique ou d'ingénierie."
+      }
+    },
+    "rfi": {
+      "detailsTitle": "Détails RFI",
+      "informationRequestedLabel": "Informations demandées / Question",
+      "responseRequiredLabel": "Réponse requise"
+    },
+    "tq": {
+      "detailsTitle": "Détails de la question technique",
+      "disciplineLabel": "Discipline",
+      "selectDiscipline": "Sélectionner une discipline",
+      "technicalQueryDetailsLabel": "Détails de la question technique",
+      "relatedDocumentReferenceLabel": "Référence document / dessin lié",
+      "optionalTechnicalCategoryLabel": "Catégorie technique optionnelle",
+      "disciplines": {
+        "civil": "Civil",
+        "structural": "Structure",
+        "mechanical": "Mécanique",
+        "electrical": "Électrique",
+        "process": "Procédé"
+      }
+    },
+    "validation": {
+      "messageTypeRequired": "Le type de message est requis.",
+      "recipientRequired": "Au moins un destinataire est requis.",
+      "subjectRequired": "L'objet est requis.",
+      "bodyRequired": "Le corps du message est requis.",
+      "rfiDateRequired": "La date de réponse est requise pour une RFI.",
+      "rfiInfoRequired": "Les informations demandées / la question sont requises pour une RFI.",
+      "tqDateRequired": "La date de réponse est requise pour une TQ.",
+      "tqDetailsRequired": "Les détails de la question technique sont requis pour une TQ.",
+      "tqDisciplineRequired": "La discipline est requise pour une TQ."
+    },
+    "toast": {
+      "sent": "{{type}} envoyé aux destinataires.",
+      "draftSaved": "{{type}} enregistré en brouillon."
+    }
+  },
+  "admin": {
+    "common": {
+      "comingSoon": "Bientôt disponible",
+      "open": "Ouvrir",
+      "unavailable": "Indisponible"
+    },
+    "landing": {
+      "enterpriseLabel": "Entreprise",
+      "title": "Centre de contrôle Admin",
+      "subtitle": "Découvrez et configurez les zones d'administration FLUX-2 avec une navigation légère et évolutive.",
+      "searchPlaceholder": "Rechercher des zones admin",
+      "quickSuggestions": {
+        "notifications": "Notifications",
+        "activityTypes": "Types d'activité",
+        "metadata": "Métadonnées",
+        "renditions": "Rendus",
+        "aiSettings": "Paramètres IA",
+        "permissions": "Autorisations"
+      },
+      "empty": {
+        "title": "Aucune zone admin correspondante",
+        "description": "Essayez un autre mot-clé ou utilisez l'une des suggestions rapides ci-dessus."
+      },
+      "status": {
+        "active": "Actif",
+        "planned": "Planifié",
+        "foundation": "Fondation",
+        "workspaceScopeRequired": "Portée espace requise",
+        "overview": "Vue d'ensemble"
+      },
+      "groups": {
+        "workspaceConfig": {
+          "title": "Configuration de l'espace",
+          "description": "Configurez le comportement de l'espace et les standards de métadonnées documentaires.",
+          "items": {
+            "workspaceSettings": {
+              "title": "Paramètres de l'espace",
+              "description": "Définissez les règles de nommage, les valeurs par défaut et les contrôles au niveau espace."
+            },
+            "metadataProperties": {
+              "title": "Métadonnées et propriétés",
+              "description": "Gérez les champs, validations et mappings de propriétés entre types de documents."
+            },
+            "workspaceCloning": {
+              "title": "Clonage d'espace",
+              "description": "Créez de nouveaux espaces en clonant un espace configuré existant."
+            }
+          }
+        },
+        "communication": {
+          "title": "Communication",
+          "description": "Contrôlez la création et la diffusion des notifications système.",
+          "items": {
+            "notificationTemplates": {
+              "title": "Modèles de notification",
+              "description": "Gérez la liste, l'éditeur, les jetons et les flux de création dans un espace ciblé."
+            },
+            "distributionRules": {
+              "title": "Règles de diffusion",
+              "description": "Définissez les règles de déclenchement et de diffusion pour déterminer qui reçoit les notifications et quand."
+            },
+            "deliveryChannels": {
+              "title": "Canaux d'envoi",
+              "description": "Configurez la stratégie de canaux pour email, digest et futures notifications push."
+            },
+            "emailConfiguration": {
+              "title": "Configuration e-mail",
+              "description": "Définissez les profils d'expéditeur, signatures et paramètres de communication par défaut."
+            }
+          }
+        },
+        "activityManagement": {
+          "title": "Gestion des activités",
+          "description": "Structurez les types d'activité, règles de cycle de vie et automatisations légères.",
+          "items": {
+            "activityTypes": {
+              "title": "Types d'activité",
+              "description": "Créez et catégorisez les activités utilisées dans les projets et workflows."
+            },
+            "workflowRules": {
+              "title": "Règles de workflow",
+              "description": "Définissez les règles de progression, déclencheurs et contraintes de finalisation."
+            },
+            "automation": {
+              "title": "Automatisation",
+              "description": "Définissez des automatisations simples pour le routage et les transferts."
+            }
+          }
+        },
+        "viewerDocs": {
+          "title": "Visionneuse et documents",
+          "description": "Gérez les contrôles de présentation des documents et livrables.",
+          "items": {
+            "viewerSettings": {
+              "title": "Paramètres de visionneuse",
+              "description": "Ajustez le comportement par défaut de la visionneuse, ses outils et préférences d'affichage."
+            },
+            "renditions": {
+              "title": "Rendus",
+              "description": "Configurez les sorties dérivées et comportements de conversion."
+            },
+            "markups": {
+              "title": "Annotations",
+              "description": "Définissez les standards d'annotation et les règles de modération par défaut."
+            }
+          }
+        },
+        "aiAutomation": {
+          "title": "IA et automatisation",
+          "description": "Contrôlez la portée et les paramètres IA en préparant des automatisations plus riches.",
+          "items": {
+            "indexableWorkspaces": {
+              "title": "Espaces indexables",
+              "description": "Sélectionnez les espaces inclus dans l'indexation et la recherche IA."
+            },
+            "aiSettings": {
+              "title": "Paramètres IA",
+              "description": "Configurez le comportement du modèle, les contrôles de réponse et les valeurs par défaut."
+            }
+          }
+        },
+        "securityAccess": {
+          "title": "Sécurité et accès",
+          "description": "Espaces réservés pour la gouvernance et l'administration des identités à venir.",
+          "items": {
+            "usersRoles": {
+              "title": "Utilisateurs et rôles",
+              "description": "Gérez les annuaires utilisateurs et les bases d'attribution des rôles."
+            },
+            "permissions": {
+              "title": "Autorisations",
+              "description": "Définissez les contrôles de politique d'accès au niveau espace et objet."
+            },
+            "ssoAudit": {
+              "title": "SSO et audit",
+              "description": "Contrôles futurs pour l'intégration SSO et les journaux d'audit."
+            }
+          }
+        }
+      }
+    },
+    "notifications": {
+      "allWorkspaces": "Tous les espaces",
+      "nav": {
+        "templateList": "Liste des modèles",
+        "templateEditor": "Éditeur de modèles",
+        "tokenRegistry": "Registre des jetons",
+        "visualBuilder": "Constructeur visuel"
+      },
+      "layout": {
+        "title": "Modèles de notification",
+        "description": "Gérez les modèles de communication pour {{scope}} avec une navigation ciblée par tâche.",
+        "navTitle": "Modèles de notification"
+      },
+      "empty": {
+        "noTemplates": "Aucun modèle disponible. Créez un nouveau modèle pour commencer l'édition."
+      },
+      "sections": {
+        "templateList": {
+          "title": "Liste des modèles",
+          "description": "Gérez les modèles disponibles et ouvrez l'éditeur de modèles pour rédiger objet/corps.",
+          "guidance": "Utilisez la navigation contextuelle pour ouvrir l'éditeur de modèles et accéder au flux de rédaction complet."
+        },
+        "tokenRegistry": {
+          "title": "Registre des jetons",
+          "description": "Consultez les jetons dynamiques disponibles et validez où chacun peut être utilisé.",
+          "placeholder": "Emplacement réservé au catalogue de jetons pour Flux-2."
+        },
+        "visualBuilder": {
+          "title": "Constructeur visuel",
+          "description": "Créez des modèles multiparties avec un flux de composition visuel guidé.",
+          "comingSoon": "Bientôt disponible. Cette zone est réservée à un futur constructeur guidé."
+        },
+        "default": {
+          "title": "Liste des modèles",
+          "description": "Parcourez et gérez les modèles de notification par canal, déclencheur et statut de cycle de vie."
+        }
+      },
+      "table": {
+        "columns": {
+          "template": "Modèle",
+          "channel": "Canal",
+          "trigger": "Déclencheur",
+          "status": "Statut"
+        },
+        "rows": {
+          "documentDueReminder": {
+            "template": "Rappel d'échéance document",
+            "channel": "E-mail",
+            "trigger": "Date d'échéance - 2 jours",
+            "status": "Actif"
+          },
+          "workflowAssignment": {
+            "template": "Affectation de workflow",
+            "channel": "E-mail",
+            "trigger": "Tâche assignée",
+            "status": "Brouillon"
+          }
+        }
+      },
+      "defaults": {
+        "newTemplateName": "Nouveau modèle",
+        "newTemplateDescription": "Nouveau modèle de notification.",
+        "newTemplateSubject": "Nouvel objet de notification",
+        "newTemplateBody": "Rédigez le corps de votre notification ici.",
+        "copyTemplateName": "Copie de {{name}}"
+      },
+      "seed": {
+        "tokenLabels": {
+          "displayName": "Nom affiché",
+          "documentNumber": "Numéro de document",
+          "documentTitle": "Titre du document",
+          "revision": "Révision",
+          "activityName": "Nom d'activité",
+          "workspaceName": "Nom de l'espace",
+          "dueDate": "Date d'échéance",
+          "entryLink": "Lien d'entrée"
+        },
+        "templates": {
+          "transmittal": {
+            "name": "Notification de transmittal",
+            "description": "Envoyée lorsqu'un transmittal est émis aux destinataires.",
+            "subject": "Notification de transmittal pour {{documentNumberToken}}",
+            "body": "Bonjour {{displayNameToken}},<br/><br/>Voici la liste des documents de ce transmittal :<br/><br/>{{startDocumentListToken}}<br/>{{documentTitleToken}} - {{revisionToken}}<br/>{{endDocumentListToken}}<br/><br/>Cordialement,<br/>Contrôle documentaire"
+          },
+          "reviewAssigned": {
+            "name": "Révision assignée",
+            "description": "Envoyée lorsqu'une tâche de révision est assignée à un utilisateur.",
+            "subject": "Révision assignée : {{activityNameToken}}",
+            "body": "Bonjour {{displayNameToken}},<br/><br/>Vous avez été assigné à {{activityNameToken}} dans {{workspaceNameToken}}.<br/>Échéance : {{dueDateToken}}<br/><br/>Ouvrir l'élément : {{entryLinkToken}}"
+          },
+          "approvalNotification": {
+            "name": "Notification d'approbation",
+            "description": "Envoyée lorsque le statut d'approbation d'un document change.",
+            "subject": "Notification d'approbation : {{documentNumberToken}}",
+            "body": "Le document {{documentNumberToken}} a été approuvé par {{displayNameToken}}."
+          },
+          "distributionComplete": {
+            "name": "Distribution terminée",
+            "description": "Envoyée lorsque le workflow de distribution est terminé.",
+            "subject": "Distribution terminée - {{workspaceNameToken}}",
+            "body": "La distribution pour {{workspaceNameToken}} est terminée."
+          }
+        }
+      },
+      "list": {
+        "title": "Modèles e-mail",
+        "description": "Créez et gérez les modèles de notification.",
+        "futureSearchGrouping": "La recherche et le regroupement seront disponibles dans une prochaine phase."
+      },
+      "actions": {
+        "newTemplate": "Nouveau modèle",
+        "duplicate": "Dupliquer",
+        "archive": "Archiver",
+        "delete": "Supprimer"
+      },
+      "status": {
+        "active": "Actif",
+        "draft": "Brouillon",
+        "archived": "Archivé"
+      },
+      "tokens": {
+        "subject": {
+          "recipient": "Destinataire",
+          "documentProperty": "Propriété document",
+          "workspace": "Espace",
+          "activity": "Activité",
+          "date": "Date"
+        },
+        "body": {
+          "recipient": "Destinataire",
+          "entryLink": "Lien d'entrée",
+          "documentList": "Liste de documents",
+          "documentProperty": "Propriété document",
+          "image": "Image",
+          "startDocumentList": "Début de liste de documents",
+          "endDocumentList": "Fin de liste de documents"
+        }
+      },
+      "editor": {
+        "detailsTitle": "Détails du modèle",
+        "detailsDescription": "L'objet prend en charge les jetons. Le corps prend en charge le texte enrichi et les jetons visuels. Les jetons sont remplacés à l'envoi.",
+        "actions": {
+          "save": "Enregistrer",
+          "saveAs": "Enregistrer sous",
+          "preview": "Aperçu"
+        },
+        "fields": {
+          "templateName": "Nom du modèle",
+          "description": "Description",
+          "notificationType": "Type de notification"
+        },
+        "types": {
+          "email": "E-mail",
+          "digest": "Digest",
+          "pushPlanned": "Push (planifié)"
+        },
+        "subjectTitle": "Objet",
+        "subjectAria": "Objet du modèle",
+        "bodyTitle": "Corps",
+        "bodyAria": "Corps du modèle",
+        "toolbar": {
+          "heading": "H"
+        },
+        "linkPrompt": "Saisir l'URL du lien",
+        "previewTitle": "Aperçu (données simulées)",
+        "previewSubject": "Objet :",
+        "previewBody": "Corps :",
+        "footerGuidance": "Les jetons sont remplacés dynamiquement lorsque les notifications sont générées. Le texte enrichi est rendu selon le canal, et la structure du modèle est conçue pour la future localisation, le branding et l'historique d'audit.",
+        "scopeLabel": "Portée : {{scope}}"
+      }
+    }
   },
   "panel": {
     "folders": "Dossiers",

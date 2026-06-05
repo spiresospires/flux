@@ -5,6 +5,7 @@
     "documents": "Documents",
     "search": "Search",
     "packages": "Packages",
+    "admin": "Admin",
     "chat": "Flint",
     "settings": "Settings",
     "main": "Main navigation"
@@ -65,6 +66,417 @@
     "removeFromClipboard": "Remove {{id}} from clipboard",
     "addToPrompt": "Add to Prompt",
     "addCountToPrompt": "Add ({{count}}) to Prompt"
+  },
+  "communication": {
+    "dialogTitle": "Create Communication",
+    "dialogDescription": "Create a General Message, RFI, or Technical Query from one shared flow.",
+    "closeDialogAria": "Close create communication dialog",
+    "messageTypeLabel": "Message Type",
+    "toLabel": "To",
+    "toPlaceholder": "Add recipients",
+    "ccLabel": "Cc",
+    "ccPlaceholder": "Optional",
+    "recipientHint": "Press Enter, comma, or semicolon to add recipients.",
+    "suggestionsLabel": "Recipient suggestions",
+    "removeRecipient": "Remove recipient {{recipient}}",
+    "subjectLabel": "Subject",
+    "priorityLabel": "Priority",
+    "bodyLabel": "Message Body",
+    "attachmentsLabel": "Attachments",
+    "addAttachmentsAria": "Add attachments",
+    "remove": "Remove",
+    "linkedDocumentsTitle": "Linked Documents",
+    "linkedCount": "{{count}} linked",
+    "noLinkedDocuments": "No linked documents.",
+    "reference": "Reference",
+    "title": "Title",
+    "revision": "Revision",
+    "status": "Status",
+    "typeLabel": "Type",
+    "action": "Action",
+    "notAvailable": "Not available",
+    "removeLinkedDocumentAria": "Remove linked document {{reference}}",
+    "requiredResponseDateLabel": "Required Response Date",
+    "optionalCategoryLabel": "Optional Category",
+    "optionalPlaceholder": "Optional",
+    "saveDraft": "Save Draft",
+    "cancel": "Cancel",
+    "send": "Send",
+    "readyHint": "Ready to send or save draft.",
+    "resolveValidationHint": "Please resolve validation errors before sending.",
+    "footerGuidance": "Tokens, recipient directory lookup, and backend send integration can be added in future phases without changing this unified flow.",
+    "confirmDiscardChanges": "Discard unsaved communication changes?",
+    "defaultSubject": "Regarding {{reference}}",
+    "priority": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "type": {
+      "general": {
+        "label": "General Message",
+        "description": "Simple communication to share information with project users."
+      },
+      "rfi": {
+        "label": "Request For Information (RFI)",
+        "shortLabel": "RFI",
+        "description": "Formal question requiring a tracked response."
+      },
+      "tq": {
+        "label": "Technical Query (TQ)",
+        "shortLabel": "TQ",
+        "description": "Technical or engineering clarification request."
+      }
+    },
+    "rfi": {
+      "detailsTitle": "RFI Details",
+      "informationRequestedLabel": "Information Requested / Question",
+      "responseRequiredLabel": "Response required"
+    },
+    "tq": {
+      "detailsTitle": "Technical Query Details",
+      "disciplineLabel": "Discipline",
+      "selectDiscipline": "Select discipline",
+      "technicalQueryDetailsLabel": "Technical Query Details",
+      "relatedDocumentReferenceLabel": "Related Document / Drawing Reference",
+      "optionalTechnicalCategoryLabel": "Optional Technical Category",
+      "disciplines": {
+        "civil": "Civil",
+        "structural": "Structural",
+        "mechanical": "Mechanical",
+        "electrical": "Electrical",
+        "process": "Process"
+      }
+    },
+    "validation": {
+      "messageTypeRequired": "Message type is required.",
+      "recipientRequired": "At least one recipient is required.",
+      "subjectRequired": "Subject is required.",
+      "bodyRequired": "Message body is required.",
+      "rfiDateRequired": "Required response date is required for RFI.",
+      "rfiInfoRequired": "Information requested / question is required for RFI.",
+      "tqDateRequired": "Required response date is required for TQ.",
+      "tqDetailsRequired": "Technical query details are required for TQ.",
+      "tqDisciplineRequired": "Discipline is required for TQ."
+    },
+    "toast": {
+      "sent": "{{type}} sent to recipients.",
+      "draftSaved": "{{type}} saved as draft."
+    }
+  },
+  "admin": {
+    "common": {
+      "comingSoon": "Coming Soon",
+      "open": "Open",
+      "unavailable": "Unavailable"
+    },
+    "landing": {
+      "enterpriseLabel": "Enterprise",
+      "title": "Admin Control Centre",
+      "subtitle": "Discover and configure FLUX-2 administration areas with shallow, scalable navigation.",
+      "searchPlaceholder": "Search admin areas",
+      "quickSuggestions": {
+        "notifications": "Notifications",
+        "activityTypes": "Activity Types",
+        "metadata": "Metadata",
+        "renditions": "Renditions",
+        "aiSettings": "AI Settings",
+        "permissions": "Permissions"
+      },
+      "empty": {
+        "title": "No matching admin areas",
+        "description": "Try a different keyword or use one of the quick suggestions above."
+      },
+      "status": {
+        "active": "Active",
+        "planned": "Planned",
+        "foundation": "Foundation",
+        "workspaceScopeRequired": "Workspace scope required",
+        "overview": "Overview"
+      },
+      "groups": {
+        "workspaceConfig": {
+          "title": "Workspace Configuration",
+          "description": "Configure workspace behavior and document metadata standards.",
+          "items": {
+            "workspaceSettings": {
+              "title": "Workspace Settings",
+              "description": "Define naming rules, defaults, and workspace-level controls."
+            },
+            "metadataProperties": {
+              "title": "Metadata & Properties",
+              "description": "Manage fields, validation, and property mapping across document types."
+            },
+            "workspaceCloning": {
+              "title": "Workspace Cloning",
+              "description": "Create new workspaces by cloning an existing configured workspace."
+            }
+          }
+        },
+        "communication": {
+          "title": "Communication",
+          "description": "Control how system notifications are authored and delivered.",
+          "items": {
+            "notificationTemplates": {
+              "title": "Notification Templates",
+              "description": "Manage template list, editor, tokens, and builder flows in a focused workspace."
+            },
+            "distributionRules": {
+              "title": "Distribution Rules",
+              "description": "Define trigger and distribution rules for who receives notifications and when."
+            },
+            "deliveryChannels": {
+              "title": "Delivery Channels",
+              "description": "Configure channel strategy for email, digest, and future push notifications."
+            },
+            "emailConfiguration": {
+              "title": "Email Configuration",
+              "description": "Set sender profiles, signatures, and communication defaults."
+            }
+          }
+        },
+        "activityManagement": {
+          "title": "Activity Management",
+          "description": "Shape activity types, lifecycle rules, and lightweight automation.",
+          "items": {
+            "activityTypes": {
+              "title": "Activity Types",
+              "description": "Create and categorize activities used across projects and workflows."
+            },
+            "workflowRules": {
+              "title": "Workflow Rules",
+              "description": "Set progression rules, triggers, and completion constraints."
+            },
+            "automation": {
+              "title": "Automation",
+              "description": "Define low-friction automations for routing and handoffs."
+            }
+          }
+        },
+        "viewerDocs": {
+          "title": "Viewer & Documents",
+          "description": "Manage presentation controls for documents and outputs.",
+          "items": {
+            "viewerSettings": {
+              "title": "Viewer Settings",
+              "description": "Tune default viewer behavior, tools, and display preferences."
+            },
+            "renditions": {
+              "title": "Renditions",
+              "description": "Configure derivative outputs and conversion behaviors."
+            },
+            "markups": {
+              "title": "Markups",
+              "description": "Define markup standards and moderation defaults."
+            }
+          }
+        },
+        "aiAutomation": {
+          "title": "AI & Automation",
+          "description": "Control AI scope and settings while preparing for richer automation.",
+          "items": {
+            "indexableWorkspaces": {
+              "title": "Indexable Workspaces",
+              "description": "Select which workspaces are included for AI indexing and retrieval."
+            },
+            "aiSettings": {
+              "title": "AI Settings",
+              "description": "Configure model behavior, response controls, and defaults."
+            }
+          }
+        },
+        "securityAccess": {
+          "title": "Security & Access",
+          "description": "Placeholders for future governance and identity administration.",
+          "items": {
+            "usersRoles": {
+              "title": "Users & Roles",
+              "description": "Manage user directories and role assignment foundations."
+            },
+            "permissions": {
+              "title": "Permissions",
+              "description": "Define access policy controls at workspace and object level."
+            },
+            "ssoAudit": {
+              "title": "SSO & Audit",
+              "description": "Future controls for sign-on integration and audit records."
+            }
+          }
+        }
+      }
+    },
+    "notifications": {
+      "allWorkspaces": "All Workspaces",
+      "nav": {
+        "templateList": "Template List",
+        "templateEditor": "Template Editor",
+        "tokenRegistry": "Token Registry",
+        "visualBuilder": "Visual Builder"
+      },
+      "layout": {
+        "title": "Notification Templates",
+        "description": "Manage communication templates for {{scope}} with focused, task-based navigation.",
+        "navTitle": "Notification Templates"
+      },
+      "empty": {
+        "noTemplates": "No templates available. Create a new template to begin editing."
+      },
+      "sections": {
+        "templateList": {
+          "title": "Template List",
+          "description": "Manage available templates and open Template Editor for subject/body authoring.",
+          "guidance": "Use the contextual navigation to open Template Editor for the full authoring workflow."
+        },
+        "tokenRegistry": {
+          "title": "Token Registry",
+          "description": "Review available dynamic tokens and validate where each token can be used.",
+          "placeholder": "Token catalog placeholder for Flux-2."
+        },
+        "visualBuilder": {
+          "title": "Visual Builder",
+          "description": "Build multi-part templates with a guided visual composition flow.",
+          "comingSoon": "Coming soon. This area is reserved for a future guided builder."
+        },
+        "default": {
+          "title": "Template List",
+          "description": "Browse and manage notification templates by channel, trigger, and lifecycle status."
+        }
+      },
+      "table": {
+        "columns": {
+          "template": "Template",
+          "channel": "Channel",
+          "trigger": "Trigger",
+          "status": "Status"
+        },
+        "rows": {
+          "documentDueReminder": {
+            "template": "Document Due Reminder",
+            "channel": "Email",
+            "trigger": "Due Date - 2 days",
+            "status": "Active"
+          },
+          "workflowAssignment": {
+            "template": "Workflow Assignment",
+            "channel": "Email",
+            "trigger": "Task Assigned",
+            "status": "Draft"
+          }
+        }
+      },
+      "defaults": {
+        "newTemplateName": "New Template",
+        "newTemplateDescription": "New notification template.",
+        "newTemplateSubject": "New notification subject",
+        "newTemplateBody": "Write your notification body here.",
+        "copyTemplateName": "{{name}} Copy"
+      },
+      "seed": {
+        "tokenLabels": {
+          "displayName": "Display Name",
+          "documentNumber": "Document Number",
+          "documentTitle": "Document Title",
+          "revision": "Revision",
+          "activityName": "Activity Name",
+          "workspaceName": "Workspace Name",
+          "dueDate": "Due Date",
+          "entryLink": "Entry Link"
+        },
+        "templates": {
+          "transmittal": {
+            "name": "Transmittal Notification",
+            "description": "Sent when a transmittal is issued to recipients.",
+            "subject": "Transmittal Notification for {{documentNumberToken}}",
+            "body": "Dear {{displayNameToken}},<br/><br/>Here is the list of documents in this transmittal:<br/><br/>{{startDocumentListToken}}<br/>{{documentTitleToken}} - {{revisionToken}}<br/>{{endDocumentListToken}}<br/><br/>Regards,<br/>Doc Control"
+          },
+          "reviewAssigned": {
+            "name": "Review Assigned",
+            "description": "Sent when a review task is assigned to a user.",
+            "subject": "Review Assigned: {{activityNameToken}}",
+            "body": "Hello {{displayNameToken}},<br/><br/>You have been assigned {{activityNameToken}} in {{workspaceNameToken}}.<br/>Due: {{dueDateToken}}<br/><br/>Open item: {{entryLinkToken}}"
+          },
+          "approvalNotification": {
+            "name": "Approval Notification",
+            "description": "Sent when document approval status changes.",
+            "subject": "Approval Notification: {{documentNumberToken}}",
+            "body": "Document {{documentNumberToken}} was approved by {{displayNameToken}}."
+          },
+          "distributionComplete": {
+            "name": "Distribution Complete",
+            "description": "Sent when distribution workflow completes.",
+            "subject": "Distribution Complete - {{workspaceNameToken}}",
+            "body": "Distribution for {{workspaceNameToken}} is complete."
+          }
+        }
+      },
+      "list": {
+        "title": "Email templates",
+        "description": "Create and manage notification templates.",
+        "futureSearchGrouping": "Search and grouping will be available in a future phase."
+      },
+      "actions": {
+        "newTemplate": "New Template",
+        "duplicate": "Duplicate",
+        "archive": "Archive",
+        "delete": "Delete"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft",
+        "archived": "Archived"
+      },
+      "tokens": {
+        "subject": {
+          "recipient": "Recipient",
+          "documentProperty": "Document Property",
+          "workspace": "Workspace",
+          "activity": "Activity",
+          "date": "Date"
+        },
+        "body": {
+          "recipient": "Recipient",
+          "entryLink": "Entry Link",
+          "documentList": "Document List",
+          "documentProperty": "Document Property",
+          "image": "Image",
+          "startDocumentList": "Start Document List",
+          "endDocumentList": "End Document List"
+        }
+      },
+      "editor": {
+        "detailsTitle": "Template details",
+        "detailsDescription": "Subject supports tokens. Body supports rich text and token chips. Tokens are replaced at send time.",
+        "actions": {
+          "save": "Save",
+          "saveAs": "Save As",
+          "preview": "Preview"
+        },
+        "fields": {
+          "templateName": "Template Name",
+          "description": "Description",
+          "notificationType": "Notification Type"
+        },
+        "types": {
+          "email": "Email",
+          "digest": "Digest",
+          "pushPlanned": "Push (Planned)"
+        },
+        "subjectTitle": "Subject",
+        "subjectAria": "Template subject",
+        "bodyTitle": "Body",
+        "bodyAria": "Template body",
+        "toolbar": {
+          "heading": "H"
+        },
+        "linkPrompt": "Enter link URL",
+        "previewTitle": "Preview (Mock Data)",
+        "previewSubject": "Subject:",
+        "previewBody": "Body:",
+        "footerGuidance": "Tokens are dynamically replaced when notifications are generated. Rich text is rendered per channel, and template structure is designed for future localization, branding, and audit history.",
+        "scopeLabel": "Scope: {{scope}}"
+      }
+    }
   },
   "panel": {
     "folders": "Folders",
