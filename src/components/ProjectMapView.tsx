@@ -11,7 +11,8 @@
 // [TODO-ENG] Confirm where project location data lives — G03 workspace attributes or G16 metadata schema.
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useEffect, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import { FolderIcon, FileTextIcon, AlertCircleIcon, BellIcon, ArrowRightIcon, EyeIcon } from 'lucide-react';
 import { PROJECTS } from '../data/projects';
@@ -47,6 +48,12 @@ interface ProjectPinStats {
   unread: number;
 }
 
+interface ProjectMapViewProps {
+  focusedProjectId?: (typeof PROJECTS)[number]['id'] | null;
+}
+
+type Project = (typeof PROJECTS)[number];
+
 function statsFor(projectId: (typeof PROJECTS)[number]['id'], projectName: string): ProjectPinStats {
   const docs = mockDocumentsByProject[projectId];
   return {
@@ -57,11 +64,51 @@ function statsFor(projectId: (typeof PROJECTS)[number]['id'], projectName: strin
   };
 }
 
-export function ProjectMapView() {
+function MapViewportController({ focusedProjectId }: { focusedProjectId?: (typeof PROJECTS)[number]['id'] | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (focusedProjectId) {
+      const focusedProject = PROJECTS.find((project) => project.id === focusedProjectId);
+      if (focusedProject) {
+        map.setView([focusedProject.location.lat, focusedProject.location.lng], 8, { animate: true });
+        return;
+      }
+    }
+
+    map.fitBounds(WA_BOUNDS, { padding: [28, 28] });
+  }, [focusedProjectId, map]);
+
+  return null;
+}
+
+export function ProjectMapView({ focusedProjectId = null }: ProjectMapViewProps) {
   const { setScope } = useScope();
   const navigate = useNavigate();
+  const markerRefs = useRef<Record<string, L.Marker | null>>({});
 
-  const selectProject = (project: (typeof PROJECTS)[number]) =>
+  const projectsToRender = useMemo<Project[]>(() => {
+    if (!focusedProjectId) {
+      return PROJECTS;
+    }
+    return PROJECTS.filter((project) => project.id === focusedProjectId);
+  }, [focusedProjectId]);
+
+  useEffect(() => {
+    if (!focusedProjectId) {
+      return;
+    }
+
+    const marker = markerRefs.current[focusedProjectId];
+    if (!marker) {
+      return;
+    }
+
+    // Open the focused project's popup automatically in single-project mode.
+    marker.openPopup();
+  }, [focusedProjectId, projectsToRender]);
+
+  const selectProject = (project: Project) =>
     setScope({ kind: 'project', id: project.id, name: project.name });
 
   return (
@@ -71,17 +118,21 @@ export function ProjectMapView() {
       className="h-full w-full"
       aria-label="Project locations map"
     >
+      <MapViewportController focusedProjectId={focusedProjectId} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {PROJECTS.map((project) => {
+      {projectsToRender.map((project) => {
         const stats = statsFor(project.id, project.name);
         return (
           <Marker
             key={project.id}
             position={[project.location.lat, project.location.lng]}
             icon={pinIcon}
+            ref={(marker) => {
+              markerRefs.current[project.id] = marker;
+            }}
             // Hover opens the popup; it stays open (clickable) until another pin
             // opens or the map is clicked. Click also opens it for touch devices.
             eventHandlers={{ mouseover: (e) => e.target.openPopup() }}

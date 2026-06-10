@@ -664,13 +664,13 @@ export function Dashboard() {
   const [activeItem, setActiveItem] = useState('dashboard');
   const [selectedSection, setSelectedSection] = useState<DashboardSection>('overview');
   const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
-  // Map view is enterprise-only — the map IS the cross-project overview.
-  // Selecting a project (via pin or banner) shows the normal project dashboard.
+  // Map view is available in both enterprise and project scopes.
+  // In project scope, the map component auto-focuses that project's pin.
   // By default the map fills only the content panel (right column); the expand
   // button maximises it over the whole dashboard area and back.
   const [dashboardView, setDashboardView] = useUserPref<'widgets' | 'map'>('dashboard.view', 'widgets');
   const [mapExpanded, setMapExpanded] = useState(false);
-  const showMap = scope.kind === 'enterprise' && dashboardView === 'map';
+  const showMap = dashboardView === 'map';
 
   // Picking a section from the left list always returns to the widget view —
   // sections render widgets, so leaving the map active would show nothing.
@@ -750,13 +750,13 @@ export function Dashboard() {
     if (scope.kind === 'enterprise') {
       setSelectedSection('overview');
     }
-    // A maximised map never survives a scope change — project scope has no map.
+    // Keep map expansion transient across scope changes.
     setMapExpanded(false);
   }, [scope]);
 
   // Widgets/Map toggle sits top-LEFT of the content panel; the expand/collapse
   // control appears on the right only while the map is showing.
-  const viewToolbar = scope.kind === 'enterprise' ? (
+  const viewToolbar = (
     <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100 shrink-0">
       <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm" role="group" aria-label="Dashboard view">
         <button
@@ -794,7 +794,7 @@ export function Dashboard() {
         </button>
       )}
     </div>
-  ) : null;
+  );
 
   return (
     <div
@@ -817,7 +817,7 @@ export function Dashboard() {
           >
             {viewToolbar}
             <div className="flex-1 min-h-0">
-              <ProjectMapView />
+              <ProjectMapView focusedProjectId={scope.kind === 'project' ? scope.id : null} />
             </div>
           </section>
         ) : (
@@ -868,7 +868,7 @@ export function Dashboard() {
             {viewToolbar}
             {showMap ? (
               <div className="flex-1 min-h-0">
-                <ProjectMapView />
+                <ProjectMapView focusedProjectId={scope.kind === 'project' ? scope.id : null} />
               </div>
             ) : selectedSection === 'overview' ? (
               <OverviewPane overdueTodos={overdueTodos} unreadNotifs={unreadNotifs} todos={filteredTodos} notifications={filteredNotifications} sharedItems={filteredSharedItems} favourites={filteredFavourites} onSelectSection={setSelectedSection} t={t} />
