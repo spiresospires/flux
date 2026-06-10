@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, CheckCircleIcon, BellIcon, StarIcon, LinkIcon, FilesIcon, MessageSquareIcon, BriefcaseIcon, EyeIcon, DownloadIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -109,6 +109,7 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string | n
 function ActionIconButton({ icon: Icon, label, onClick }: { icon: React.ElementType; label: string; onClick?: (e: React.MouseEvent) => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title={label}
       aria-label={label}
@@ -125,17 +126,17 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
     <div className="space-y-6">
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-1 pb-4 border-b border-neutral-100">
-        <ActionIconButton icon={EyeIcon} label={t('detailPanel.openDocument')} onClick={(e) => { e.preventDefault(); /* TODO: View */ }} />
-        <ActionIconButton icon={DownloadIcon} label={t('detailPanel.download')} onClick={(e) => { e.preventDefault(); /* TODO: Download */ }} />
+        <ActionIconButton icon={EyeIcon} label={t('detailPanel.openDocument')} onClick={(e) => { e.preventDefault(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content [AUTH] [PHASE-1] */ }} />
+        <ActionIconButton icon={DownloadIcon} label={t('detailPanel.download')} onClick={(e) => { e.preventDefault(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content (download) [AUTH] [PHASE-1] */ }} />
 
         <div className="w-px h-5 bg-neutral-200 mx-2" />
 
-        <ActionIconButton icon={BellIcon} label="Subscribe" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
-        <ActionIconButton icon={StarIcon} label="Favourite" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
-        <ActionIconButton icon={LinkIcon} label="Share link" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
-        <ActionIconButton icon={FilesIcon} label="Renditions" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
-        <ActionIconButton icon={MessageSquareIcon} label="Message" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
-        <ActionIconButton icon={BriefcaseIcon} label="Briefcase" onClick={(e) => { e.preventDefault(); /* TODO */ }} />
+        <ActionIconButton icon={BellIcon} label="Subscribe" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Subscribe — endpoint unconfirmed (G23 notification config?) [TBD] */ }} />
+        <ActionIconButton icon={StarIcon} label="Favourite" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Favourite — endpoint unconfirmed (G02 user prefs?) [TBD] */ }} />
+        <ActionIconButton icon={LinkIcon} label="Share link" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Share link — endpoint unconfirmed [TBD] */ }} />
+        <ActionIconButton icon={FilesIcon} label="Renditions" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Renditions — likely G07 content variants [TBD] */ }} />
+        <ActionIconButton icon={MessageSquareIcon} label="Message" onClick={(e) => { e.preventDefault(); /* [API] G13:POST /workspaces/{wsId}/messages [AUTH] [TBD] */ }} />
+        <ActionIconButton icon={BriefcaseIcon} label="Briefcase" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Briefcase — endpoint unconfirmed [TBD] */ }} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -186,8 +187,8 @@ function TransmittalDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openTransmittal')}</button>
-        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.downloadPdf')}</button>
+        <button type="button" className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openTransmittal')}</button>
+        <button type="button" className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.downloadPdf')}</button>
       </div>
     </div>
   );
@@ -212,8 +213,8 @@ function ReviewDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openReview')}</button>
-        <button className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.addComment')}</button>
+        <button type="button" className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openReview')}</button>
+        <button type="button" className="text-sm font-medium py-2 px-3 rounded-md border border-neutral-200 text-neutral-700 hover:bg-[#F0F4F8] transition-colors">{t('detailPanel.addComment')}</button>
       </div>
     </div>
   );
@@ -255,7 +256,7 @@ function WorkflowDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4 flex gap-2">
-        <button className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openWorkflow')}</button>
+        <button type="button" className="flex-1 text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.openWorkflow')}</button>
       </div>
     </div>
   );
@@ -278,7 +279,7 @@ function GenericDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
       <div className="border-t border-neutral-100 pt-4">
-        <button className="w-full text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.open')}</button>
+        <button type="button" className="w-full text-sm font-medium py-2 px-3 rounded-md bg-[#0461BA] text-white hover:bg-[#035299] transition-colors">{t('detailPanel.open')}</button>
       </div>
     </div>
   );
@@ -327,6 +328,7 @@ function PanelInner({
           )}
         </div>
         <button
+          type="button"
           onClick={onClose}
           className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200 transition-colors"
           aria-label={t('detailPanel.closePanel')}
@@ -351,6 +353,17 @@ function PanelInner({
 
 export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSlidePanelProps) {
   const { t } = useLocalization();
+
+  // Escape closes the panel — required for the drawer (role="dialog") and a
+  // convenience for the split variant (WCAG 2.1.2).
+  useEffect(() => {
+    if (!data) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [data, onClose]);
 
   // ── Split variant: inline flex column, no backdrop, no fixed positioning ──
   if (variant === 'split') {

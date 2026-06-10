@@ -17,6 +17,29 @@
   animation: docs-nav-appear 1.3s ease-in-out;
 }
 
+/* ── Project map popups (Dashboard enterprise map view) ──
+   Tighten Leaflet's default popup chrome to match the app's panel styling. */
+.project-map-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+.project-map-popup .leaflet-popup-content {
+  margin: 12px 14px;
+  line-height: 1.4;
+}
+
+/* WCAG 2.3.3 — suppress decorative CSS animations/transitions when the user has
+   reduced motion enabled. Framer Motion is handled by MotionConfig in App.tsx. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-docs-appear {
+    animation: none;
+  }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
 :root {
   /* ─────────────────────────────────────────────────────────────────────────
    * LAYOUT GAP
@@ -281,6 +304,15 @@ html[data-view='flush'] [data-component='content-panel'] {
   border-radius: 0 !important;
   box-shadow: none !important;
   min-height: 100% !important;   /* fills remainder when content is short */
+}
+
+/* ── Header panel (SearchResults): flush, no radius, no shadow ──
+   A shrink-0 page header must NOT be marked content-panel — the
+   min-height:100% above would inflate it to the full page height and
+   push the content below it off-screen.                              */
+html[data-view='flush'] [data-component='header-panel'] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 /* ── Top bar ── */

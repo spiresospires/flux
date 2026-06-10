@@ -6,7 +6,10 @@ import { useCallback, useEffect, useState } from 'react';
  * CURRENT IMPLEMENTATION: localStorage, keyed by `prefKey`.
  * Preferences are stored as JSON under the key `flux.userPref.<prefKey>`.
  *
- * ─── TODO: Oracle / FusionLive API integration ───────────────────────────────
+ * ─── [MOCK] localStorage stand-in — Oracle / FusionLive API integration ──────
+ * [API] G02:GET/POST /api/user/preferences/:prefKey
+ * [AUTH]
+ * [PHASE-1]
  * When the user-preferences table is available in the FusionLive Oracle
  * database, replace the localStorage read/write below with:
  *
@@ -55,8 +58,8 @@ export function useUserPref<T>(prefKey: string, defaultValue: T): [T, (value: T 
   // Persist every change to localStorage (and eventually to the Oracle API).
   useEffect(() => {
     writePref(prefKey, value);
-    // TODO: also call POST /api/user/preferences/:prefKey here once the
-    //       FusionLive Oracle preferences endpoint is available.
+    // [API] G02:POST /api/user/preferences/:prefKey — also persist here once the
+    // FusionLive Oracle preferences endpoint is available. [PHASE-1]
   }, [prefKey, value]);
 
   const setValue = useCallback((next: T | ((prev: T) => T)) => {

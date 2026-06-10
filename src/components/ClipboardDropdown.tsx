@@ -41,8 +41,16 @@ export function ClipboardDropdown({
         setIsOpen(false);
       }
     };
+    // Escape closes the dropdown for keyboard users (WCAG 2.1.2).
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   const toggle = () => setIsOpen((prev) => !prev);

@@ -1,3 +1,11 @@
+// [MOCK] Search corpus built at module load from mockDocuments + mockFolders + mockPlaceholders.
+// [API] G19:POST /workspaces/{wsId}/search
+// [AUTH]
+// [PHASE-1]
+// Replace with useSearch(wsId, query) — server-side full-text search with facets.
+// Body: { query, filters: { folderId, status, documentType, dateRange }, page, pageSize }.
+// Facet counts come from the `aggregations` field of the G19 response; this whole file
+// (and utils/search.ts) is deleted once G19 is wired.
 import { mockDocuments } from './mockDocuments';
 import { mockFolders } from './mockFolders';
 import { mockPlaceholders } from './mockPlaceholders';

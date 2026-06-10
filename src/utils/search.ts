@@ -1,3 +1,7 @@
+// [MOCK] Client-side full-text filtering — interim only.
+// [API] G19:POST /workspaces/{wsId}/search
+// [PHASE-1]
+// Delete this file once G19 is wired; matching, snippets and facet counts all move server-side.
 import type { SearchResult, SearchResultType, SearchableRecord } from '../types/search';
 
 const fieldLabels: Array<{ key: keyof SearchableRecord; label: string }> = [

@@ -11,6 +11,11 @@ import {
   XIcon
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
+// [MOCK] Client-side search over a static corpus — replace with useSearch(wsId, query).
+// [API] G19:POST /workspaces/{wsId}/search
+// [AUTH]
+// [PHASE-1]
+// Facet counts (countResultsByType) come from the G19 `aggregations` field once wired.
 import { searchRecords } from '../data/searchData';
 import type { SearchResult, SearchResultType } from '../types/search';
 import { countResultsByType, searchEverything } from '../utils/search';
@@ -130,7 +135,7 @@ function SearchResultCard({ result }: { result: SearchResult }) {
   const navigate = useNavigate();
   const isPlaceholder = result.resultType === 'placeholder';
 
-  // TODO: When a DB object-URL mapping table is available, replace the location.state navigation
+  // [TODO-ENG] When a DB object-URL mapping table is available, replace the location.state navigation
   // below with a direct deep-link route (e.g. /documents/:folderId/:docId) resolved from that table.
   const handleFolderClick = () => {
     navigate('/documents', {
@@ -319,7 +324,10 @@ export function SearchResults() {
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">
-          <header data-component="content-panel" className="shrink-0 rounded-xl bg-white shadow-md px-5 py-3">
+          {/* header-panel, NOT content-panel: in flush view content-panel gets
+              min-height:100% (index.css), which would inflate this shrink-0 header
+              to full page height and push the results list off-screen. */}
+          <header data-component="header-panel" className="shrink-0 rounded-xl bg-white shadow-md px-5 py-3">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h1 className="text-lg font-semibold text-neutral-900">Search results</h1>

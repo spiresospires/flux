@@ -1,3 +1,7 @@
+// Packages — document package management (work packages / IFC bundles): package list,
+// detail view with document inclusion toggles, version history and change log.
+// All data is the inline samplePackages array below — no shared mock file yet.
+// [PHASE-2] Packages are not part of the Phase 1 delivery (G08).
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { LeftRail } from '../components/LeftRail';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -69,6 +73,10 @@ interface PackageObject {
 }
 
 // ---------- Sample data ----------
+// [MOCK] Inline package list — move to src/data/mockPackages.ts or replace directly.
+// [API] G08:GET /workspaces/{wsId}/packages
+// [AUTH]
+// [PHASE-2]
 const samplePackages: PackageObject[] = [
 {
   reference: 'WP-MECH-AREA-01',

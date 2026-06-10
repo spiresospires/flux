@@ -1,3 +1,8 @@
+// DocumentBrowser — the main document grid page (folder tree + grid/list/table views,
+// column sort/filter/reorder/resize, grouping, multi-select, lazy loading, and an
+// inline 'split'-variant DetailSlidePanel). All document/folder data is mocked;
+// sorting, filtering and pagination are client-side and move server-side with G06.
+// [PHASE-1]
 import React, {
   useCallback,
   useEffect,
@@ -14,8 +19,17 @@ import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
-import { mockDocuments } from '../data/mockDocuments';
-import { mockFolders } from '../data/mockFolders';
+// [MOCK] Per-project document sets — replace with useDocuments(wsId, params); sort/filter/pagination move server-side.
+// [API] G06:GET /workspaces/{wsId}/documents
+// [AUTH]
+// [PHASE-1]
+import { mockDocumentsByProject } from '../data/mockDocuments';
+// [MOCK] Per-project folder trees — replace with useFolderTree(wsId).
+// [API] G05:GET /workspaces/{wsId}/folders/tree
+// [AUTH]
+// [PHASE-1]
+import { mockFoldersByProject } from '../data/mockFolders';
+import type { ProjectId } from '../data/projects';
 import {
   LayoutGridIcon,
   ListIcon,
@@ -50,19 +64,12 @@ import {
   'lucide-react';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useLocalization } from '../contexts/LocalizationContext';
-import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Document } from '../types/document';
 type SortDirection = 'asc' | 'desc' | null;
 type ColumnKey = string;
-const PROJECT_SCALE: Record<string, number> = {
-  'The Shard, London': 1,
-  Skyline: 0.7,
-  Tower: 0.45,
-  'Empire State': 0.85
-};
 
 interface ColumnFilter {
   column: ColumnKey;
@@ -316,13 +323,25 @@ function ViewModeDropdown({
         setIsOpen(false);
       }
     }
+    // Escape closes the dropdown for keyboard users (WCAG 2.1.2).
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsOpen(false);
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={`Change view mode (current: ${currentView.label})`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
         className="flex items-center gap-1 px-2.5 h-7 border border-neutral-200 text-xs font-medium rounded-md bg-white text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent transition-all">
         {currentView.icon}
       </button>
@@ -458,15 +477,22 @@ function ColumnHeaderDropdown({
   // Keep local input in sync if an external clear is applied
   useEffect(() => { setFilterValue(filter?.value ?? ''); }, [filter?.value]);
 
-  // Close popover on outside click
+  // Close popover on outside click or Escape (WCAG 2.1.2)
   useEffect(() => {
     if (!filterOpen) return;
     function onOutside(e: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node))
         setFilterOpen(false);
     }
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFilterOpen(false);
+    }
     document.addEventListener('mousedown', onOutside);
-    return () => document.removeEventListener('mousedown', onOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
   }, [filterOpen]);
 
   const sortDir   = filter?.sortDirection ?? null;
@@ -488,11 +514,13 @@ function ColumnHeaderDropdown({
 
       {/* ── Sort-cycling label ── */}
       <button
+        type="button"
         onClick={cycleSort}
         className={`flex items-center gap-1 font-semibold text-xs uppercase tracking-wider transition-colors min-w-0 ${
           sortDir ? 'text-[#0461BA]' : 'text-neutral-600 hover:text-neutral-900'
         }`}
         title={`Click to sort by ${label}`}
+        aria-label={`Sort by ${label}${sortDir ? ` (currently ${sortDir === 'asc' ? 'ascending' : 'descending'})` : ''}`}
       >
         <span className="truncate">{label}</span>
 
@@ -508,12 +536,16 @@ function ColumnHeaderDropdown({
 
       {/* ── Filter trigger ── */}
       <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); setFilterOpen(v => !v); }}
         title={`Filter ${label}`}
+        aria-label={`Filter ${label}`}
+        aria-haspopup="dialog"
+        aria-expanded={filterOpen}
         className={`shrink-0 rounded transition-all duration-150 ${
           hasFilter
             ? 'opacity-100 text-[#0461BA]'
-            : 'opacity-0 group-hover:opacity-35 hover:!opacity-80 text-neutral-500'
+            : 'opacity-0 group-hover:opacity-35 hover:!opacity-80 focus-visible:opacity-80 text-neutral-500'
         }`}
       >
         <ListFilterIcon size={12} strokeWidth={hasFilter ? 2.5 : 1.5} />
@@ -537,8 +569,11 @@ function ColumnHeaderDropdown({
             {/* Sort pills — icon-only, toggle on click */}
             <div className="flex gap-1.5 p-2 border-b border-neutral-100">
               <button
+                type="button"
                 onClick={() => toggleSort('asc')}
                 title="Sort A → Z"
+                aria-label={`Sort ${label} ascending`}
+                aria-pressed={sortDir === 'asc'}
                 className={`flex-1 flex items-center justify-center h-7 rounded-lg transition-colors ${
                   sortDir === 'asc'
                     ? 'bg-[#E8F1FB] text-[#0461BA] ring-1 ring-[#0461BA]/25'
@@ -549,8 +584,11 @@ function ColumnHeaderDropdown({
               </button>
 
               <button
+                type="button"
                 onClick={() => toggleSort('desc')}
                 title="Sort Z → A"
+                aria-label={`Sort ${label} descending`}
+                aria-pressed={sortDir === 'desc'}
                 className={`flex-1 flex items-center justify-center h-7 rounded-lg transition-colors ${
                   sortDir === 'desc'
                     ? 'bg-[#E8F1FB] text-[#0461BA] ring-1 ring-[#0461BA]/25'
@@ -571,6 +609,7 @@ function ColumnHeaderDropdown({
                 <input
                   type="text"
                   placeholder={`Filter…`}
+                  aria-label={`Filter ${label}`}
                   value={filterValue}
                   onChange={(e) => {
                     setFilterValue(e.target.value);
@@ -618,8 +657,10 @@ const ITEMS_PER_PAGE = 20;
 export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
-  const { currentWorkspace } = useWorkspace();
-  const { setScope } = useScope();
+  const { scope, setScope } = useScope();
+  // The browser is only reachable in project scope (LeftRail hides Documents in
+  // enterprise mode); fall back to the first project if scope is mid-transition.
+  const activeProjectId: ProjectId = scope.kind === 'project' ? (scope.id as ProjectId) : 'marra-ridge';
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -634,46 +675,20 @@ export function DocumentBrowser() {
   const location = useLocation();
   const navigate = useNavigate();
   const activeRailItem = 'documents';
-  const projectFolders = useMemo(() => {
-    const factor = PROJECT_SCALE[currentWorkspace] ?? 1;
-    const scale = (n: number) => Math.max(0, Math.round(n * factor));
-    const walk = (list: typeof mockFolders): typeof mockFolders =>
-      list.map((f) => ({
-        ...f,
-        documentCount: scale(f.documentCount),
-        children: f.children ? walk(f.children) : []
-      }));
-    return walk(mockFolders);
-  }, [currentWorkspace]);
-  const projectDocuments = useMemo(() => {
-    const factor = PROJECT_SCALE[currentWorkspace] ?? 1;
-    // Deterministic shuffle seeded by project name so each workspace shows a different mix
-    let seed = 0;
-    for (let i = 0; i < currentWorkspace.length; i++) {
-      seed = (seed * 31 + currentWorkspace.charCodeAt(i)) >>> 0;
-    }
-    const rand = () => {
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      return seed / 0xffffffff;
-    };
-    const shuffled = [...mockDocuments];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    const count = Math.max(1, Math.round(mockDocuments.length * factor));
-    return shuffled.slice(0, count);
-  }, [currentWorkspace]);
+  // Each workspace has its own folder tree and document set (see src/data) —
+  // switching projects in the banner swaps both wholesale.
+  const projectFolders = mockFoldersByProject[activeProjectId];
+  const projectDocuments = mockDocumentsByProject[activeProjectId];
 
   useEffect(() => {
     setSelectedFolderId(null);
     setDisplayedCount(ITEMS_PER_PAGE);
-  }, [currentWorkspace]);
+  }, [activeProjectId]);
   const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
 
   // Navigate-from-search: switch workspace scope, open the folder, and select/highlight the document.
-  // TODO: When direct object URLs are implemented (via a DB mapping table of objectType+id → canonical URL),
+  // [TODO-ENG] When direct object URLs are implemented (via a DB mapping table of objectType+id → canonical URL),
   // replace this location.state pattern with a proper deep-link route e.g. /documents/:folderId/:docId.
   useEffect(() => {
     const state = location.state as {
@@ -955,8 +970,20 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
       }
     };
 
+    // Escape closes the row action menu and export dropdown (WCAG 2.1.2).
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpenActionMenuId(null);
+      setOpenActionSubmenuKey(null);
+      setShowExportMenu(false);
+    };
+
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   const orderedDocuments = useMemo(() => {
@@ -1064,7 +1091,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     });
   };
 
-  const toDocumentDetail = (doc: typeof mockDocuments[0]): DetailPanelData => ({
+  const toDocumentDetail = (doc: Document): DetailPanelData => ({
     objectType: 'document',
     objectId: doc.id,
     docId: doc.id,
@@ -1220,7 +1247,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           <div className="py-2 flex flex-col overflow-visible">
                             {/* View Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: View API */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content [AUTH] [PHASE-1] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><EyeIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">View</span>
@@ -1240,7 +1267,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Subscribe Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Subscribe API */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire Subscribe — endpoint unconfirmed (G23 notification config?) [TBD] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><BellIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Subscribe</span>
@@ -1250,7 +1277,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Add to Favourites Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: API */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire Add to Favourites — endpoint unconfirmed (G02 user prefs?) [TBD] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><StarIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Add to Favourites</span>
@@ -1271,8 +1298,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                               </button>
                               {openActionSubmenuKey === 'share' && (
                                 <div className="absolute left-[calc(100%-8px)] top-0 ml-1 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 py-1.5 flex flex-col">
-                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Dynamic API */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Dynamic</button>
-                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Static API */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Static</button>
+                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire dynamic share link — endpoint unconfirmed [TBD] */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Dynamic</button>
+                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire static share link — endpoint unconfirmed [TBD] */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Static</button>
                                 </div>
                               )}
                             </div>
@@ -1288,8 +1315,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                               </button>
                               {openActionSubmenuKey === 'rendition' && (
                                 <div className="absolute left-[calc(100%-8px)] top-0 ml-1 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 py-1.5 flex flex-col">
-                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Create API */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Create</button>
-                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Download API */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Download</button>
+                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire rendition create — likely G07 content variant; returns async job (G25) [TBD] */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Create</button>
+                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content (rendition download) [AUTH] [TBD] */ setOpenActionMenuId(null); setOpenActionSubmenuKey(null); }} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 text-left">Download</button>
                                 </div>
                               )}
                             </div>
@@ -1298,7 +1325,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Message Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Message API */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [API] G13:POST /workspaces/{wsId}/messages [AUTH] [TBD] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><MessageSquareIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Message</span>
@@ -1308,7 +1335,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Add to Briefcase Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* TODO: Briefcase API */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire Add to Briefcase — endpoint unconfirmed [TBD] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><BriefcaseIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Add to Briefcase</span>

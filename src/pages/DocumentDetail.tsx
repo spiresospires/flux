@@ -7,6 +7,10 @@ import {
   PrinterIcon,
   FileTextIcon } from
 'lucide-react';
+// [MOCK] Single-document lookup — replace with useDocument(wsId, docId).
+// [API] G06:GET /workspaces/{wsId}/documents/{docId}
+// [AUTH]
+// [PHASE-1]
 import { mockDocuments } from '../data/mockDocuments';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { MetadataPanel } from '../components/MetadataPanel';

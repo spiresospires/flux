@@ -1,18 +1,54 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, SearchIcon, Settings2Icon } from 'lucide-react';
-import cloughLogo from '../../artifacts/Clough_Colore.png';
+// Display-name overrides — add an entry here when the filename alone isn't
+// descriptive enough (e.g. "iluka" → "Iluka Resources").
+// To add a new logo: drop any PNG/JPG/SVG/WebP into src/assets/logos/ and
+// optionally add a label entry below. No other code changes needed.
+const LOGO_LABELS: Record<string, string> = {
+  clough: 'Clough',
+  idox:   'Idox',
+  iluka:  'Iluka Resources',
+  twinza: 'Twinza',
+};
+
+const DEFAULT_LOGO_ID = 'idox';
+
+const _logoModules = import.meta.glob('../assets/logos/*.{png,jpg,jpeg,svg,webp}', { eager: true });
+
+const LOGOS = Object.entries(_logoModules)
+  .map(([path, mod]) => {
+    const id = path.split('/').pop()!.replace(/\.[^.]+$/, '');
+    const label = LOGO_LABELS[id] ?? id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return { id, label, src: (mod as { default: string }).default };
+  })
+  .sort((a, b) => a.label.localeCompare(b.label));
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
+// [MOCK] Notification feed — replace with useMessages(wsId).
+// [API] G13:GET /workspaces/{wsId}/messages
+// [AUTH]
+// [PHASE-1]
 import { mockNotifications } from '../data/mockDashboard';
 import profilePhoto from '../assets/profile-user.png';
+// [MOCK] Workspace list for the scope dropdown — replace with useWorkspaces().
+// [API] G03:GET /workspaces
+// [AUTH] Selecting a workspace must also exchange the workspace token (G01:POST /auth/workspace-token, ADR-005).
+// [PHASE-1]
 import { PROJECTS } from '../data/projects';
 
 export function BrandBanner() {
   const { t } = useLocalization();
   const { scope, setScope } = useScope();
   const LEFT_RAIL_WIDTH = 88;
+  const [selectedLogoId, setSelectedLogoId] = useState(DEFAULT_LOGO_ID);
+  const [logoMenuOpen, setLogoMenuOpen] = useState(false);
+  const logoButtonRef = useRef<HTMLDivElement>(null);
+  const logoMenuRef = useRef<HTMLDivElement>(null);
+  const [logoMenuPos, setLogoMenuPos] = useState({ top: 0, left: 0 });
+  const activeLogo = LOGOS.find(l => l.id === selectedLogoId) ?? LOGOS[0];
+
   const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
   const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -84,6 +120,8 @@ export function BrandBanner() {
     const handleOutside = (event: MouseEvent | TouchEvent) => {
       const target = (event instanceof TouchEvent ? event.touches[0]?.target : event.target) as Node | null;
       if (!target) return;
+      if (!logoButtonRef.current?.contains(target) && !logoMenuRef.current?.contains(target))
+        setLogoMenuOpen(false);
       if (!scopeDropdownRef.current?.contains(target) && !scopeMenuRef.current?.contains(target))
         setScopeMenuOpen(false);
       if (!notifButtonRef.current?.contains(target) && !notifMenuRef.current?.contains(target))
@@ -91,11 +129,21 @@ export function BrandBanner() {
       if (!profileButtonRef.current?.contains(target) && !profileMenuRef.current?.contains(target))
         setShowProfileMenu(false);
     };
+    // Escape closes whichever menu is open (WCAG 2.1.2 / ARIA menu pattern).
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setLogoMenuOpen(false);
+      setScopeMenuOpen(false);
+      setShowNotifMenu(false);
+      setShowProfileMenu(false);
+    };
     document.addEventListener('mousedown', handleOutside);
     document.addEventListener('touchstart', handleOutside);
+    document.addEventListener('keydown', handleEscape);
     return () => {
       document.removeEventListener('mousedown', handleOutside);
       document.removeEventListener('touchstart', handleOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, []);
 
@@ -133,14 +181,63 @@ export function BrandBanner() {
 
       <div className="flex items-center gap-3">
         <div
-          className="flex items-center justify-center shrink-0 px-1"
+          ref={logoButtonRef}
+          className="flex items-center justify-center shrink-0 px-1 relative"
           style={{ width: LEFT_RAIL_WIDTH }}
         >
-          <img
-            src={cloughLogo}
-            alt="Clough"
-            className="h-10 w-full object-contain"
-          />
+          <button
+            onClick={() => {
+              if (!logoMenuOpen && logoButtonRef.current) {
+                const r = logoButtonRef.current.getBoundingClientRect();
+                setLogoMenuPos({ top: r.bottom + 6, left: r.left });
+              }
+              setLogoMenuOpen(v => !v);
+            }}
+            className="w-full h-10 flex items-center justify-center rounded-md hover:bg-neutral-100 transition-colors group"
+            title="Switch company logo"
+            aria-haspopup="listbox"
+            aria-expanded={logoMenuOpen}
+          >
+            <img
+              src={activeLogo.src}
+              alt={activeLogo.label}
+              className="h-9 w-full object-contain"
+            />
+          </button>
+
+          {logoMenuOpen && createPortal(
+            <div
+              ref={logoMenuRef}
+              role="listbox"
+              style={{ position: 'fixed', top: logoMenuPos.top, left: logoMenuPos.left, minWidth: 180, zIndex: 9999 }}
+              className="bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden py-1"
+            >
+              <p className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                Company logo
+              </p>
+              {LOGOS.map(logo => {
+                const active = logo.id === selectedLogoId;
+                return (
+                  <button
+                    key={logo.id}
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => { setSelectedLogoId(logo.id); setLogoMenuOpen(false); }}
+                    className={`w-full px-3 py-2 flex items-center gap-3 hover:bg-[#F0F4F8] transition-colors text-left ${active ? 'bg-[#E8F1FB]' : ''}`}
+                  >
+                    <span className="w-12 h-7 flex items-center justify-center shrink-0 bg-white rounded border border-neutral-100">
+                      <img src={logo.src} alt={logo.label} className="max-h-6 max-w-[44px] object-contain" />
+                    </span>
+                    <span className={`text-sm flex-1 truncate ${active ? 'font-semibold text-[#0461BA]' : 'text-neutral-700'}`}>
+                      {logo.label}
+                    </span>
+                    {active && <CheckIcon size={13} className="text-[#0461BA] shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body
+          )}
         </div>
 
         {/* Scope Selector */}
@@ -196,7 +293,14 @@ export function BrandBanner() {
               className="bg-white border border-neutral-200 rounded-md shadow-xl overflow-hidden"
             >
               <button
-                onClick={() => { setScope({ kind: 'enterprise' }); setScopeMenuOpen(false); }}
+                onClick={() => {
+                  // Enterprise scope always lands on the Dashboard: there is no
+                  // all-workspaces documents view (customers work one project at
+                  // a time), so any other page would be left in a dead state.
+                  setScope({ kind: 'enterprise' });
+                  setScopeMenuOpen(false);
+                  navigate('/');
+                }}
                 role="option"
                 aria-selected={scope.kind === 'enterprise'}
                 className="w-full px-3 py-2 inline-flex items-center gap-2 text-sm hover:bg-violet-50 text-left"
@@ -214,6 +318,7 @@ export function BrandBanner() {
                     autoFocus={false}
                     value={projectSearch}
                     onChange={(e) => setProjectSearch(e.target.value)}
+                    aria-label="Search projects"
                     placeholder="Search projects…"
                     className="w-full h-7 pl-7 pr-2 rounded-md border border-neutral-200 bg-[#F0F4F8] text-xs text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white"
                   />

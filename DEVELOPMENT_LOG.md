@@ -219,3 +219,89 @@ Fixed shell dimensions:
 - Left rail width: `88px`
 - Left rail offset CSS var: `--left-rail-width` (88px)
 - Main content offset: `mt-[45px]`, `ml-[var(--left-rail-width,88px)]`
+
+---
+
+## 9. API-Handoff Comment Pass (2026-06-09)
+
+Applied the ARCHITECTURE.md marker convention (`[MOCK]` / `[API]` / `[AUTH]` / `[PHASE-N]` / `[TODO-ENG]` / `[TBD]`) across `src/` ahead of the Dev handoff:
+
+- All six `src/data/*` mock files now carry header markers naming their replacement API group (G03/G05/G06/G13/G19) per the Mock -> Real migration table.
+- All mock-data consumption points marked: BrandBanner, DocumentBrowser, DocumentDetail, Dashboard, SearchResults, Chat, FilterPanel, `utils/search.ts`, `hooks/useUserPref.ts`.
+- All bare `TODO:` comments converted to `[TODO-ENG]` (with `[TBD]` where the endpoint is unconfirmed) - DetailSlidePanel/DocumentBrowser action stubs, FolderTree subscribe/favourite, deep-link notes.
+- File-header purpose comments added to DocumentBrowser, Chat, Dashboard, Packages, FilterPanel.
+- ScopeContext / WorkspaceContext annotated with the ADR-005 token-exchange note and the consolidation `[TODO-ENG]` (ARCHITECTURE.md open question 6).
+- Packages.tsx inline `samplePackages` marked `[MOCK]` -> G08 `[PHASE-2]`.
+
+`npx tsc --noEmit` after the pass shows only the pre-existing warnings listed in CLAUDE.md (Dashboard callable errors moved to ~404/463 due to added headers).
+
+---
+
+## 10. WCAG Quick Wins + Dead-File Cleanup (2026-06-09)
+
+**Deleted:** `src/AppRouter.tsx` (never imported; App.tsx owns the single BrowserRouter) and `src/components/FolderTree_old.tsx` (unreferenced).
+
+**Reduced motion (WCAG 2.3.3):** `<MotionConfig reducedMotion="user">` wraps the app in App.tsx — every Framer Motion animation now respects the OS setting. CSS keyframes (`docs-nav-appear`) and transitions suppressed via `prefers-reduced-motion` block in index.css.
+
+**Escape-to-close (WCAG 2.1.2)** added to: BrandBanner (all four menus, shared handler), ClipboardDropdown, DetailSlidePanel (both variants), ColorCustomizer, DocumentBrowser ViewModeDropdown / ColumnHeaderDropdown popover / row action menu + export menu.
+
+**ARIA / labels:** `aria-label` on BrandBanner project search, FolderTree folder search, column filter inputs and triggers (+ `aria-haspopup`/`aria-expanded`), ViewModeDropdown button, sort pills (+ `aria-pressed`), sort-label buttons.
+
+**Other:** `type="button"` on all DetailSlidePanel and column-header buttons; column filter icon gains `focus-visible:opacity-80` so keyboard focus reveals it; FolderTree row actions use `focus-within` (was `focus`, which never fired on the wrapper div).
+
+Verified in browser: Escape closes notifications menu, column filter popover (aria-expanded true->false) and detail panel; no console errors. `tsc --noEmit` shows only the pre-existing warnings (AppRouter/FolderTree_old entries gone).
+
+Still open (larger work): focus trap in drawer dialog, FolderTree role="tree" + arrow keys, text-neutral-400 contrast pass, per-route document.title.
+
+---
+
+## 11. Search White-Page Fix (Flush View) + 1000-Document Mock Data (2026-06-09)
+
+**Bug:** Banner search showed result counts but a white page below — only in flush view styles.
+**Root cause:** `SearchResults.tsx` tagged its page *header* with `data-component="content-panel"`. The flush height fix in index.css applies `min-height: 100% !important` to content-panel (intended for the main content column on Dashboard/Chat/Packages, where content-panel is flex-1). On the shrink-0 search header it inflated the header to full page height, squeezing the results section to ~4px below the fold inside an overflow-hidden layout. Floating view was unaffected, which is why it went unnoticed.
+**Fix:** Header re-tagged `data-component="header-panel"` with a new flush CSS rule (radius/shadow zeroed, no min-height) and a code comment warning against reusing content-panel on shrink-0 headers. Verified in flush+basic and floating: header 70px, results render in both.
+
+**Mock data scale-up:** mockDocuments.ts category generator lengths raised from 367 to exactly 1000 total (each category ~2.7x). IDs stay unique (3-digit padding per category).
+**Folder counts now computed:** mockFolders.ts no longer hardcodes `documentCount` — counts are derived from mockDocuments per folderId, parents aggregate their subtree. The old literals had already drifted (e.g. folders claiming docs that did not exist); folders with no documents now honestly show 0. The literal counts in the tree are inert placeholders.
+
+Verified: Documents page shows "1000 documents", search for EQUIP returns 63 results and renders, no console errors after reload.
+
+---
+
+## 12. "All Workspaces" Always Lands on Dashboard (2026-06-10)
+
+**Change:** Selecting "All Workspaces" in the top-banner scope dropdown now calls `navigate('/')` alongside `setScope({ kind: 'enterprise' })` (BrandBanner.tsx).
+
+**Why:** There is no all-workspaces documents view — customers operate within one project envelope at a time and switch projects via the workspace dropdown. Previously, switching to enterprise scope while on /documents left the user on a dead page (Documents nav hidden, content project-scoped). Enterprise scope is now equivalent to "go Home", matching the existing logo/Home button behaviour.
+
+**Behaviour matrix:** All Workspaces -> always Dashboard. Project selection -> scope changes, user stays on current page.
+
+Verified in browser: from /documents in project scope, selecting All Workspaces lands on / with Documents nav hidden; no console errors. CLAUDE.md scope section updated with the rationale.
+
+---
+
+## 13. WA Mining EPC Re-theme: Per-Project Data + Dashboard Map View (2026-06-10)
+
+**Project rename (full, incl. ids):** shard/skyline/tower/empire -> marra-ridge (Marra Ridge Iron Ore Mine, Pilbara), hedland (Port Hedland Berth 6 Expansion, carries isFluxRefactor), kwinana (Kwinana Lithium Hydroxide Plant), goldfields (Goldfields Rail Duplication, Kalgoorlie). projects.ts entries now carry client / assetType / phase / location for the map. ScopeContext re-validates the persisted scope id against PROJECTS so stale localStorage falls back to enterprise.
+
+**Per-project mock data:** mockDocuments.ts rebuilt as a spec-driven generator — each project has its own themed category specs (mine/port/plant/rail) producing 1140/920/1060/840 docs (3960 total). mockFolders.ts rebuilt: shared EPC top-level taxonomy (01 PM -> 08 Handover & Ops), project-specific subfolders, counts computed. New exports mockDocumentsByProject / mockFoldersByProject keyed by ProjectId; flat exports remain as the all-projects union for search.
+
+**DocumentBrowser:** removed the PROJECT_SCALE shuffle hack (it keyed off WorkspaceContext.currentWorkspace, which the banner never updates — why all projects looked identical). Now selects tree + documents via ScopeContext scope.id. useWorkspace dropped from this page.
+
+**Chat:** local PROJECTS duplicate deleted — now imports from data/projects (closes the earlier [TODO-ENG]); canned conversation scopes remapped to new ids.
+
+**Dashboard Map view:** enterprise-only Widgets/Map toggle (persisted: useUserPref dashboard.view). ProjectMapView.tsx = Leaflet + react-leaflet (new deps) on OSM tiles, divIcon pins (no default marker PNGs). Hover opens clickable popup: project title/Open -> setScope (project dashboard), Documents -> /documents, Flint -> /chat, all project-scoped. Popup stats (doc count, in-review, overdue, unread) derive from the per-project mocks. Map wrapper has relative z-0 so Leaflet panes stay below the top banner. New locale keys dashboard.viewWidgets/viewMap (en-US, fr-FR).
+
+Verified in browser: scope dropdown shows new names; Marra Ridge documents = 1140 with EPC tree; switching to Kwinana on /documents swaps tree (Process/Piping/E&I subfolders) and docs (KW- ids); map shows 4 WA pins; hover popup renders stats; popup Documents click sets scope + lands on /documents; pin Open shows project dashboard. tsc: only pre-existing warnings (Dashboard callable errors now ~408/467).
+
+---
+
+## 14. Map Panel Refinement, Dashboard Crash Fix, Flint Context Chip (2026-06-10)
+
+**Dashboard white-screen fix (was a real bug masquerading as a "pre-existing TS warning"):** in Dashboard.tsx, `todoFiltered.map((t) => ...)` and `toTodoDetail(t: TodoItem)` shadowed the `t()` translation function, then called `t(''statuses.overdue'')` on a TodoItem — a runtime TypeError that unmounted the whole React tree (no error boundary) whenever the To Do section rendered. Params renamed to `todo`; the TS2349 errors are gone from tsc. All 11 Highlights-overview paths verified working (4 stat tiles, 3 View-all links, 4 left-list sections, plus todo-row -> detail panel). Rule: never name a callback param `t`.
+
+**Map layout:** map now renders inside the content panel only — left section list stays visible. Widgets/Map toggle moved to the top-LEFT of the panel toolbar; an expand/collapse button (top-right, Maximize2/Minimize2) maximises the map over the full dashboard area and back (transient useState, not persisted). Selecting a section from the left list switches back to widgets. Maximised state resets on any scope change.
+
+**Flint context:** map pin Flint now navigates with `?ask=<project name>&askKind=project` (matching the existing folder/document entry points). Chat.tsx shows a context chip on the empty state — kind icon (building/folder/file) + "Context: <label>" + project scope when relevant. Marker comments in Chat.tsx and ProjectMapView.tsx document the future G29 payload shape ({ scope: { wsId }, context: { type, id } }) and note labels must become object IDs when wired. New locale keys: chat.contextLabel, dashboard.expandMap/collapseMap (en-US, fr-FR).
+
+Verified in browser: toggle renders inside panel top-left; map 560px wide beside the section list, 848px maximised, collapse restores; pin Flint -> /chat?ask=Goldfields...&askKind=project with visible chip; folder chat button -> chip shows "02 Engineering · Goldfields Rail Duplication"; no new console errors.

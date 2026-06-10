@@ -1,3 +1,10 @@
+// FilterPanel — document filter sidebar used by DocumentBrowser. Status / doc-type /
+// category selections are controlled by the parent (which applies them client-side);
+// the remaining fields (file type, dates, company, user) are local state and not yet
+// applied to results.
+// [MOCK] Filter option lists below are hardcoded — in production these become query
+// params on G06:GET /workspaces/{wsId}/documents, with facet values from G19 search
+// aggregations. [PHASE-1]
 import React, { useState } from 'react';
 import { ChevronDownIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';

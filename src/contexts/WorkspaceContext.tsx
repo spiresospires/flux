@@ -1,3 +1,8 @@
+// [MOCK] Hardcoded workspace name list — overlaps with ScopeContext + data/projects.ts.
+// [API] G03:GET /workspaces
+// [TODO-ENG] Delete this context and merge into a single Zustand scopeStore before
+// wiring auth (ARCHITECTURE.md open question 6). The `flux.currentProject` localStorage
+// key is legacy — consolidate with `flux.currentScope`.
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 interface WorkspaceContextType {
@@ -6,7 +11,12 @@ interface WorkspaceContextType {
   setCurrentWorkspace: (workspace: string) => void;
 }
 
-const WORKSPACES = ['The Shard, London', 'Skyline', 'Tower', 'Empire State'];
+const WORKSPACES = [
+  'Marra Ridge Iron Ore Mine',
+  'Port Hedland Berth 6 Expansion',
+  'Kwinana Lithium Hydroxide Plant',
+  'Goldfields Rail Duplication',
+];
 const STORAGE_KEY = 'flux.currentProject';
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);

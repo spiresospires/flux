@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   SunIcon,
@@ -254,6 +254,16 @@ export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
   ];
 
   const panelTitle = t('appearance.fluxTitle');
+
+  // Escape closes the picker for keyboard users (WCAG 2.1.2).
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>

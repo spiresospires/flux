@@ -1,16 +1,18 @@
-{
+﻿{
   "version": "0.0.1",
   "configurations": [
     {
       "name": "Flux dev server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev", "--prefix", "C:/GitHub/flux"],
+      "cwd": "C:/GitHub/flux",
       "port": 5173
     },
     {
       "name": "Flux preview server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview"],
+      "runtimeArgs": ["run", "preview", "--prefix", "C:/GitHub/flux"],
+      "cwd": "C:/GitHub/flux",
       "port": 4173
     }
   ]

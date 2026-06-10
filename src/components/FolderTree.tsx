@@ -120,11 +120,12 @@ export function FolderTree({
           <span className="text-sm flex-1 truncate font-medium">
             {folder.name}
           </span>
-          <div className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center shrink-0">
+          {/* focus-within (not focus) — reveals the actions when a child button is tabbed to */}
+          <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement Subscribe
+                // [TODO-ENG] Implement Subscribe — endpoint unconfirmed (G23 notification config?) [TBD]
                 console.log(`Subscribed to ${folder.name}`);
               }}
               title={`Subscribe to ${folder.name} for changes`}
@@ -135,7 +136,7 @@ export function FolderTree({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // TODO: Implement toggle favourite
+                // [TODO-ENG] Implement toggle favourite — endpoint unconfirmed (G02 user prefs?) [TBD]
                 console.log(`Added ${folder.name} to favourites`);
               }}
               title={`Add ${folder.name} to favourites`}
@@ -211,6 +212,7 @@ export function FolderTree({
           <input
             type="text"
             placeholder="Search folders..."
+            aria-label="Search folders"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="

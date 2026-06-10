@@ -71,12 +71,20 @@ The top-banner workspace dropdown sets `ScopeContext`:
 
 | Selection | `scope.kind` | Effect |
 |---|---|---|
-| Home | `enterprise` | Dashboard shows all-projects data; Documents hidden from left rail |
-| Any project | `project` | Dashboard filters to that project; Documents visible in left rail |
+| All Workspaces | `enterprise` | **Always navigates to the Dashboard** (`navigate('/')`). Dashboard shows all-projects data; Documents hidden from left rail |
+| Any project | `project` | Dashboard filters to that project; Documents visible in left rail; user stays on the current page |
 
-**Resetting to Home:** `setScope({ kind: 'enterprise' })` + `navigate('/')`. The Dashboard `useEffect` watching `scope` resets `selectedSection` to `'overview'`.
+**Why enterprise always lands on Dashboard:** there is no all-workspaces documents view — customers operate within one project envelope at a time and switch via the workspace dropdown. Leaving the user on `/documents` (or any project-scoped page) in enterprise scope would be a dead state.
 
-**Single source of truth for projects:** `src/data/projects.ts` — exports `PROJECTS` array (ids: shard, skyline, tower, empire). All mock data imports from here.
+**Resetting to Home:** `setScope({ kind: 'enterprise' })` + `navigate('/')` — same behaviour from the logo/Home button and the "All Workspaces" dropdown option. The Dashboard `useEffect` watching `scope` resets `selectedSection` to `'overview'`.
+
+**Single source of truth for projects:** `src/data/projects.ts` — exports `PROJECTS` array (ids: marra-ridge, hedland, kwinana, goldfields). All mock data imports from here. Theme: WA mining EPC portfolio — Marra Ridge Iron Ore Mine (Pilbara), Port Hedland Berth 6 Expansion (port, carries `isFluxRefactor`), Kwinana Lithium Hydroxide Plant (process plant), Goldfields Rail Duplication (rail, Kalgoorlie). Each project entry carries `client`, `assetType`, `phase` and `location {lat,lng,locality}` for the map view.
+
+**Per-project mock data:** every workspace has its own folder tree and document set. `mockDocumentsByProject` / `mockFoldersByProject` (keyed by `ProjectId`) are what DocumentBrowser consumes via `scope.id`; the flat `mockDocuments` / `mockFolders` exports are the all-projects union used by search. All projects share the same controlled EPC top-level folders (01 Project Management → 08 Handover & Operations); subfolders are themed per asset type. Document totals: Marra Ridge 1140, Port Hedland 920, Kwinana 1060, Goldfields 840. Folder counts are computed from documents — never hand-edit.
+
+**Dashboard Map view (enterprise only):** a Widgets/Map segmented toggle (persisted via `useUserPref('dashboard.view')`) sits **top-left inside the content panel**. The map fills the content panel only (left section list stays visible); an expand/collapse button (top-right of the toolbar, transient `useState`) maximises it over the whole dashboard area. Selecting any section from the left list returns to widgets. Map = `src/components/ProjectMapView.tsx` — Leaflet + react-leaflet on OpenStreetMap tiles, one brand-blue divIcon pin per project. Hovering a pin opens a clickable popup (stats + actions): title/Open → `setScope(project)` (project dashboard), Documents → `/documents`, Flint → `/chat?ask=<name>&askKind=project`. The map wrapper needs `relative z-0` so Leaflet panes stay under the top banner.
+
+**Flint chat context convention:** every Flint entry point passes `?ask=<label>&askKind=project|folder|document` (map pin → project, FolderTree → folder, DocumentBrowser/DocumentCard → document). Chat.tsx renders this as a context chip on the empty state (icon per kind + label + project scope) so the user always sees what Flint is scoped to. Markers in Chat.tsx document the future G29 payload: `{ scope: { wsId }, context: { type: askKind, id: <objectId> } }` — pass object IDs, not labels, once wired.
 
 ---
 
@@ -257,4 +265,4 @@ These are known, non-blocking, and pre-date recent sessions:
 - `onChatClick` prop mismatch in `SearchResults.tsx`
 - PNG type declarations missing for `BrandBanner.tsx` asset imports
 - Several `React` unused import warnings across files
-- `Dashboard.tsx` lines ~394/453 callable expression errors
+- ~~`Dashboard.tsx` callable expression errors~~ — FIXED 2026-06-10: these were real runtime crashes (`.map((t) =>` shadowed the `t()` translation function; clicking the To Do section white-screened the app). Never name a callback param `t` in this codebase.

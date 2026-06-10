@@ -1,3 +1,6 @@
+// [MOCK] Placeholder (pending-upload) records — surfaced in search results only.
+// [TBD] No replacement API confirmed; ARCHITECTURE.md says keep or remove after real data lands.
+// [TODO-ENG] Decide whether placeholders are a G06 document state or a separate resource.
 import type { DocumentStatus, DocumentType } from '../types/document';
 
 export interface PlaceholderRecord {

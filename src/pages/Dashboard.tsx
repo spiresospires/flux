@@ -1,3 +1,8 @@
+// Dashboard — landing page with overview stats plus todo / notifications / recent /
+// shared / favourites sections. Scope-aware: enterprise mode shows all projects,
+// project mode filters every section to the active project (a scope change also
+// resets the selected section to 'overview'). All data is mocked from mockDashboard.
+// [PHASE-1]
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
@@ -21,9 +26,20 @@ import {
   StarIcon,
   UserIcon,
   BarChart3Icon,
+  LayoutGridIcon,
+  MapIcon,
+  Maximize2Icon,
+  Minimize2Icon,
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
 import { DetailSlidePanel, type DetailPanelData, type DetailPanelObjectType } from '../components/DetailSlidePanel';
+import { ProjectMapView } from '../components/ProjectMapView';
+import { useUserPref } from '../hooks/useUserPref';
+// [MOCK] All dashboard data — stats, todos, notifications, activity, shared, favourites.
+// [API] G03:GET /workspaces/{wsId}/dashboard — [TBD] stats endpoint not confirmed (ARCHITECTURE.md open question 2)
+// [API] G13:GET /workspaces/{wsId}/messages — notifications; mark-read via PATCH /messages/{msgId}
+// [AUTH]
+// [PHASE-1]
 import {
   mockFavourites,
   mockNotifications,
@@ -253,10 +269,10 @@ function OverviewPane({
             <button onClick={() => onSelectSection('todo')} className="text-xs text-[#0461BA] font-medium">{t('common.viewAll')}</button>
           </div>
           <div className="divide-y divide-neutral-50">
-            {todos.slice(0, 3).map((t) => (
-              <div key={t.id} className="px-3 py-2.5">
-                <p className="text-sm text-neutral-800 line-clamp-1">{t.title}</p>
-                <p className="text-xs text-neutral-500 mt-0.5">{t.project}</p>
+            {todos.slice(0, 3).map((todo) => (
+              <div key={todo.id} className="px-3 py-2.5">
+                <p className="text-sm text-neutral-800 line-clamp-1">{todo.title}</p>
+                <p className="text-xs text-neutral-500 mt-0.5">{todo.project}</p>
               </div>
             ))}
           </div>
@@ -382,15 +398,17 @@ function DashboardContent({
     });
   }, [favFilter, favourites]);
 
-  const toTodoDetail = (t: TodoItem): DetailPanelData => ({
-    objectType: t.objectType as DetailPanelObjectType,
-    objectId: t.objectId,
-    title: t.title,
-    project: t.project,
-    status: t.status,
-    description: t.description,
-    dueDate: t.dueDate,
-    assignedBy: t.assignedBy,
+  // NOTE: the param must not be named `t` — it would shadow the t() translation
+  // function (the original cause of the white-screen crash on the To Do section).
+  const toTodoDetail = (todo: TodoItem): DetailPanelData => ({
+    objectType: todo.objectType as DetailPanelObjectType,
+    objectId: todo.objectId,
+    title: todo.title,
+    project: todo.project,
+    status: todo.status,
+    description: todo.description,
+    dueDate: todo.dueDate,
+    assignedBy: todo.assignedBy,
     assignedTo: t('dashboard.assignedToYou'),
   });
 
@@ -440,23 +458,23 @@ function DashboardContent({
           onFilterChange={setTodoFilter}
         />
         <div className="flex-1 overflow-y-auto divide-y divide-neutral-50">
-          {todoFiltered.map((t) => (
+          {todoFiltered.map((todo) => (
             <button
-              key={t.id}
-              onClick={() => openPanel(toTodoDetail(t))}
+              key={todo.id}
+              onClick={() => openPanel(toTodoDetail(todo))}
               className="w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-neutral-50 transition-colors group"
             >
-              <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${todoPriorityColors[t.priority]}`} />
+              <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${todoPriorityColors[todo.priority]}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-neutral-800 group-hover:text-[#0461BA] line-clamp-1">{t.title}</p>
+                <p className="text-sm font-medium text-neutral-800 group-hover:text-[#0461BA] line-clamp-1">{todo.title}</p>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${todoStatusColors[t.status]}`}>{({Overdue:t('statuses.overdue'),'Due Today':t('statuses.dueToday'),'Due Soon':t('statuses.dueSoon'),Pending:t('statuses.pending')} as Record<string,string>)[t.status] ?? t.status}</span>
-                  <span className="text-xs text-neutral-400">{t.category}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${todoStatusColors[todo.status]}`}>{({ Overdue: t('statuses.overdue'), 'Due Today': t('statuses.dueToday'), 'Due Soon': t('statuses.dueSoon'), Pending: t('statuses.pending') } as Record<string, string>)[todo.status] ?? todo.status}</span>
+                  <span className="text-xs text-neutral-400">{todo.category}</span>
                   <span className="text-xs text-neutral-400">·</span>
-                  <span className="text-xs text-neutral-400">{t.project}</span>
+                  <span className="text-xs text-neutral-400">{todo.project}</span>
                 </div>
               </div>
-              <span className="text-xs text-neutral-400 mt-0.5">{formatDate(t.dueDate, locale)}</span>
+              <span className="text-xs text-neutral-400 mt-0.5">{formatDate(todo.dueDate, locale)}</span>
             </button>
           ))}
         </div>
@@ -646,6 +664,21 @@ export function Dashboard() {
   const [activeItem, setActiveItem] = useState('dashboard');
   const [selectedSection, setSelectedSection] = useState<DashboardSection>('overview');
   const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
+  // Map view is enterprise-only — the map IS the cross-project overview.
+  // Selecting a project (via pin or banner) shows the normal project dashboard.
+  // By default the map fills only the content panel (right column); the expand
+  // button maximises it over the whole dashboard area and back.
+  const [dashboardView, setDashboardView] = useUserPref<'widgets' | 'map'>('dashboard.view', 'widgets');
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const showMap = scope.kind === 'enterprise' && dashboardView === 'map';
+
+  // Picking a section from the left list always returns to the widget view —
+  // sections render widgets, so leaving the map active would show nothing.
+  const handleSelectSection = (section: DashboardSection) => {
+    setDashboardView('widgets');
+    setMapExpanded(false);
+    setSelectedSection(section);
+  };
 
   // Filter all data by scope
   const scopeProjectName = scope.kind === 'project' ? scope.name : null;
@@ -717,7 +750,51 @@ export function Dashboard() {
     if (scope.kind === 'enterprise') {
       setSelectedSection('overview');
     }
+    // A maximised map never survives a scope change — project scope has no map.
+    setMapExpanded(false);
   }, [scope]);
+
+  // Widgets/Map toggle sits top-LEFT of the content panel; the expand/collapse
+  // control appears on the right only while the map is showing.
+  const viewToolbar = scope.kind === 'enterprise' ? (
+    <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-100 shrink-0">
+      <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm" role="group" aria-label="Dashboard view">
+        <button
+          type="button"
+          onClick={() => { setDashboardView('widgets'); setMapExpanded(false); }}
+          aria-pressed={dashboardView === 'widgets'}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+            dashboardView === 'widgets' ? 'bg-[#0461BA] text-white shadow-sm' : 'text-neutral-600 hover:bg-[#F0F4F8]'
+          }`}
+        >
+          <LayoutGridIcon size={13} />
+          {t('dashboard.viewWidgets')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDashboardView('map')}
+          aria-pressed={dashboardView === 'map'}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+            dashboardView === 'map' ? 'bg-[#0461BA] text-white shadow-sm' : 'text-neutral-600 hover:bg-[#F0F4F8]'
+          }`}
+        >
+          <MapIcon size={13} />
+          {t('dashboard.viewMap')}
+        </button>
+      </div>
+      {showMap && (
+        <button
+          type="button"
+          onClick={() => setMapExpanded((v) => !v)}
+          aria-label={mapExpanded ? t('dashboard.collapseMap') : t('dashboard.expandMap')}
+          title={mapExpanded ? t('dashboard.collapseMap') : t('dashboard.expandMap')}
+          className="inline-flex items-center justify-center w-7 h-7 rounded-md text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB] transition-colors"
+        >
+          {mapExpanded ? <Minimize2Icon size={14} /> : <Maximize2Icon size={14} />}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div
@@ -729,11 +806,26 @@ export function Dashboard() {
       <LeftRail activeItem={activeItem} onItemClick={setActiveItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
+        {showMap && mapExpanded ? (
+          // Maximised map: takes the whole dashboard area (left section list hidden).
+          // relative z-0 creates a stacking context so Leaflet's internal panes
+          // (z-index 400+) cannot float above the top banner or its dropdowns.
+          <section
+            data-component="content-panel"
+            className="relative z-0 bg-white rounded-xl shadow-md overflow-hidden h-[calc(100vh-92px)] flex flex-col"
+            aria-label="Project map view"
+          >
+            {viewToolbar}
+            <div className="flex-1 min-h-0">
+              <ProjectMapView />
+            </div>
+          </section>
+        ) : (
         <div data-component="page-layout" className="grid grid-cols-[280px_minmax(0,1fr)] gap-4 min-h-[calc(100vh-92px)] items-start">
           <section data-component="left-panel" className="bg-white rounded-xl shadow-md overflow-hidden h-fit sticky top-0">
             <div className="divide-y divide-neutral-100">
               <button
-                onClick={() => setSelectedSection('overview')}
+                onClick={() => handleSelectSection('overview')}
                 className={`w-full text-left px-4 py-3 transition-colors ${selectedSection === 'overview' ? 'bg-white' : 'hover:bg-neutral-50'}`}
               >
                 <p className="text-sm font-semibold text-neutral-800">{t('dashboard.highlightsOverview')}</p>
@@ -746,7 +838,7 @@ export function Dashboard() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setSelectedSection(item.id)}
+                    onClick={() => handleSelectSection(item.id)}
                     className={`w-full text-left px-4 py-3 transition-colors ${active ? 'bg-[#E8F1FB]' : 'hover:bg-neutral-50'}`}
                   >
                     <div className="flex items-center gap-2">
@@ -764,20 +856,28 @@ export function Dashboard() {
           </section>
 
           <motion.section
-            key={selectedSection}
+            key={showMap ? 'map' : selectedSection}
             data-component="content-panel"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="bg-white rounded-xl shadow-md overflow-hidden min-h-[480px]"
+            className={`bg-white rounded-xl shadow-md overflow-hidden ${
+              showMap ? 'relative z-0 h-[calc(100vh-92px)] flex flex-col' : 'min-h-[480px]'
+            }`}
           >
-            {selectedSection === 'overview' ? (
+            {viewToolbar}
+            {showMap ? (
+              <div className="flex-1 min-h-0">
+                <ProjectMapView />
+              </div>
+            ) : selectedSection === 'overview' ? (
               <OverviewPane overdueTodos={overdueTodos} unreadNotifs={unreadNotifs} todos={filteredTodos} notifications={filteredNotifications} sharedItems={filteredSharedItems} favourites={filteredFavourites} onSelectSection={setSelectedSection} t={t} />
             ) : (
               <DashboardContent section={selectedSection} openPanel={setPanelData} todos={filteredTodos} notifications={filteredNotifications} recentActivity={filteredRecentActivity} sharedItems={filteredSharedItems} favourites={filteredFavourites} />
             )}
           </motion.section>
         </div>
+        )}
       </main>
 
       <DetailSlidePanel data={panelData} onClose={() => setPanelData(null)} />

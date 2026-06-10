@@ -1,3 +1,9 @@
+// Chat — the Flint AI assistant page. Conversations are held in component state with
+// canned responses (no backend); the history sidebar's open state and width persist
+// via useUserPref. Each conversation carries its own scope (enterprise/project),
+// independent of the global ScopeContext.
+// [TBD] Chat/AI endpoint not yet in the G01–G30 spec set (ARCHITECTURE.md open question 1).
+// [PHASE-1]
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -15,9 +21,15 @@ import {
   MessageSquareIcon,
   SearchIcon,
   GripVerticalIcon,
-  FileIcon } from
+  FileIcon,
+  FolderIcon,
+  Building2Icon } from
 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+// [MOCK] Documents attached to canned AI responses — replace with real G06 lookups once the chat backend exists.
+// [API] G06:GET /workspaces/{wsId}/documents
+// [AUTH]
+// [PHASE-1]
 import { mockDocuments } from '../data/mockDocuments';
 import { statusColors } from '../components/documentStatusColors';
 import { LeftRail } from '../components/LeftRail';
@@ -28,6 +40,11 @@ import { useLocalization } from '../contexts/LocalizationContext';
 import { FlintIcon } from '../components/FlintIcon';
 import { useUserPref } from '../hooks/useUserPref';
 import { Document } from '../types/document';
+// [MOCK] Workspace list for the chat scope picker.
+// [API] G03:GET /workspaces
+// [AUTH]
+// [PHASE-1]
+import { PROJECTS } from '../data/projects';
 interface ChatMessage {
   id: string;
   content: React.ReactNode;
@@ -39,14 +56,8 @@ type ChatScope =
   | { kind: 'enterprise' }
   | { kind: 'project'; id: string; name: string };
 
-interface ProjectOption { id: string; name: string }
-
-const PROJECTS: ProjectOption[] = [
-  { id: 'shard', name: 'The Shard, London' },
-  { id: 'skyline', name: 'Skyline' },
-  { id: 'tower', name: 'Tower' },
-  { id: 'empire', name: 'Empire State' }
-];
+// PROJECTS is imported from src/data/projects.ts (single source of truth) —
+// replace with useWorkspaces() when G03 is wired.
 
 const ENTERPRISE_SCOPE: ChatScope = { kind: 'enterprise' };
 const projectScope = (id: string): ChatScope => {
@@ -64,7 +75,10 @@ interface Conversation {
   messages: ChatMessage[];
   scope: ChatScope;
 }
-// Pick real documents from mock data for AI responses
+// [MOCK] Canned AI responses pull real documents from mock data.
+// [TBD] Chat/AI endpoint is not in the G01–G30 YAML set — may be G29 or a future group.
+// [TODO-ENG] Confirm which API group handles AI/chat (ARCHITECTURE.md open question 1).
+// [PHASE-1]
 const getSpecDocuments = () => {
   const specs = mockDocuments.filter((d) => d.documentType === 'Specification');
   return specs.slice(0, 3);
@@ -88,7 +102,18 @@ const getSafetyDocuments = () => {
 export function Chat() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // Chat context — every Flint entry point passes what the user was looking at:
+  //   ?ask=<label>&askKind=project|folder|document
+  // (map pin → project, FolderTree → folder, DocumentBrowser/DocumentCard → document).
+  // The context is shown as a chip on the empty state so the user always knows
+  // what Flint is scoped to.
+  // [MOCK] Context is label text only — once wired, pass object IDs, not labels.
+  // [API] G29 (chat/assistant): request payload should carry
+  //       { scope: { wsId }, context: { type: askKind, id: <objectId> } } [TBD]
+  // [TODO-ENG] Confirm chat API group + context schema (ARCHITECTURE.md open question 1).
+  // [PHASE-1]
   const askAbout = searchParams.get('ask');
+  const askKind = searchParams.get('askKind') as 'project' | 'folder' | 'document' | null;
 const onExit = () => navigate('/');
   const onDocumentSelect = (_docId: string) => navigate('/documents');
   const { t } = useLocalization();
@@ -103,7 +128,7 @@ const onExit = () => navigate('/');
 
     return [
     {
-      id: 'c-tag-pv101', title: 'Documents for TAG PV-101', favourited: true, scope: projectScope('shard'), updatedAt: now - 2 * 3600000,
+      id: 'c-tag-pv101', title: 'Documents for TAG PV-101', favourited: true, scope: projectScope('kwinana'), updatedAt: now - 2 * 3600000,
       messages: [
       mk('m1', 'user', 'What documents are associated with TAG PV-101?', 2 * 3600000),
       mk('m2', 'flint',
@@ -123,7 +148,7 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', 'No, all current revisions are the latest. SPEC-EQUIP-017 has a draft Rev 2 in progress with Kevin White but not yet released.', 2 * 3600000 - 29 * 60000)]
     },
     {
-      id: 'c-latest-pid', title: 'Latest revision of P-1001-PID-001', favourited: true, scope: projectScope('shard'), updatedAt: now - 5 * 3600000,
+      id: 'c-latest-pid', title: 'Latest revision of P-1001-PID-001', favourited: true, scope: projectScope('kwinana'), updatedAt: now - 5 * 3600000,
       messages: [
       mk('m1', 'user', "What's the latest revision of P-1001-PID-001?", 5 * 3600000),
       mk('m2', 'flint', 'The latest released revision is Rev C (Approved on 28 Apr 2026 by Sarah Chen). Rev D is currently in review with the lead process engineer.', 5 * 3600000 - 90000),
@@ -131,7 +156,7 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', 'Between Rev B → Rev C: cooling water return line re-routed to header HDR-04, valve XV-3402 added downstream of E-201, line size on 4″-CW-02 increased to 6″. Redline PDF available in version history.', 5 * 3600000 - 9 * 60000)]
     },
     {
-      id: 'c-approval-spec', title: 'Approval status — SPEC-PROC-042', favourited: false, scope: projectScope('tower'), updatedAt: now - 3 * 3600000,
+      id: 'c-approval-spec', title: 'Approval status — SPEC-PROC-042', favourited: false, scope: projectScope('marra-ridge'), updatedAt: now - 3 * 3600000,
       messages: [
       mk('m1', 'user', 'What is the current approval status of SPEC-PROC-042?', 3 * 3600000),
       mk('m2', 'flint',
@@ -148,7 +173,7 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', 'I can draft a reminder notification, but sending requires your confirmation — review actions are logged against your user account. Shall I proceed?', 3 * 3600000 - 7 * 60000)]
     },
     {
-      id: 'c-rfi-118', title: 'RFI-2026-118 and linked documents', favourited: false, scope: projectScope('skyline'), updatedAt: now - 6 * 3600000,
+      id: 'c-rfi-118', title: 'RFI-2026-118 and linked documents', favourited: false, scope: projectScope('hedland'), updatedAt: now - 6 * 3600000,
       messages: [
       mk('m1', 'user', 'Show me the details and linked documents for RFI-2026-118.', 6 * 3600000),
       mk('m2', 'flint',
@@ -168,7 +193,7 @@ const onExit = () => navigate('/');
           </div>, 6 * 3600000 - 60000)]
     },
     {
-      id: 'c-pumps-dwg', title: 'Pumps on drawing M-3012-GA-006', favourited: false, scope: projectScope('shard'), updatedAt: now - 1 * day,
+      id: 'c-pumps-dwg', title: 'Pumps on drawing M-3012-GA-006', favourited: false, scope: projectScope('kwinana'), updatedAt: now - 1 * day,
       messages: [
       mk('m1', 'user', 'List the pumps on drawing M-3012-GA-006.', 1 * day),
       mk('m2', 'flint',
@@ -183,7 +208,7 @@ const onExit = () => navigate('/');
           </div>, 1 * day - 60000)]
     },
     {
-      id: 'c-change-request', title: 'CR-2026-045 impact assessment', favourited: false, scope: projectScope('tower'), updatedAt: now - 1 * day - 2 * 3600000,
+      id: 'c-change-request', title: 'CR-2026-045 impact assessment', favourited: false, scope: projectScope('marra-ridge'), updatedAt: now - 1 * day - 2 * 3600000,
       messages: [
       mk('m1', 'user', 'What documents are affected by change request CR-2026-045?', 1 * day + 2 * 3600000),
       mk('m2', 'flint',
@@ -204,13 +229,13 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', 'Document controller assigned to CR-2026-045 is Daniel Park. He can be reached via the Team directory or by initiating a workflow action from the Change Request record.', 1 * day + 2 * 3600000 - 14 * 60000)]
     },
     {
-      id: 'c-supersede', title: 'Drawings superseding DWG-MECH-027-R3', favourited: false, scope: projectScope('skyline'), updatedAt: now - 1 * day - 4 * 3600000,
+      id: 'c-supersede', title: 'Drawings superseding DWG-MECH-027-R3', favourited: false, scope: projectScope('hedland'), updatedAt: now - 1 * day - 4 * 3600000,
       messages: [
       mk('m1', 'user', 'Which drawings supersede DWG-MECH-027-R3?', 1 * day + 4 * 3600000),
       mk('m2', 'flint', 'DWG-MECH-027-R3 has been superseded by DWG-MECH-027-R4 (released 02 May 2026). The R4 revision incorporates the structural support modifications from RFI-2026-118.', 1 * day + 4 * 3600000 - 60000)]
     },
     {
-      id: 'c-instrument-pt301', title: 'Datasheet for PT-301', favourited: false, scope: projectScope('empire'), updatedAt: now - 1 * day - 6 * 3600000,
+      id: 'c-instrument-pt301', title: 'Datasheet for PT-301', favourited: false, scope: projectScope('goldfields'), updatedAt: now - 1 * day - 6 * 3600000,
       messages: [
       mk('m1', 'user', 'Find the instrument datasheet for PT-301.', 1 * day + 6 * 3600000),
       mk('m2', 'flint',
@@ -227,7 +252,7 @@ const onExit = () => navigate('/');
           </div>, 1 * day + 6 * 3600000 - 60000)]
     },
     {
-      id: 'c-loop-101', title: 'Loop sheet for FT-205', favourited: false, scope: projectScope('skyline'), updatedAt: now - 2 * day,
+      id: 'c-loop-101', title: 'Loop sheet for FT-205', favourited: false, scope: projectScope('hedland'), updatedAt: now - 2 * day,
       messages: [
       mk('m1', 'user', 'Find the loop sheet for FT-205.', 2 * day),
       mk('m2', 'flint', 'Loop sheet INST-LOOP-205-R2 covers FT-205 (Coriolis flow transmitter on cooling water return). Linked instruments: FY-205, FV-205, FAH-205. Located in /Instrumentation/Loop Sheets.', 2 * day - 60000),
@@ -241,13 +266,13 @@ const onExit = () => navigate('/');
       mk('m2', 'flint', 'Two vendor datasheets are linked to P-204A: VEN-DS-003-R1 (Sulzer mechanical) and VEN-DS-016-R1 (motor). Both Approved, current revision.', 2 * day + 5 * 3600000 - 60000)]
     },
     {
-      id: 'c-outstanding', title: 'Documents pending review — Substation A', favourited: false, scope: projectScope('tower'), updatedAt: now - 3 * day,
+      id: 'c-outstanding', title: 'Documents pending review — Substation A', favourited: false, scope: projectScope('marra-ridge'), updatedAt: now - 3 * day,
       messages: [
       mk('m1', 'user', 'Any documents pending review on Substation A?', 3 * day),
       mk('m2', 'flint', '3 documents are in review: E-2004-SLD-015 (415V SLD, Rev B), E-2004-PRT-008 (Protection Schematic, Draft), and SPEC-ELEC-022-R1. Reviewer: Daniel Park, due 12 May.', 3 * day - 60000)]
     },
     {
-      id: 'c-weld-records', title: 'Weld records — ISO-PIPE-CW-023', favourited: false, scope: projectScope('shard'), updatedAt: now - 3 * day - 3 * 3600000,
+      id: 'c-weld-records', title: 'Weld records — ISO-PIPE-CW-023', favourited: false, scope: projectScope('kwinana'), updatedAt: now - 3 * day - 3 * 3600000,
       messages: [
       mk('m1', 'user', 'Pull up the weld records for spool ISO-PIPE-CW-023.', 3 * day + 3 * 3600000),
       mk('m2', 'flint',
@@ -265,13 +290,13 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', 'NDE contractor is Applus RTD. Their current site supervisor is listed as Kevin White in the QA register. Last site attendance was 09 May 2026.', 3 * day + 3 * 3600000 - 11 * 60000)]
     },
     {
-      id: 'c-mech-area01', title: 'IFC documents — Mechanical Area 01', favourited: false, scope: projectScope('shard'), updatedAt: now - 4 * day,
+      id: 'c-mech-area01', title: 'IFC documents — Mechanical Area 01', favourited: false, scope: projectScope('kwinana'), updatedAt: now - 4 * day,
       messages: [
       mk('m1', 'user', 'List IFC documents for Mechanical Area 01.', 4 * day),
       mk('m2', 'flint', 'Workpack WP-MECH-AREA-01 (Rev C02) contains 42 IFC-status documents across GA, P&IDs, isometrics and civil layouts. Want me to open the package?', 4 * day - 60000)]
     },
     {
-      id: 'c-vendor-doc-reg', title: 'Vendor document register — HX Package', favourited: false, scope: projectScope('skyline'), updatedAt: now - 4 * day - 4 * 3600000,
+      id: 'c-vendor-doc-reg', title: 'Vendor document register — HX Package', favourited: false, scope: projectScope('hedland'), updatedAt: now - 4 * day - 4 * 3600000,
       messages: [
       mk('m1', 'user', 'What is the status of the vendor document register for the heat exchanger package?', 4 * day + 4 * 3600000),
       mk('m2', 'flint',
@@ -302,7 +327,7 @@ const onExit = () => navigate('/');
       mk('m2', 'flint', 'PROC-SAFE-003-R3 covers Unit 200 confined space entry. Key points: gas test before entry, continuous monitoring, attendant + entry permit, rescue plan ref RES-PLAN-200.', 6 * day - 60000)]
     },
     {
-      id: 'c-ncr-civil', title: 'NCR status — civil works Grid J', favourited: false, scope: projectScope('shard'), updatedAt: now - 6 * day - 4 * 3600000,
+      id: 'c-ncr-civil', title: 'NCR status — civil works Grid J', favourited: false, scope: projectScope('kwinana'), updatedAt: now - 6 * day - 4 * 3600000,
       messages: [
       mk('m1', 'user', 'Are there any open NCRs for civil works on Grid J?', 6 * day + 4 * 3600000),
       mk('m2', 'flint',
@@ -316,13 +341,13 @@ const onExit = () => navigate('/');
           </div>, 6 * day + 4 * 3600000 - 60000)]
     },
     {
-      id: 'c-cable-sched', title: 'Cable schedule — MCC-03 feeders', favourited: false, scope: projectScope('skyline'), updatedAt: now - 7 * day,
+      id: 'c-cable-sched', title: 'Cable schedule — MCC-03 feeders', favourited: false, scope: projectScope('hedland'), updatedAt: now - 7 * day,
       messages: [
       mk('m1', 'user', 'Cable schedule for MCC-03 feeders?', 7 * day),
       mk('m2', 'flint', 'CAB-SCH-MCC03-R2 lists 28 feeders. Largest is FDR-03-12 (P-204A motor, 4-core 95mm² XLPE, 124 m). Schedule last updated 30 Apr 2026.', 7 * day - 60000)]
     },
     {
-      id: 'c-asbuilt-pkg07', title: 'As-built status — Package 07', favourited: false, scope: projectScope('empire'), updatedAt: now - 7 * day - 5 * 3600000,
+      id: 'c-asbuilt-pkg07', title: 'As-built status — Package 07', favourited: false, scope: projectScope('goldfields'), updatedAt: now - 7 * day - 5 * 3600000,
       messages: [
       mk('m1', 'user', 'What is the as-built drawing status for Package 07?', 7 * day + 5 * 3600000),
       mk('m2', 'flint',
@@ -339,7 +364,7 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', 'At risk: C-7003-ISO-014 (spool not yet inspected), C-7003-ISO-019 (site supervisor on leave until 20 May), and P-7001-PID-003 (outstanding P&ID markup from commissioning team).', 7 * day + 5 * 3600000 - 7 * 60000)]
     },
     {
-      id: 'c-where-used', title: 'Where is XV-3402 referenced?', favourited: false, scope: projectScope('shard'), updatedAt: now - 8 * day,
+      id: 'c-where-used', title: 'Where is XV-3402 referenced?', favourited: false, scope: projectScope('kwinana'), updatedAt: now - 8 * day,
       messages: [
       mk('m1', 'user', 'Where is XV-3402 referenced?', 8 * day),
       mk('m2', 'flint', 'XV-3402 appears in: P-1001-PID-001 (Rev C), VAL-LIST-AREA01-R5, INST-LOOP-3402-R1, and SPEC-VAL-014-R2. It is also called up in commissioning procedure CMS-PRC-018.', 8 * day - 60000)]
@@ -352,15 +377,15 @@ const onExit = () => navigate('/');
       <div>
             <p className="mb-2">Across all projects, <strong>14 HAZOP actions</strong> remain open (from 3 studies):</p>
             <ul className="list-disc pl-5 text-sm space-y-1">
-              <li><strong>The Shard:</strong> 6 open — 2 overdue, 4 in progress. Study: HAZOP-SHARD-2025-R1</li>
-              <li><strong>Skyline:</strong> 5 open — all in progress. Study: HAZOP-SKY-2026-R1</li>
-              <li><strong>Tower:</strong> 3 open — 1 overdue. Study: HAZOP-TWR-2025-R2</li>
+              <li><strong>Kwinana:</strong> 6 open — 2 overdue, 4 in progress. Study: HAZOP-KW-2025-R1</li>
+              <li><strong>Port Hedland:</strong> 5 open — all in progress. Study: HAZOP-PH-2026-R1</li>
+              <li><strong>Marra Ridge:</strong> 3 open — 1 overdue. Study: HAZOP-MR-2025-R2</li>
             </ul>
             <p className="mt-2 text-sm">3 overdue actions require escalation. Responsible engineers: Sarah Chen (2), Marco Rossi (1).</p>
           </div>, 8 * day + 3 * 3600000 - 60000)]
     },
     {
-      id: 'c-redline', title: 'Open redlines — Civil Foundations', favourited: false, scope: projectScope('empire'), updatedAt: now - 9 * day,
+      id: 'c-redline', title: 'Open redlines — Civil Foundations', favourited: false, scope: projectScope('goldfields'), updatedAt: now - 9 * day,
       messages: [
       mk('m1', 'user', 'Any open redlines on Civil Foundations?', 9 * day),
       mk('m2', 'flint', 'WP-CIV-FOUND-PKG has 2 open redlines: C-4401-LAY-002 (footing depth comment) and C-4401-LAY-005 (rebar spacing query). Both raised by Marco Rossi.', 9 * day - 60000)]
@@ -372,7 +397,7 @@ const onExit = () => navigate('/');
       mk('m2', 'flint', '7 transmittals to Contractor X in May 2026, totalling 184 documents. 3 are awaiting acknowledgement: TR-2026-118, TR-2026-122, TR-2026-127.', 11 * day - 60000)]
     },
     {
-      id: 'c-doc-by-author', title: "Sarah Chen's documents in review", favourited: false, scope: projectScope('shard'), updatedAt: now - 12 * day,
+      id: 'c-doc-by-author', title: "Sarah Chen's documents in review", favourited: false, scope: projectScope('kwinana'), updatedAt: now - 12 * day,
       messages: [
       mk('m1', 'user', "List all documents currently assigned to Sarah Chen for review.", 12 * day),
       mk('m2', 'flint',
@@ -390,7 +415,7 @@ const onExit = () => navigate('/');
       mk('m4', 'flint', "P-1001-PID-001 Rev D is 6 days overdue. Sarah Chen's manager is listed as David Walsh (Lead Process Engineer). I can raise a workflow escalation — this will be recorded in the document audit trail. Confirm?", 12 * day - 17 * 60000)]
     },
     {
-      id: 'c-hold-points', title: 'Hold points — Commissioning Pack 03', favourited: false, scope: projectScope('shard'), updatedAt: now - 14 * day,
+      id: 'c-hold-points', title: 'Hold points — Commissioning Pack 03', favourited: false, scope: projectScope('kwinana'), updatedAt: now - 14 * day,
       messages: [
       mk('m1', 'user', 'List the hold points on Commissioning Pack 03.', 14 * day),
       mk('m2', 'flint', 'CMS-PCK-03 has 4 hold points: H1 hydrotest sign-off, H2 NDT acceptance, H3 instrument loop check, H4 client witnessed run-in. H1 and H2 cleared; H3 in progress.', 14 * day - 60000)]
@@ -912,6 +937,24 @@ const onExit = () => navigate('/');
                 ? t('chat.suggestionHint')
                 : t('chat.subtitle')}
             </p>
+
+            {/* Context chip — tells the user exactly what Flint is scoped to */}
+            {askAbout && (
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#0461BA]/20 bg-[#E8F1FB] pl-2.5 pr-3 py-1.5 max-w-full">
+                {askKind === 'folder' ? (
+                  <FolderIcon size={13} className="text-amber-400 shrink-0" />
+                ) : askKind === 'project' ? (
+                  <Building2Icon size={13} className="text-[#0461BA] shrink-0" />
+                ) : (
+                  <FileTextIcon size={13} className="text-[#0461BA] shrink-0" />
+                )}
+                <span className="text-xs font-semibold text-[#0461BA] shrink-0">{t('chat.contextLabel')}:</span>
+                <span className="text-xs text-[#035299] truncate">{askAbout}</span>
+                {scope.kind === 'project' && askKind !== 'project' && (
+                  <span className="text-xs text-[#0461BA]/60 shrink-0 truncate">· {scope.name}</span>
+                )}
+              </div>
+            )}
 
             {selectedClipboardDocs.length > 0 && (
               <div className="w-full mb-3 rounded-2xl border border-[#0461BA]/15 bg-white px-4 py-3 shadow-sm">
