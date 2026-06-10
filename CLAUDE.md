@@ -161,6 +161,7 @@ Drop-in replacement for `useState` that persists to `localStorage` under `flux.u
 |---|---|---|
 | `chat.historyOpen` | `false` | Chat sidebar collapsed state |
 | `chat.historyWidth` | `288` | Chat sidebar pixel width |
+| `docBrowser.panelWidth` | `360` | DocumentBrowser split-panel pixel width |
 
 **Planned usages (not yet wired):** document browser column choice, column order, column widths.
 
@@ -196,7 +197,8 @@ The detail panel supports two rendering variants via the `variant` prop:
 | `'split'` | Inline flex column, no backdrop, no fixed positioning. Used in DocumentBrowser. |
 
 **Split layout (DocumentBrowser):**
-- Panel renders as a `w-[360px] shrink-0 h-full` flex sibling of `content-panel` inside `browser-layout`.
+- Panel renders as a flex sibling of `content-panel` inside `browser-layout`; width controlled by `useUserPref('docBrowser.panelWidth', 360)` (min 260 px, max 640 px).
+- A `GripVerticalIcon` drag handle sits at the left edge of the panel wrapper — `cursor-col-resize`, same pattern as the Chat history sidebar resize. Dragging recalculates width from `window.innerWidth - e.clientX`.
 - `content-panel` has `transition-all duration-200` — smoothly compresses as the panel opens.
 - `browser-layout` has `items-stretch` so all columns fill full height.
 - Animation: `opacity+x` slide-in (`x: 20 → 0`, 200 ms ease-out). No backdrop.

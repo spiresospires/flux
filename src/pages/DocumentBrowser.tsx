@@ -59,12 +59,14 @@ import {
   LinkIcon,
   FilesIcon,
   MessageSquareIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  GripVerticalIcon
 } from
   'lucide-react';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
+import { useUserPref } from '../hooks/useUserPref';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Document } from '../types/document';
@@ -710,6 +712,36 @@ export function DocumentBrowser() {
   const [openActionSubmenuKey, setOpenActionSubmenuKey] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
+  // [MOCK] Panel width persisted via useUserPref — swaps to Oracle preferences API when available.
+  // [API] G02:GET /user/preferences/docBrowser.panelWidth
+  const [panelWidth, setPanelWidth] = useUserPref<number>('docBrowser.panelWidth', 360);
+  const panelResizingRef = useRef(false);
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!panelResizingRef.current) return;
+      // Panel is on the right; dragging left = wider, right = narrower.
+      const next = Math.min(640, Math.max(260, window.innerWidth - e.clientX));
+      setPanelWidth(next);
+    };
+    const onUp = () => {
+      if (panelResizingRef.current) {
+        panelResizingRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+  const startPanelResize = () => {
+    panelResizingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
   // Column filters for table view
@@ -2364,12 +2396,24 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
             {/* Split detail panel — third flex column, sits alongside the grid */}
             {panelData && (
-              <div className="w-[360px] shrink-0 h-full">
-                <DetailSlidePanel
-                  data={panelData}
-                  onClose={() => setPanelData(null)}
-                  variant="split"
-                />
+              <div className="shrink-0 h-full flex" style={{ width: panelWidth }}>
+                {/* Drag handle — left edge of the panel */}
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize document properties panel"
+                  onMouseDown={(e) => { e.preventDefault(); startPanelResize(); }}
+                  className="relative w-2 shrink-0 cursor-col-resize flex items-center justify-center group z-10">
+                  <div className="absolute inset-y-0 left-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] group-active:bg-[#0461BA] transition-colors" />
+                  <GripVerticalIcon size={13} className="shrink-0 opacity-0 group-hover:opacity-40 text-neutral-400" />
+                </div>
+                <div className="flex-1 min-w-0 h-full">
+                  <DetailSlidePanel
+                    data={panelData}
+                    onClose={() => setPanelData(null)}
+                    variant="split"
+                  />
+                </div>
               </div>
             )}
 
