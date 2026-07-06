@@ -1,7 +1,7 @@
-// [MOCK] Client-side full-text filtering — interim only.
-// [API] G19:POST /workspaces/{wsId}/search
+// [MOCK] Full-text matching, snippets and facet counts for the MSW mock backend
+// (src/mocks/handlers.ts, G19 handler) — no page imports this directly any more.
+// Delete alongside src/mocks when the real Spring Boot G19 exists.
 // [PHASE-1]
-// Delete this file once G19 is wired; matching, snippets and facet counts all move server-side.
 import type { SearchResult, SearchResultType, SearchableRecord } from '../types/search';
 
 const fieldLabels: Array<{ key: keyof SearchableRecord; label: string }> = [

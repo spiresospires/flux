@@ -1,12 +1,8 @@
 // [MOCK] Search corpus built at module load from mockDocuments + mockFolders + mockPlaceholders.
-// [API] G19:POST /workspaces/{wsId}/search
-// [AUTH]
+// Consumed ONLY by the MSW mock backend (src/mocks/handlers.ts, G19 handler) — pages
+// go through useSearch → POST /workspaces/{wsId}/search. This file (and utils/search.ts)
+// is deleted with the rest of src/mocks when the real Spring Boot G19 exists.
 // [PHASE-1]
-// Replace with useSearch(wsId, query) — server-side full-text search with facets.
-// Body: { query, filters: { folderId, status, documentType, dateRange }, limit, cursor }
-// (cursor pagination per ADR-011 — response { items, nextCursor }, no offset paging).
-// Facet counts come from the `aggregations` field of the G19 response; this whole file
-// (and utils/search.ts) is deleted once G19 is wired.
 import { mockDocuments } from './mockDocuments';
 import { mockFolders } from './mockFolders';
 import { mockPlaceholders } from './mockPlaceholders';

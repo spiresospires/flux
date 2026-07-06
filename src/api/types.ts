@@ -44,6 +44,12 @@ export type FolderTreeResponse = Folder[];
 /** G19 POST /workspaces/{wsId}/search request body (ADR-011 pagination). */
 export interface SearchRequest {
   query: string;
+  /**
+   * Result-type facet filter (the type tabs in SearchResults). The response
+   * `aggregations` are always computed over the UNFILTERED result set so facet
+   * counts stay stable while a tab is active — standard search-facet semantics.
+   */
+  types?: SearchResultType[];
   filters?: {
     folderId?: string;
     status?: string[];

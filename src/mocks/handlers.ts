@@ -186,6 +186,7 @@ export const handlers = [
 
     const body = (await request.json()) as {
       query?: string;
+      types?: string[];
       limit?: number;
       cursor?: string;
     };
@@ -198,12 +199,18 @@ export const handlers = [
         : searchRecords.filter((r) => r.projectId === wsId);
     const results = searchEverything(scoped, query);
 
-    // Facets are computed over the FULL result set, not the returned page —
-    // this is what the real G19 `aggregations` field must do too.
+    // Facets are computed over the FULL result set — before the type filter and
+    // before pagination — so the tab counts stay stable while a tab is active.
+    // This is what the real G19 `aggregations` field must do too.
     const aggregations = countResultsByType(results);
-    const { items, nextCursor } = paginate(results, body.cursor ?? null, limit);
 
-    const response: SearchResponse = { items, nextCursor, aggregations, totalApprox: results.length };
+    const typed =
+      body.types && body.types.length > 0
+        ? results.filter((r) => body.types!.includes(r.resultType))
+        : results;
+    const { items, nextCursor } = paginate(typed, body.cursor ?? null, limit);
+
+    const response: SearchResponse = { items, nextCursor, aggregations, totalApprox: typed.length };
     return HttpResponse.json(response);
   }),
 ];

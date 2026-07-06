@@ -1,25 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  AlertTriangleIcon,
   ArrowRightIcon,
   Building2Icon,
   FileIcon,
   FileQuestionIcon,
   FolderIcon,
-  FolderOpenIcon,
+  LoaderIcon,
+  RefreshCwIcon,
   SearchIcon,
   XIcon
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
-// [MOCK] Client-side search over a static corpus — replace with useSearch(wsId, query).
-// [API] G19:POST /workspaces/{wsId}/search
+// [API] G19:POST /workspaces/{wsId}/search — served over HTTP (MSW in the prototype).
 // [AUTH]
 // [PHASE-1]
-// Facet counts (countResultsByType) come from the G19 `aggregations` field once wired.
-import { searchRecords } from '../data/searchData';
+// Facet counts come from the response `aggregations` (computed server-side over the
+// full result set); the type tabs are a server-side `types` filter; results are
+// cursor-paginated (ADR-011) behind an infinite-scroll sentinel.
 import type { SearchResult, SearchResultType } from '../types/search';
-import { countResultsByType, searchEverything } from '../utils/search';
 import { useSearch } from '../contexts/SearchContext';
+import { useSearch as useSearchApi } from '../hooks/useSearch';
+import { ENTERPRISE_SEARCH_SCOPE } from '../api/search';
 import { useScope } from '../contexts/ScopeContext';
 
 type SearchTab = 'all' | SearchResultType;
@@ -56,7 +59,6 @@ function FilterBar({
     <div className="shrink-0 flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2 py-1.5 overflow-x-auto scrollbar-hide">
       {categories.map((cat, i) => {
         const isActive = active === cat.type;
-        const isAll = cat.type === 'all';
         return (
           <React.Fragment key={cat.type}>
             {/* Divider after "All" */}
@@ -268,7 +270,6 @@ function NoResultsState({ query, onClear }: { query: string; onClear: () => void
 
 export function SearchResults() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { setLastQuery } = useSearch();
   const { scope } = useScope();
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
@@ -278,38 +279,64 @@ export function SearchResults() {
     if (query) setLastQuery(query);
   }, [query, setLastQuery]);
 
-  const scopedRecords = useMemo(
-    () =>
-      scope.kind === 'project'
-        ? searchRecords.filter((r) => r.project === scope.name)
-        : searchRecords,
-    [scope]
+  // Search runs server-side (G19): full-text matching, workspace scoping, the
+  // type-tab filter and pagination all happen behind the API. In enterprise
+  // scope the '_all' sentinel searches every workspace the user can access.
+  const wsId = scope.kind === 'project' ? scope.id : ENTERPRISE_SEARCH_SCOPE;
+  const {
+    results,
+    aggregations,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useSearchApi(wsId, {
+    query,
+    types: activeTab === 'all' ? undefined : [activeTab as SearchResultType],
+  });
+
+  // 'All' = sum of the server facet counts (aggregations cover the full result
+  // set regardless of the active tab, so the pills stay stable).
+  const allCount = useMemo(
+    () => Object.values(aggregations).reduce((sum, n) => sum + (n ?? 0), 0),
+    [aggregations]
   );
 
-  const results = useMemo(() => searchEverything(scopedRecords, query), [scopedRecords, query]);
-  const counts = useMemo(() => countResultsByType(results), [results]);
-
-  // Build filter categories dynamically — 'All' first, then one pill per type present in results.
-  // New SearchResultType values added to the data will automatically appear here.
+  // Build filter categories dynamically — 'All' first, then one pill per type present
+  // in the aggregations. New SearchResultType values appear here automatically.
   const filterCategories = useMemo<FilterCategory[]>(() => {
-    const typeEntries = (Object.entries(counts) as [SearchResultType, number][])
+    const typeEntries = (Object.entries(aggregations) as [SearchResultType, number][])
       .sort((a, b) => b[1] - a[1])
       .map(([type, count]) => ({
         type: type as SearchTab,
         label: resultTypeLabels[type] ?? type.charAt(0).toUpperCase() + type.slice(1),
         count,
       }));
-    return [{ type: 'all', label: 'All', count: results.length }, ...typeEntries];
-  }, [counts, results.length]);
-
-  const filteredResults = useMemo(() => {
-    if (activeTab === 'all') return results;
-    return results.filter((r) => r.resultType === activeTab);
-  }, [activeTab, results]);
+    return [{ type: 'all', label: 'All', count: allCount }, ...typeEntries];
+  }, [aggregations, allCount]);
 
   useEffect(() => {
     setActiveTab('all');
   }, [query, scope]);
+
+  // Infinite scroll: ask for the next cursor page when the sentinel enters the
+  // list's viewport (same pattern as DocumentBrowser).
+  const listRef = useRef<HTMLElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const rootEl = listRef.current;
+    const sentinel = sentinelRef.current;
+    if (!rootEl || !sentinel) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }, { root: rootEl, threshold: 0.1 });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, results.length]);
 
   const clearSearch = () => {
     setActiveTab('all');
@@ -318,7 +345,7 @@ export function SearchResults() {
 
   return (
     <div data-component="page-shell" className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
-      <LeftRail activeItem="search" onItemClick={() => {}} onChatClick={() => navigate('/chat')} />
+      <LeftRail activeItem="search" onItemClick={() => {}} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">
@@ -335,7 +362,7 @@ export function SearchResults() {
                     : 'Search from the bar above.'}
                 </p>
               </div>
-              {query && results.length > 0 && (
+              {query && allCount > 0 && (
                 <FilterBar
                   categories={filterCategories}
                   active={activeTab}
@@ -349,15 +376,48 @@ export function SearchResults() {
             <div className="flex-1 overflow-y-auto">
               <EmptySearchState />
             </div>
+          ) : isError ? (
+            <section className="flex min-h-[360px] flex-1 items-center justify-center rounded-xl bg-white shadow-md p-8 text-center">
+              <div className="max-w-md">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-500">
+                  <AlertTriangleIcon size={22} />
+                </div>
+                <h2 className="mt-4 text-xl font-semibold text-neutral-900">Search failed</h2>
+                <p className="mt-2 text-sm text-neutral-600">Something went wrong talking to the server.</p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-5 inline-flex items-center gap-2 rounded-md bg-[#0461BA] px-3 py-2 text-sm font-medium text-white hover:bg-[#034f97]">
+                  <RefreshCwIcon size={14} /> Try again
+                </button>
+              </div>
+            </section>
+          ) : isLoading ? (
+            <div className="flex-1 space-y-2 pt-1 pr-4 animate-pulse" aria-busy="true" aria-label="Searching">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-24 bg-white/70 border border-neutral-200 rounded-md" />
+              ))}
+            </div>
           ) : results.length === 0 ? (
             <div className="flex-1 overflow-y-auto">
               <NoResultsState query={query} onClear={clearSearch} />
             </div>
           ) : (
-            <section className="flex-1 overflow-y-auto space-y-2 pt-1 pr-4" aria-label="Search results list">
-              {filteredResults.map((result) => (
+            <section ref={listRef} className="flex-1 overflow-y-auto space-y-2 pt-1 pr-4" aria-label="Search results list">
+              {results.map((result) => (
                 <SearchResultCard key={`${result.resultType}-${result.id}`} result={result} />
               ))}
+              {hasNextPage && (
+                <div ref={sentinelRef} className="flex justify-center py-6">
+                  {isFetchingNextPage ? (
+                    <div className="flex items-center gap-2 text-neutral-500">
+                      <LoaderIcon size={18} className="animate-spin" />
+                      <span className="text-sm">Loading more results...</span>
+                    </div>
+                  ) : (
+                    <div className="h-8" />
+                  )}
+                </div>
+              )}
             </section>
           )}
         </div>

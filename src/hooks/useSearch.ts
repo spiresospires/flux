@@ -1,7 +1,7 @@
 // [API] G19:POST /workspaces/{wsId}/search — cursor-paginated (ADR-011).
 // [AUTH]
 // [PHASE-1]
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { search } from '../api/search';
 import { queryKeys } from '../api/queryKeys';
@@ -14,6 +14,9 @@ export function useSearch(wsId: string, request: Omit<SearchRequest, 'cursor'>, 
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: enabled && request.query.trim().length > 0,
+    // Switching type tabs (a new query key) keeps the previous list on screen
+    // instead of flashing a skeleton; isPlaceholderData is true meanwhile.
+    placeholderData: keepPreviousData,
   });
 
   const results = useMemo(
