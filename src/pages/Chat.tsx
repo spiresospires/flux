@@ -76,8 +76,9 @@ interface Conversation {
   scope: ChatScope;
 }
 // [MOCK] Canned AI responses pull real documents from mock data.
-// [TBD] Chat/AI endpoint is not in the G01–G30 YAML set — may be G29 or a future group.
-// [TODO-ENG] Confirm which API group handles AI/chat (ARCHITECTURE.md open question 1).
+// [API] G29:POST /workspaces/{wsId}/assistant/conversations/{convId}/messages
+// [TODO-ENG] Confirm the G29 SSE streaming contract — message.delta / message.complete /
+//            message.error events (ARCHITECTURE.md — Chat/AI section, open question 1).
 // [PHASE-1]
 const getSpecDocuments = () => {
   const specs = mockDocuments.filter((d) => d.documentType === 'Specification');
@@ -108,9 +109,9 @@ export function Chat() {
   // The context is shown as a chip on the empty state so the user always knows
   // what Flint is scoped to.
   // [MOCK] Context is label text only — once wired, pass object IDs, not labels.
-  // [API] G29 (chat/assistant): request payload should carry
-  //       { scope: { wsId }, context: { type: askKind, id: <objectId> } } [TBD]
-  // [TODO-ENG] Confirm chat API group + context schema (ARCHITECTURE.md open question 1).
+  // [API] G29:POST /workspaces/{wsId}/assistant/conversations/{convId}/messages —
+  //       request payload carries { scope: { wsId }, context: { type: askKind, id: <objectId> } }
+  // [TODO-ENG] Confirm G29 context schema (ARCHITECTURE.md — Chat/AI section, open question 1).
   // [PHASE-1]
   const askAbout = searchParams.get('ask');
   const askKind = searchParams.get('askKind') as 'project' | 'folder' | 'document' | null;
@@ -832,6 +833,12 @@ const onExit = () => navigate('/');
     setSelectedClipboardDocs([]);
     setIsTyping(true);
 
+    // [MOCK] Canned reply after a fixed delay — this setTimeout is what the real
+    //        G29 SSE token stream replaces (render message.delta chunks
+    //        progressively; AbortController on the stream implements Stop).
+    // [API] G29:POST /workspaces/{wsId}/assistant/conversations/{convId}/messages
+    // [AUTH]
+    // [PHASE-1]
     setTimeout(() => {
       setIsTyping(false);
       const flintMsg: ChatMessage = {
@@ -1262,7 +1269,7 @@ function ChatHistorySidebar(p: SidebarProps) {
                 onDragEnd={handleDragEnd}
                 className={`transition-opacity ${draggingId === c.id ? 'opacity-40' : 'opacity-100'} ${dragOverId === c.id && draggingId !== c.id ? 'border-t-2 border-[#0461BA]' : ''}`}
               >
-                {renderItem(c, p, true)}
+                <SidebarItem c={c} p={p} isDraggable />
               </div>
             ))}
           </>
@@ -1270,7 +1277,7 @@ function ChatHistorySidebar(p: SidebarProps) {
         {recent.length > 0 &&
         <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">{t('chat.recent')}</div>
         }
-        {recent.map((c) => renderItem(c, p, false))}
+        {recent.map((c) => <SidebarItem key={c.id} c={c} p={p} />)}
         {filtered.length === 0 &&
         <div className="px-3 py-6 text-center text-xs text-neutral-400">{t('chat.noChatsFound')}</div>
         }
@@ -1289,14 +1296,17 @@ function ChatHistorySidebar(p: SidebarProps) {
 
 }
 
-function renderItem(c: Conversation, p: SidebarProps, isDraggable = false) {
+// A real component (not a render helper): it calls useLocalization, and hooks
+// inside a plain function called from JSX count against the caller's hook order —
+// the sidebar's hook count then varies with the number of rows, which violates
+// the Rules of Hooks and crashes when the list length changes.
+function SidebarItem({ c, p, isDraggable = false }: { c: Conversation; p: SidebarProps; isDraggable?: boolean }) {
   const { t } = useLocalization();
   const isActive = p.activeId === c.id;
   const isRenaming = p.renamingId === c.id;
   const menuOpen = p.menuOpenId === c.id;
   return (
     <div
-      key={c.id}
       className={`group relative mx-2 my-0.5 px-2 py-2 rounded-md cursor-pointer flex items-center gap-2 ${
       isActive ? 'bg-[#E8F1FB] text-[#0461BA]' : 'hover:bg-neutral-200 text-neutral-700'}`
       }

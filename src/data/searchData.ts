@@ -3,7 +3,8 @@
 // [AUTH]
 // [PHASE-1]
 // Replace with useSearch(wsId, query) — server-side full-text search with facets.
-// Body: { query, filters: { folderId, status, documentType, dateRange }, page, pageSize }.
+// Body: { query, filters: { folderId, status, documentType, dateRange }, limit, cursor }
+// (cursor pagination per ADR-011 — response { items, nextCursor }, no offset paging).
 // Facet counts come from the `aggregations` field of the G19 response; this whole file
 // (and utils/search.ts) is deleted once G19 is wired.
 import { mockDocuments } from './mockDocuments';

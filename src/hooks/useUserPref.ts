@@ -62,6 +62,23 @@ export function useUserPref<T>(prefKey: string, defaultValue: T): [T, (value: T 
     // FusionLive Oracle preferences endpoint is available. [PHASE-1]
   }, [prefKey, value]);
 
+  // Cross-window sync (ADR-010): `storage` events fire in every OTHER window of
+  // the same origin when a pref is written, so all open windows converge without
+  // a server round-trip. The originating window never receives its own event,
+  // so this cannot loop. [PHASE-1]
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_PREFIX + prefKey || e.newValue === null) return;
+      try {
+        setValueState(JSON.parse(e.newValue) as T);
+      } catch {
+        // Malformed value written by another window — keep current state.
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [prefKey]);
+
   const setValue = useCallback((next: T | ((prev: T) => T)) => {
     setValueState((prev) => {
       const resolved = typeof next === 'function' ? (next as (p: T) => T)(prev) : next;

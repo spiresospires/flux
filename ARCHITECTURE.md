@@ -120,6 +120,81 @@ async function exchangeWorkspaceToken(platformToken: string, wsId: string): Prom
 
 The REST API exposes **UUIDs** on all external-facing IDs (documents, folders, workspaces). The Oracle DB uses **integer** primary keys internally. The Spring layer maps between them. The React SPA **always uses UUIDs** — never integer IDs. `DocumentMetadata.id` in `src/types/document.ts` is already a `string`; keep it that way.
 
+### ADR-010 — Real-time Sync & Multi-Window Architecture
+
+The product requirements are: multi-user SaaS, no manual refreshes (data updates itself), and multiple browser windows per user kept in sync. This ADR defines how change notifications reach the browser and how windows coordinate.
+
+**1. Server → client transport: Server-Sent Events (SSE), dedicated stream**
+
+```
+GET /workspaces/{wsId}/events        (new group G31)
+Accept: text/event-stream
+Authorization: Bearer <workspaceToken>
+```
+
+- One stream per workspace, **separate from G13 messages/notifications**. G13 is user-facing content ("you have been assigned a review"); G31 is infrastructure-level cache-invalidation traffic at much higher volume. Mixing them couples notification UX to sync plumbing.
+- SSE over WebSocket/STOMP because all client **writes** already go through REST — we only need one-directional push. SSE gives auto-reconnect with `Last-Event-ID` for free, is plain HTTP (works through LBs/proxies without upgrade handling), and carries the JWT like any other request.
+- `[TODO-ENG]` Confirm SSE vs WebSocket against infra constraints (ALB idle timeouts, connection limits per node, fan-out approach — e.g. Redis pub/sub across the Spring Boot cluster).
+
+**2. Event envelope — identifiers only, never payloads**
+
+```json
+{
+  "id": "01J9ZK7Q2M...",            // monotonic per stream; doubles as SSE Last-Event-ID
+  "ts": "2026-07-06T09:14:03Z",
+  "wsId": "b3f1...",
+  "type": "document.updated",       // <entity>.<verb>  verb ∈ created|updated|deleted|moved
+  "entity": "document",             // document | folder | message | job | workspace
+  "entityId": "9c2e...",            // UUID (ADR-009)
+  "rev": 7,                         // entity revision — matches the ETag the client holds
+  "actorId": "5a77..."              // originating user (clients may de-dupe their own echoes)
+}
+```
+
+Events carry **what changed, not the change itself**. The client responds by invalidating its React Query cache and refetching through the normal REST endpoints. Rationale:
+- No permission leakage: the refetch is ACL-checked by the REST layer; the event channel never has to filter payload fields per recipient.
+- No client-side merge logic — invalidate → refetch is idempotent and self-healing.
+- Events stay tiny, so the stream scales.
+
+**3. Client model: event → query-key invalidation**
+
+| Event type | React Query keys invalidated |
+|---|---|
+| `document.*` | `['documents', wsId]`, `['document', wsId, entityId]`, `['search', wsId]` |
+| `folder.*` | `['folders', 'tree', wsId]`, `['documents', wsId]` |
+| `message.created` | `['messages', wsId]` |
+| `job.updated` | `['job', wsId, entityId]` (replaces G25 polling when stream is healthy) |
+
+**4. Multi-window coordination — one connection per browser, not per tab**
+
+- A **leader tab** owns the single SSE connection. Election via the Web Locks API (`navigator.locks.request('flux.sse-leader', …)` — the lock holder is leader; when it closes, the next waiter is promoted automatically). SharedWorker is the fallback if Web Locks proves awkward.
+- The leader rebroadcasts every event on a `BroadcastChannel('flux.events')`; every tab (leader included) runs the same invalidation logic. React Query's experimental `broadcastQueryClient` is an alternative worth evaluating — `[TODO-ENG]`.
+- **User preferences** sync across windows via `storage` events (implemented in `useUserPref` — see hook source). UI-only state (panel widths, open/closed) syncs this way; no server round-trip needed for liveness.
+
+**5. Reconnect & missed events**
+
+- On reconnect the client sends `Last-Event-ID`; the server replays from a short retained buffer (suggested: 5 minutes / bounded ring per workspace).
+- If the client is too far behind (ID no longer in buffer), the server responds with a `stream-reset` event; the client then invalidates **all** workspace queries (full refetch of whatever is on screen). Correctness never depends on the stream being complete.
+- Delivery is **at-least-once**; duplicate events are harmless because invalidation is idempotent.
+
+### ADR-011 — Cursor Pagination (no offset paging)
+
+All list endpoints that back infinite scrolls — G06 documents, G19 search — use **keyset/cursor pagination**, not `page`/`pageSize`:
+
+```
+GET /workspaces/{wsId}/documents?folderId=…&sort=name&order=asc&limit=50&cursor=<opaque>
+
+200 OK
+{ "items": [ … ], "nextCursor": "eyJz…" | null, "totalApprox": 1140 }
+```
+
+- **Why not offset paging:** in a live multi-user system, concurrent inserts/deletes shift row offsets between requests — an infinite list assembled from offset pages shows duplicates and gaps. Keyset pagination is stable under concurrent writes and O(1) in Oracle regardless of scroll depth (offset paging degrades linearly).
+- The cursor is an **opaque server-generated token** (base64 of the sort-key tuple `(sortValue, id)`). Clients never parse it. Changing sort or filters discards the cursor and restarts from the top.
+- **`X-Total-Count` is dropped.** Exact counts require `COUNT(*)` per request and are stale the moment they're computed. Where the UI needs a figure ("~1,140 documents"), the response carries `totalApprox` — `[TODO-ENG]` decide the cheap source (folder rollup table, sampled count, or cached count with TTL).
+- Client side: React Query `useInfiniteQuery` with `getNextPageParam: (last) => last.nextCursor`, rendered through a windowed list (`@tanstack/react-virtual`) so the DOM stays bounded no matter how far the user scrolls.
+
+**Live updates × infinite lists (UX rule):** items are never auto-inserted into a list the user is reading — a G31 `document.created` event increments a **"N new documents" pill**; clicking it refetches from the top and scrolls there. Updates and deletes to **already-visible** rows apply in place (invalidate → refetch keeps the row's position). `[PHASE-1]` — this pill is part of the DocumentBrowser design work.
+
 ### Dual-System Coexistence (until Jul 2027)
 
 The legacy Struts application and the new REST API will write to the same Oracle schema concurrently during Phases 1–4. Engineering must coordinate schema changes carefully. The React SPA writes **only through the new REST API**. Struts reads/writes continue alongside until full cutover.
@@ -167,11 +242,12 @@ The legacy Struts application and the new REST API will write to the same Oracle
 
 | Prototype | API | Notes |
 |---|---|---|
-| `MOCK_DOCUMENTS` in `src/data/mockDocuments.ts` | `GET /workspaces/{wsId}/documents` (G06) | Paginated; filter by `folderId`, status, type |
+| `MOCK_DOCUMENTS` in `src/data/mockDocuments.ts` | `GET /workspaces/{wsId}/documents` (G06) | Cursor-paginated; filter by `folderId`, status, type |
 | `DocumentMetadata` type | `DocumentResponse` schema (G06) | `id` → UUID |
-| Column sort | `?sort=field&order=asc\|desc` | Server-side |
+| Column sort | `?sort=field&order=asc\|desc` | Server-side; sort change resets the cursor |
 | Filter panel (`FilterPanel.tsx`) | Query params on G06 | Status, type, date range, author |
-| Pagination | `?page=&pageSize=` + `X-Total-Count` header | |
+| Infinite scroll | `?limit=&cursor=` → `{ items, nextCursor, totalApprox }` | ADR-011 — no offset paging, no `X-Total-Count` |
+| Live updates | G31 events → invalidate `['documents', wsId]` | "N new documents" pill; never auto-insert mid-scroll (ADR-010/011) |
 | Document thumbnail | `GET /workspaces/{wsId}/documents/{docId}/content/thumbnail` (G07) | |
 
 ```ts
@@ -179,7 +255,7 @@ The legacy Struts application and the new REST API will write to the same Oracle
 // [API] G06:GET /workspaces/{wsId}/documents
 // [AUTH]
 // [PHASE-1]
-// Query params: folderId, status, documentType, page, pageSize, sort, order
+// Query params: folderId, status, documentType, limit, cursor, sort, order (ADR-011)
 ```
 
 ### Document Detail / Metadata Panel (`DocumentDetail.tsx`, `MetadataPanel.tsx`)
@@ -200,6 +276,7 @@ The legacy Struts application and the new REST API will write to the same Oracle
 | `searchData.ts` / `utils/search.ts` client-side filter | `POST /workspaces/{wsId}/search` (G19) | Full-text + facets |
 | `SearchContext` query state | Keep as Zustand store slice | URL-sync via search params |
 | Facet counts | `aggregations` in G19 response | Drive `FilterPanel` chips |
+| Infinite scroll | `limit`/`cursor` in request body → `{ items, nextCursor }` | ADR-011 — same contract as G06 |
 | Saved searches | `GET/POST /workspaces/{wsId}/search/saved` (G19) | [PHASE-2] |
 
 ```ts
@@ -207,16 +284,31 @@ The legacy Struts application and the new REST API will write to the same Oracle
 // [API] G19:POST /workspaces/{wsId}/search
 // [AUTH]
 // [PHASE-1]
-// Body: { query, filters: { folderId, status, documentType, dateRange }, page, pageSize }
+// Body: { query, filters: { folderId, status, documentType, dateRange }, limit, cursor } (ADR-011)
 ```
 
-### Chat / AI Assistant (`ChatInterface.tsx`)
+### Chat / AI Assistant — Flint (`src/pages/Chat.tsx`)
+
+LLM responses must **stream token-by-token** — a request/response chat UI cannot be retrofitted to streaming later without rewriting the page, so the streaming states are Phase 1 design work.
+
+| Prototype | API | Notes |
+|---|---|---|
+| Conversation list (component state) | `GET /workspaces/{wsId}/assistant/conversations` (G29) | Cursor-paginated (ADR-011) |
+| `handleSend` + 1.2 s `setTimeout` mock | `POST /workspaces/{wsId}/assistant/conversations/{convId}/messages` (G29) | Response is an SSE token stream |
+| Context chip (`?ask=&askKind=`) | Request body `{ scope: { wsId }, context: { type, id } }` | Pass object **IDs**, not labels — markers already in `Chat.tsx` |
+| Stop button | Client-side `AbortController` on the stream | Server treats disconnect as stop |
 
 ```ts
-// [TODO-ENG] Confirm which API group handles AI/chat — G19 search or a dedicated endpoint
-// [TBD] Not present in G01–G30 YAML set provided; may be G29 or a future group
+// [MOCK] Chat.tsx setTimeout reply — replace with SSE token stream
+// [API] G29:POST /workspaces/{wsId}/assistant/conversations/{convId}/messages
+// [AUTH]
 // [PHASE-1]
+// Response: text/event-stream — events: message.delta (token chunk),
+// message.complete (final id + usage), message.error (mid-stream failure)
+// [TODO-ENG] Confirm G29 endpoint shape and event names against the LLM gateway
 ```
+
+**UI states to design in Phase 1:** streaming-in-progress (progressive markdown render), stopped-with-partial-answer, error-mid-stream (keep partial text + retry affordance), and citation/source chips when Flint references documents.
 
 ### Dashboard (`Dashboard.tsx`)
 
@@ -352,10 +444,12 @@ Phase 1 ships: **Search, Chat, Document Browsing, Dashboard**
 | Document grid | `DocumentBrowser.tsx` | G06, G07 | [MOCK] |
 | Document detail | `DocumentDetail.tsx` | G06, G07 | [MOCK] |
 | Search | `SearchResults.tsx` | G19 | [MOCK] |
-| Chat/AI | `ChatInterface.tsx` | [TBD] | [TBD] |
+| Chat/AI (streaming) | `Chat.tsx` | G29 | [MOCK] |
 | Dashboard | `Dashboard.tsx` | G03, G13 | [MOCK] |
 | Notifications | `BrandBanner.tsx` | G13 | [MOCK] |
 | Async job feedback | (global) | G25 | not started |
+| Real-time events / live updates | (global — ADR-010) | G31 | not started |
+| Multi-window sync (leader election, BroadcastChannel) | (global — ADR-010) | G31 | prefs sync done (`useUserPref`) |
 
 ---
 
@@ -429,6 +523,8 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 | G13 | Messages & notifications | `/workspaces/{wsId}/messages` | ✅ |
 | G19 | Search | `/workspaces/{wsId}/search` | ✅ |
 | G25 | Async jobs | `/workspaces/{wsId}/jobs` | ✅ |
+| G29 | AI/Assist (Flint chat, SSE streaming) | `/workspaces/{wsId}/assistant` | ✅ Critical |
+| G31 | Real-time events (SSE, ADR-010) | `/workspaces/{wsId}/events` | ✅ Critical |
 | G04 | Permissions & ACL | `/workspaces/{wsId}/permissions` | Phase 2 |
 | G08 | Document packages | `/workspaces/{wsId}/packages` | Phase 2 |
 | G09 | Transmittals | `/workspaces/{wsId}/transmittals` | Phase 2 |
@@ -446,7 +542,6 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 | G26 | Dashboards config | `/workspaces/{wsId}/dashboards` | Phase 2 |
 | G27 | Exports | `/workspaces/{wsId}/exports` | Phase 2 |
 | G28 | Templates | `/workspaces/{wsId}/templates` | Phase 2 |
-| G29 | AI/Assist | [TBD] | Phase 2 |
 | G30 | Calendar | `/workspaces/{wsId}/calendar` | Phase 2 |
 | G18 | BPM | — | **Deprecated (410)** |
 | G22 | Programme Mgmt | — | **Deprecated (410)** |
@@ -455,7 +550,7 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 
 ## Open Questions for Engineering
 
-1. **`[TODO-ENG]` Chat/AI endpoint** — which API group handles `ChatInterface.tsx`? G29 or a new group?  
+1. **`[TODO-ENG]` Chat/AI endpoint shape** — G29 SSE streaming contract is proposed above (delta/complete/error events); confirm against the LLM gateway design.  
 2. **`[TODO-ENG]` Dashboard stats endpoint** — G03 workspace summary, or a dedicated G26 dashboard config group?  
 3. **`[TODO-ENG]` Feature flag service** — how is the "Try New" per-user opt-in persisted? G02 user preferences or external service?  
 4. **`[TODO-ENG]` NFS → S3 migration** — file content serving strategy during migration; G07 must abstract the storage backend.  
@@ -463,7 +558,10 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 6. **`[TODO-ENG]` `WorkspaceContext` vs `ScopeContext`** — prototype has both; consolidate to single `scopeStore` (Zustand) before wiring auth.  
 7. **`[TODO-ENG]` CORS policy** — Spring Boot must allow requests from the React SPA origin per region.  
 8. **`[TODO-ENG]` Error boundary** — add a top-level React error boundary that handles RFC 7807 ProblemDetails for user-facing error display.
+9. **`[TODO-ENG]` G31 transport & fan-out (ADR-010)** — confirm SSE vs WebSocket against infra (ALB idle timeouts, per-node connection limits); pick the cluster fan-out mechanism (e.g. Redis pub/sub) and the replay-buffer retention window.
+10. **`[TODO-ENG]` `totalApprox` source (ADR-011)** — exact `COUNT(*)` per list request is off the table; decide between folder rollup counters, cached counts with TTL, or sampled estimates.
+11. **`[TODO-ENG]` Event → permission edge case (ADR-010)** — when a user *loses* access to a document, the invalidate→refetch model handles it (refetch 403s / omits the row), but confirm the event stream itself is filtered to entities the subscriber can see, or accept that entity IDs alone may leak existence.
 
 ---
 
-*Last updated: 2026-05-22*
+*Last updated: 2026-07-06 — added ADR-010 (real-time sync & multi-window), ADR-011 (cursor pagination), G29 streaming spec, G31 events group*

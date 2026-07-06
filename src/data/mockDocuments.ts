@@ -3,7 +3,8 @@
 // [AUTH]
 // [PHASE-1]
 // Replace with useDocuments(wsId, params) — server-side pagination, sort and filtering.
-// Query params: folderId, status, documentType, page, pageSize, sort, order.
+// Query params: folderId, status, documentType, limit, cursor, sort, order (cursor
+// pagination per ADR-011 — response { items, nextCursor, totalApprox }, no offset paging).
 // `Document.id` stays a string (UUID per ADR-009 — never integer IDs in the SPA).
 //
 // Each project generates its own themed document set from the category specs below
