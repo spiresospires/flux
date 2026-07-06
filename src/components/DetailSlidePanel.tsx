@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, CheckCircleIcon, BellIcon, StarIcon, LinkIcon, FilesIcon, MessageSquareIcon, BriefcaseIcon, EyeIcon, DownloadIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useBriefcase } from '../contexts/BriefcaseContext';
 
 export type DetailPanelObjectType = 'document' | 'transmittal' | 'review' | 'workflow' | 'package' | 'folder' | 'search' | 'report';
 
@@ -106,14 +107,15 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string | n
   );
 }
 
-function ActionIconButton({ icon: Icon, label, onClick }: { icon: React.ElementType; label: string; onClick?: (e: React.MouseEvent) => void }) {
+function ActionIconButton({ icon: Icon, label, onClick, active }: { icon: React.ElementType; label: string; onClick?: (e: React.MouseEvent) => void; active?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="flex items-center justify-center w-8 h-8 rounded-md text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB] transition-colors"
+      aria-pressed={active}
+      className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${active ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB]'}`}
     >
       <Icon size={16} strokeWidth={2} />
     </button>
@@ -122,6 +124,9 @@ function ActionIconButton({ icon: Icon, label, onClick }: { icon: React.ElementT
 
 function DocumentDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
+  const { add: addToBriefcase, remove: removeFromBriefcase, isInBriefcase } = useBriefcase();
+  const briefcaseDocId = data.docId ?? data.objectId;
+  const inBriefcase = isInBriefcase(briefcaseDocId);
   return (
     <div className="space-y-6">
       {/* Action Bar */}
@@ -136,7 +141,19 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
         <ActionIconButton icon={LinkIcon} label="Share link" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Share link — endpoint unconfirmed [TBD] */ }} />
         <ActionIconButton icon={FilesIcon} label="Renditions" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Renditions — likely G07 content variants [TBD] */ }} />
         <ActionIconButton icon={MessageSquareIcon} label="Message" onClick={(e) => { e.preventDefault(); /* [API] G13:POST /workspaces/{wsId}/messages [AUTH] [TBD] */ }} />
-        <ActionIconButton icon={BriefcaseIcon} label="Briefcase" onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire Briefcase — endpoint unconfirmed [TBD] */ }} />
+        <ActionIconButton
+          icon={BriefcaseIcon}
+          label={inBriefcase ? 'Remove from Briefcase' : 'Add to Briefcase'}
+          active={inBriefcase}
+          onClick={(e) => {
+            e.preventDefault();
+            if (inBriefcase) {
+              removeFromBriefcase(briefcaseDocId);
+            } else {
+              addToBriefcase({ docId: briefcaseDocId, title: data.title, reference: data.docId ?? data.objectId, revision: data.revision, status: data.status, fileType: data.fileType, fileSize: data.fileSize, author: data.author, projectName: data.project });
+            }
+          }}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">

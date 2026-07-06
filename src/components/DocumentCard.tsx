@@ -37,7 +37,7 @@ const fileTypeIconMap: Record<string, (props: { size?: number; className?: strin
   WAV: (props) => <FileAudioIcon {...props} className={"text-amber-600 " + (props.className || "")} />,
 };
 
-function getFileTypeIcon(fileType: string) {
+export function getFileTypeIcon(fileType: string) {
   const ext = fileType.trim().toUpperCase();
   return fileTypeIconMap[ext] || ((props) => <FileIcon {...props} className={"text-neutral-400 " + (props.className || "")} />);
 }

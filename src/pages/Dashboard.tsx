@@ -34,6 +34,7 @@ import {
 import { LeftRail } from '../components/LeftRail';
 import { DetailSlidePanel, type DetailPanelData, type DetailPanelObjectType } from '../components/DetailSlidePanel';
 import { ProjectMapView } from '../components/ProjectMapView';
+import type { ProjectId } from '../data/projects';
 import { useUserPref } from '../hooks/useUserPref';
 // [MOCK] All dashboard data — stats, todos, notifications, activity, shared, favourites.
 // [API] G03:GET /workspaces/{wsId}/dashboard — [TBD] stats endpoint not confirmed (ARCHITECTURE.md open question 2)
@@ -817,7 +818,8 @@ export function Dashboard() {
           >
             {viewToolbar}
             <div className="flex-1 min-h-0">
-              <ProjectMapView focusedProjectId={scope.kind === 'project' ? scope.id : null} />
+              {/* scope.id is a validated ProjectId — ScopeContext re-checks persisted ids against PROJECTS on load. */}
+                <ProjectMapView focusedProjectId={scope.kind === 'project' ? (scope.id as ProjectId) : null} />
             </div>
           </section>
         ) : (
@@ -868,7 +870,8 @@ export function Dashboard() {
             {viewToolbar}
             {showMap ? (
               <div className="flex-1 min-h-0">
-                <ProjectMapView focusedProjectId={scope.kind === 'project' ? scope.id : null} />
+                {/* scope.id is a validated ProjectId — ScopeContext re-checks persisted ids against PROJECTS on load. */}
+                <ProjectMapView focusedProjectId={scope.kind === 'project' ? (scope.id as ProjectId) : null} />
               </div>
             ) : selectedSection === 'overview' ? (
               <OverviewPane overdueTodos={overdueTodos} unreadNotifs={unreadNotifs} todos={filteredTodos} notifications={filteredNotifications} sharedItems={filteredSharedItems} favourites={filteredFavourites} onSelectSection={setSelectedSection} t={t} />

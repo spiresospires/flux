@@ -67,7 +67,7 @@ export function FolderTree({
     return (
       <div key={folder.id} ref={(el) => { nodeRefs.current.set(folder.id, el); }}>
         <div
-          className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer transition-colors group rounded-md mx-1 ${isSelected ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900'}`}
+          className={`folder-row flex items-center gap-2 px-2 cursor-pointer transition-colors group rounded-md mx-1 ${isSelected ? 'bg-[#E8F1FB] text-[#0461BA]' : 'text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900'}`}
           style={{
             paddingLeft: `${8 + level * 12}px`
           }}
@@ -117,7 +117,7 @@ export function FolderTree({
 
           }
 
-          <span className="text-sm flex-1 truncate font-medium">
+          <span className="flex-1 truncate font-medium">
             {folder.name}
           </span>
           {/* focus-within (not focus) — reveals the actions when a child button is tabbed to */}
