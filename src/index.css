@@ -51,6 +51,30 @@
    * ───────────────────────────────────────────────────────────────────────── */
   --layout-gap: 0.5rem;
 
+  /* ─────────────────────────────────────────────────────────────────────────
+   * DENSITY  (set on html[data-density] by DensityContext; default below =
+   * 'comfortable'). One global preference drives row/cell padding, body text
+   * size, list-icon + action-button sizing and grid gaps across every list and
+   * grid surface, so density stays consistent project-wide.
+   *
+   * WCAG 2.2 AA note: 'compact' holds the 24px Target Size (Minimum, 2.5.8)
+   * floor — table rows are a single full-row click target and every icon-button
+   * keeps a >=24px hit area (--row-btn) even when the glyph shrinks. Visual row
+   * height (~27px) is decoupled from hit-target size, so it stays AA-compliant.
+   * Comfortable is recalibrated tighter than the old p-4 (~48px) row so large
+   * monitors no longer feel gappy.
+   * ───────────────────────────────────────────────────────────────────────── */
+  --cell-pad-y: 0.375rem;   /* 6px  → ~40px table row (28px action btn + padding) */
+  --cell-pad-x: 0.75rem;    /* 12px */
+  --row-text: 0.875rem;     /* 14px body text in lists/tables */
+  --row-icon: 1rem;         /* 16px leading list glyph */
+  --row-btn: 1.75rem;       /* 28px icon-button hit area */
+  --grid-gap: 0.75rem;      /* 12px card-grid gap */
+  --card-pad: 0.75rem;      /* 12px card inner padding */
+  --list-pad-y: 0.625rem;   /* 10px dashboard / search row padding */
+  --folder-pad-y: 0.375rem; /* 6px folder-tree row padding */
+  --checkbox-size: 1.25rem; /* 20px row selection checkbox */
+
   /* Color Customizer Variables */
   --main-bg-color: #EAEEF6;
   --element-bg-color: #FFFFFF;
@@ -141,6 +165,36 @@
   --color-plum-700: #542A4A;
   --color-plum-800: #381C31;
   --color-plum-900: #1C0E19;
+}
+
+/* ----- Density: compact override (WCAG 2.2 AA — 24px target-size floor) ----- */
+html[data-density='compact'] {
+  --cell-pad-y: 0.125rem;   /* 2px  → ~28px table row (24px AA-min btn + padding) */
+  --cell-pad-x: 0.5rem;     /* 8px */
+  --row-text: 0.8125rem;    /* 13px */
+  --row-icon: 0.875rem;     /* 14px */
+  --row-btn: 1.5rem;        /* 24px — AA minimum hit area, glyph still 14px */
+  --grid-gap: 0.5rem;       /* 8px */
+  --card-pad: 0.5rem;       /* 8px */
+  --list-pad-y: 0.375rem;   /* 6px */
+  --folder-pad-y: 0.1875rem;/* 3px → ~22px folder row */
+  --checkbox-size: 1rem;    /* 16px — smaller for tight rows (2.5.8 spacing exception) */
+}
+
+/* ----- Density-driven document table (DocumentBrowser) -----
+   Padding + body text come from the density vars, so a single global
+   preference re-flows every cell. Width / colour / weight utilities on the
+   cells are preserved (the old compact-table mode silently dropped them). */
+.doc-table { font-size: var(--row-text); }
+.doc-table th,
+.doc-table td { padding: var(--cell-pad-y) var(--cell-pad-x); }
+
+/* Density-driven folder-tree row (FolderTree) — vertical padding + text size
+   follow the density preference; horizontal padding/indent are set inline. */
+.folder-row {
+  padding-top: var(--folder-pad-y);
+  padding-bottom: var(--folder-pad-y);
+  font-size: var(--row-text);
 }
 
 /* ----- Dark theme overrides ----- */

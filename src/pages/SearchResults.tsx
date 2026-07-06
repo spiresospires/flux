@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowRightIcon,
+  BriefcaseIcon,
   Building2Icon,
   FileIcon,
   FileQuestionIcon,
@@ -11,6 +12,7 @@ import {
   XIcon
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
+import { useBriefcase } from '../contexts/BriefcaseContext';
 // [MOCK] Client-side search over a static corpus — replace with useSearch(wsId, query).
 // [API] G19:POST /workspaces/{wsId}/search
 // [AUTH]
@@ -133,7 +135,10 @@ function ResultTypeBadge({ result }: { result: SearchResult }) {
 
 function SearchResultCard({ result }: { result: SearchResult }) {
   const navigate = useNavigate();
+  const { add: addToBriefcase, remove: removeFromBriefcase, isInBriefcase } = useBriefcase();
   const isPlaceholder = result.resultType === 'placeholder';
+  const canBriefcase = result.resultType === 'document';
+  const inBriefcase = isInBriefcase(result.id);
 
   // [TODO-ENG] When a DB object-URL mapping table is available, replace the location.state navigation
   // below with a direct deep-link route (e.g. /documents/:folderId/:docId) resolved from that table.
@@ -218,6 +223,27 @@ function SearchResultCard({ result }: { result: SearchResult }) {
             <span className="text-neutral-200 select-none">·</span>
             <span>{result.discipline}</span>
           </>
+        )}
+
+        {canBriefcase && (
+          <button
+            onClick={() =>
+              inBriefcase
+                ? removeFromBriefcase(result.id)
+                : addToBriefcase({ docId: result.id, title: result.title, reference: result.reference, revision: result.revision, status: result.status, author: result.author, projectName: result.project, folderId: result.folderId })
+            }
+            title={inBriefcase ? 'Remove from briefcase' : 'Add to briefcase'}
+            aria-label={inBriefcase ? `Remove ${result.reference} from briefcase` : `Add ${result.reference} to briefcase`}
+            aria-pressed={inBriefcase}
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+              inBriefcase
+                ? 'border-[#0461BA]/30 bg-[#E8F1FB] text-[#0461BA]'
+                : 'border-neutral-200 text-neutral-600 hover:bg-[#F0F4F8] hover:text-[#0461BA]'
+            }`}
+          >
+            <BriefcaseIcon size={13} />
+            {inBriefcase ? 'In briefcase' : 'Briefcase'}
+          </button>
         )}
       </div>
     </article>

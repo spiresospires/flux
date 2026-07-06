@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeftIcon,
@@ -6,6 +6,8 @@ import {
   FolderIcon } from
 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useUserPref } from '../hooks/useUserPref';
+import { PanelResizeHandle } from './PanelResizeHandle';
 interface CollapsibleFilterPanelProps {
   isExpanded?: boolean;
   onToggle?: () => void;
@@ -28,7 +30,9 @@ export function CollapsibleFilterPanel({
   const panelExpanded = showCollapseToggle ? isExpanded : true;
   const panelRef = useRef<HTMLDivElement | null>(null);
   const resizingRef = useRef(false);
-  const [width, setWidth] = useState<number>(320);
+  // Persisted like the split detail panel's width (docBrowser.panelWidth) —
+  // this component is only used in DocumentBrowser, so the key lives here.
+  const [width, setWidth] = useUserPref<number>('docBrowser.treeWidth', 320);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -135,15 +139,9 @@ export function CollapsibleFilterPanel({
         </AnimatePresence>
       </motion.div>
 
-      {/* Resize handle */}
+      {/* Resize handle — sits in the browser-layout gap to the right of this island */}
       {panelExpanded && (
-        <div
-          onMouseDown={startResize}
-          role="separator"
-          aria-orientation="vertical"
-          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize group z-10">
-          <div className="absolute inset-y-0 right-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] transition-colors" />
-        </div>
+        <PanelResizeHandle side="right" onResizeStart={startResize} ariaLabel={t('panel.resize')} />
       )}
 
       {showCollapseToggle && (

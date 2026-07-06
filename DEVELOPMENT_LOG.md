@@ -316,3 +316,87 @@ Verified in browser: toggle renders inside panel top-left; map 560px wide beside
 **Files changed:** `src/pages/DocumentBrowser.tsx` — added `GripVerticalIcon` + `useUserPref` imports; added `panelWidth`/`setPanelWidth` state, `panelResizingRef`, document-level `mousemove`/`mouseup` resize handlers, `startPanelResize()` callback; replaced fixed `w-[360px] shrink-0` wrapper with dynamic `style={{ width: panelWidth }}` flex wrapper containing the grip div and a `flex-1 min-w-0` inner div for the panel itself.
 
 **CLAUDE.md updated:** `useUserPref` table gains `docBrowser.panelWidth` row; Detail Panel split-layout section updated to document the resize handle.
+
+---
+
+## 16. Dashboard Map View Available in Project Scope (2026-06-10)
+
+**Change (made by Oliver, documented retrospectively):** the Widgets/Map toggle is no longer enterprise-only — it renders in project scope too. `ProjectMapView` gained a `focusedProjectId` prop:
+
+- `null` (enterprise) — all four pins, `fitBounds` to the WA extent (unchanged behaviour).
+- a project id (Dashboard passes `scope.id` when `scope.kind === 'project'`) — only that project's pin renders, an inner `MapViewportController` (uses `useMap`) animates `setView` to the pin at zoom 8, and the pin's popup auto-opens via a marker ref.
+
+**Dashboard.tsx:** the scope-change effect no longer forces the view back to widgets — it only resets the transient `mapExpanded` (and resets the section to overview on enterprise). The persisted `dashboard.view` pref therefore survives scope switches, so a user who prefers the map keeps it when moving between workspaces. Expand/collapse and the "select a section returns to widgets" rule are unchanged.
+
+**Docs updated:** CLAUDE.md map section retitled "(both scopes)" + `focusedProjectId` behaviour documented; `dashboard.view` added to the useUserPref table; stale "enterprise Dashboard map" header comment in ProjectMapView.tsx rewritten. (§13's "enterprise-only" wording reflects the state at that time.)
+
+---
+
+## 17. Column Chooser: Done Button Removed, Standard Dismissal Added (2026-06-10)
+
+**Rationale:** the Show Columns popover applies checkbox changes immediately, so the solid-blue "Done" button was a confirm button confirming nothing — and it was also the popover's only dismissal path (no outside-click or Escape handling, unlike every other popup on the page).
+
+**Change (DocumentBrowser.tsx):** Done button removed. `showColumnChooser` state moved up beside the other dropdown state; new `columnChooserRef` on the chooser wrapper, wired into the existing shared outside-click + Escape effect (same one that closes the row-action menu and export dropdown — WCAG 2.1.2).
+
+**Type-error cleanup (from the §16 map change, surfaced by tsc):** `ProjectMapView.projectsToRender` memo typed `readonly Project[]` (PROJECTS is readonly); Dashboard's two `focusedProjectId={scope.id}` sites cast `scope.id as ProjectId` — safe because ScopeContext validates persisted ids against PROJECTS on load (ChatScope.id stays `string` to avoid a wide ripple; revisit if ScopeContext/WorkspaceContext are consolidated).
+
+Verified in browser: chooser opens with 7 column checkboxes, no Done button; Escape closes; outside mousedown closes; checkbox toggles still apply live (header count 9 -> 7 -> 9). tsc: only the known pre-existing warnings remain.
+
+**Known deviations (unchanged):** the chooser popover is `absolute`-positioned rather than createPortal (works because the toolbar isn't inside a clipping stacking context); "Show Columns" label is hardcoded English, not via t().
+
+---
+
+## 18. Unified Panel Resize Handles (2026-06-10)
+
+**Problem (user-reported):** the two separators in the document browser split view looked inconsistent — the tree↔grid separator was a clean 16px gap with a barely-visible drag line ON the island edge and no grip affordance (and its width was transient useState, not persisted); the grid↔properties separator was an 8px grip strip INSIDE the panel wrapper on top of the gap, with the line offset toward the grid.
+
+**Fix:** new shared `src/components/PanelResizeHandle.tsx` — renders inside the 16px `browser-layout` gap (absolute `-left-4`/`-right-4` off the host island, `w-4`): faint centred 1px line + small always-visible grip pill (white, bordered, GripVerticalIcon); hover/drag turns line, pill border and icon brand blue. Used by both `CollapsibleFilterPanel` (side="right") and the DocumentBrowser detail-panel wrapper (side="left"). aria: `role="separator"` + new `panel.resize` locale key (en-US, fr-FR).
+
+**Also:** `CollapsibleFilterPanel` width now persists via `useUserPref('docBrowser.treeWidth', 320)` — previously transient `useState`, inconsistent with `docBrowser.panelWidth`. The detail-panel wrapper simplified (handle no longer occupies flex space, so `panelWidth` is now the true panel width).
+
+Verified in browser: both handles render with centred line + visible grip pill; dragging the right handle 360→476 and the left 320→408 works; widths persist to localStorage and restore after reload; tsc and console clean. Known pre-existing quirk: the tree island animates width via Framer Motion, so it trails the cursor slightly during drag (was the case before this change).
+
+---
+
+## 19. Map Hybrid (Satellite) Basemap (2026-06-14)
+
+**Feature:** ProjectMapView gained a Map / Hybrid basemap toggle (in-map segmented control, top-right, persisted via `useUserPref('dashboard.mapBasemap', 'map')`).
+
+- `map` (default) — OSM standard raster, as before.
+- `hybrid` — Esri World Imagery satellite base + two transparent Esri reference overlays on top: `World_Transportation` (roads) and `World_Boundaries_and_Places` (place/city labels). Rendered bottom→top with explicit `zIndex` 1/2/3; distinct React keys force a clean layer swap when toggling. All tile sources are free and require NO API key. URLs centralised in the `TILE_LAYERS` constant.
+
+**Why Esri overlays rather than "transparent OSM":** the request was for transparent OSM roads/labels over satellite, but no free, key-free transparent OSM roads+labels overlay exists (Stadia/Stamen, Thunderforest, MapTiler all need keys now). Esri's reference layers are the standard free substitute and give the identical roads+labels-on-imagery result. Documented in the component header + CLAUDE.md as a swap point if strictly-OSM data is ever required.
+
+**Implementation notes:** the component now wraps `MapContainer` in a `relative h-full w-full` div; the toggle is a DOM sibling of the map (not a child) so wheel/click events never reach Leaflet's map handlers. `z-[1000]` puts it above Leaflet panes while the page-level `relative z-0` wrapper still contains it under the top banner (z-60). New locale keys `dashboard.basemapToggle/basemapMap/basemapHybrid` (en-US, fr-FR).
+
+Verified in browser (DOM-level): Map mode loads only OSM tiles; Hybrid loads exactly the three Esri services (World_Imagery + World_Transportation + World_Boundaries_and_Places) and drops OSM; all 60 tiles load with no failed requests; toggle aria-pressed states correct; pref persists and the layer set swaps cleanly both directions. tsc + console clean (only pre-existing warnings). NB: preview_screenshot times out encoding the satellite imagery — a screenshot-tool limit, not a page hang (eval stays responsive, tiles confirmed painted).
+
+---
+
+## 20. Map Right-Click "Copy Coordinates" (2026-06-14)
+
+**Feature:** right-clicking anywhere on the dashboard map opens a small menu showing that point's `lat, lng` (6 decimal places) with a Copy action.
+
+**Implementation (ProjectMapView.tsx):** new `MapContextMenuController` child uses `useMapEvents` to handle Leaflet's `contextmenu` event — `e.originalEvent.preventDefault()` suppresses the native browser menu, then it lifts `{ x, y, lat, lng }` to parent state (`x/y` from `e.containerPoint`, clamped to the map size so the menu stays in-bounds). The menu renders as an absolutely-positioned sibling of `MapContainer` (`z-[1100]`, above the basemap toggle, still under the banner via the page `relative z-0` wrapper). Copy uses `navigator.clipboard.writeText` with a hidden-textarea + `execCommand('copy')` fallback for non-secure contexts; shows a "Copied!" check state then auto-closes ~900ms. Dismissed by Escape / outside-click (a `useEffect` that attaches document listeners only while open) or any map interaction (`movestart`/`zoomstart`/`click` handled in the controller). Works in both basemaps. New locale keys `dashboard.copyCoords/coordsCopied` (en-US, fr-FR). State is transient (not persisted).
+
+Verified in browser (DOM-level): right-click at map centre opens the menu with correct WA coords (e.g. -26.6, 118.5); clicking Copy shows "Copied!" and the menu auto-closes; Escape closes; a left map-click closes; the native contextmenu event is `defaultPrevented`. tsc + console clean (only pre-existing warnings). Clipboard content can't be read back in the headless preview (read blocked) — write path exercised, "Copied!" state confirms the handler ran.
+
+---
+
+## 21. Global Density System + Document List Interaction + Grid/Table Polish (2026-07-06)
+
+**Global density preference (Compact / Comfortable; default Compact).** New `src/contexts/DensityContext.tsx` (backed by `useUserPref('ui.density')`, Oracle TODO inherited) reflects the choice onto `html[data-density]`, mirroring the `data-appearance` / `data-view` pattern. `index.css` defines a density CSS-var scale in `:root` (`--cell-pad-y/x`, `--row-text`, `--row-icon`, `--row-btn`, `--grid-gap`, `--card-pad`, `--list-pad-y`, `--folder-pad-y`, `--checkbox-size`) with a `html[data-density='compact']` override, so one toggle re-flows every list/grid surface. Compact holds the WCAG 2.2 AA 24px Target Size (Minimum, 2.5.8) floor: table rows ~29px, comfortable ~41px; visual row height is decoupled from hit-target size (full-row click target + >=24px icon-button hit areas via `--row-btn`).
+
+**Density control lives in the view-options dropdown** (`ViewModeDropdown` in DocumentBrowser), labelled "Comfy Table" / "Compact Table" — NOT in ColorCustomizer (was briefly there, moved out per user). The old local `compact-table` viewMode was removed; view modes are now just grid / list / table, and the table reads density from CSS vars. This also fixed a latent bug where the old compact mode silently dropped `text-neutral-500 / font-medium` styling on several columns. `.doc-table` and `.folder-row` CSS rules drive cell/row padding + text size from the vars.
+
+**Document-row interaction model (table).** A keyboard cursor (`activeDocId`, blue inset ring) is kept distinct from the checked set (`selectedDocumentIds`):
+- Click a row body toggles that row's checkbox (add/remove) and sets the range anchor.
+- The Reference link opens the properties panel and never toggles (stopPropagation); action buttons unchanged.
+- Ctrl/Cmd+A selects all filtered docs; Up/Down move the cursor (scroll into view); Shift+click and Shift+Up/Down extend a contiguous range; Space toggles the cursor row.
+- Container is `tabIndex=0` with a keydown handler that ignores form fields and lets a focused button keep Space. `navigableDocs` memo = visible order (respects grouping + collapsed groups). Selection checkbox is density-sized (`--checkbox-size`: 20px comfy / 16px compact — under 24px but conforming via the 2.5.8 spacing exception, as it already was at 20px).
+
+**Grid preview collapse fix.** Card previews (`aspect-video`, height derived from width) vanished when the content panel was narrow because the grid used viewport breakpoints (`grid-cols-1 md:2 lg:3 xl:4`) — a tiny panel forced 1 column of ~0px width -> 0-height images. Grid now sizes columns by available space: `grid-cols-[repeat(auto-fill,minmax(220px,1fr))]`. Cards keep a usable min width (previews always render; the existing synced horizontal scrollbar handles overflow) and large monitors get more columns automatically.
+
+**Filetype icons in table rows.** `getFileTypeIcon` is now exported from `DocumentCard.tsx` and reused in the DocumentBrowser table `id` column, so each Reference shows the same filetype cue as the grid cards.
+
+Verified in browser (DOM-level, multiple widths): density toggle re-flows table + folder tree (compact 29px / comfy 41px rows, folder 30px); all row interactions behave (toggle, reference-opens-panel, Ctrl+A=all, arrows move cursor, Space toggles, Shift+click / Shift+Arrow range); grid previews render at 442px (219x122, scrolls) and 1440px (4 cols, 226x126); table Reference cells show the filetype icon. No console errors / no Vite overlay.

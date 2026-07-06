@@ -11,7 +11,7 @@ import React, {
   useRef
 } from
   'react';
-import { DocumentCard } from '../components/DocumentCard';
+import { DocumentCard, getFileTypeIcon } from '../components/DocumentCard';
 import { statusColors } from '../components/documentStatusColors';
 import { FilterPanel } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
@@ -19,6 +19,7 @@ import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
+import { PanelResizeHandle } from '../components/PanelResizeHandle';
 // [MOCK] Per-project document sets — replace with useDocuments(wsId, params); sort/filter/pagination move server-side.
 // [API] G06:GET /workspaces/{wsId}/documents
 // [AUTH]
@@ -59,13 +60,15 @@ import {
   LinkIcon,
   FilesIcon,
   MessageSquareIcon,
-  BriefcaseIcon,
-  GripVerticalIcon
+  BriefcaseIcon
 } from
   'lucide-react';
 import { useClipboard } from '../contexts/ClipboardContext';
+import { useBriefcase } from '../contexts/BriefcaseContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
+import { useDensity } from '../contexts/DensityContext';
+import type { Density } from '../contexts/DensityContext';
 import { useUserPref } from '../hooks/useUserPref';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -168,7 +171,11 @@ function GridWithStickyScrollbar({
         ref={gridRef}
         className="overflow-x-auto pb-3"
         style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {/* Size columns by available space (auto-fill/minmax) rather than viewport
+            breakpoints: cards keep a usable min width so previews never collapse
+            when the content panel is narrow (the synced scrollbar handles overflow),
+            and large monitors get more columns automatically. */}
+        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
           {documents.map((doc) => (
             <div key={doc.id}>
               <DocumentCard document={doc} isHighlighted={highlightedDocId === doc.id} />
@@ -193,7 +200,9 @@ function GridWithStickyScrollbar({
 }
 
 
-type ViewMode = 'grid' | 'list' | 'table' | 'compact-table';
+// Table density (Comfy/Compact) is now a global preference (useDensity / data-density),
+// so the browser only chooses the layout shape here.
+type ViewMode = 'grid' | 'list' | 'table';
 
 const TABLE_PREFERENCES_STORAGE_KEY = 'flux.documentBrowser.tablePreferences';
 const COLUMN_PREFERENCES_STORAGE_KEY = 'flux.documentBrowser.columnPrefs';
@@ -287,8 +296,15 @@ function ViewModeDropdown({
 
 }: { viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; }) {
   const { t } = useLocalization();
+  const { density, setDensity } = useDensity();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Density (Comfortable/Compact) is a global preference, but its control lives
+  // here in the view-options dropdown alongside the layout choices.
+  const densityOptions: { id: Density; label: string }[] = [
+    { id: 'comfortable', label: t('documentBrowser.viewModes.comfyTable') },
+    { id: 'compact', label: t('documentBrowser.viewModes.compactTable') },
+  ];
   const viewOptions: {
     mode: ViewMode;
     label: string;
@@ -296,12 +312,7 @@ function ViewModeDropdown({
   }[] = [
       {
         mode: 'table',
-        label: t('documentBrowser.viewModes.comfyTable'),
-        icon: <TableIcon size={16} />
-      },
-      {
-        mode: 'compact-table',
-        label: t('documentBrowser.viewModes.compactTable'),
+        label: t('documentBrowser.viewModes.table'),
         icon: <TableIcon size={16} />
       },
       {
@@ -382,6 +393,26 @@ function ViewModeDropdown({
                   {option.label}
                 </button>
               )}
+
+              {/* Density — global Comfortable/Compact preference */}
+              <div className="my-1 border-t border-neutral-100" />
+              <div className="px-3 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                {t('appearance.densityTitle')}
+              </div>
+              {densityOptions.map((opt) =>
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    setDensity(opt.id);
+                    setIsOpen(false);
+                  }}
+                  aria-pressed={density === opt.id}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${density === opt.id ? 'bg-[#E8F1FB] text-[#2A5FB8] font-medium' : 'text-neutral-700 hover:bg-neutral-50'}`}>
+
+                  <TableIcon size={16} />
+                  {opt.label}
+                </button>
+              )}
             </div>
           </motion.div>
         }
@@ -431,7 +462,7 @@ function SelectionCheckboxButton({
       role="checkbox"
       aria-checked={indeterminate ? 'mixed' : checked}
       aria-label={ariaLabel}
-      className={`inline-flex h-5 w-5 items-center justify-center rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30 ${checked || indeterminate
+      className={`inline-flex h-[var(--checkbox-size)] w-[var(--checkbox-size)] items-center justify-center rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30 ${checked || indeterminate
         ? 'border-[#0461BA] bg-[#E8F1FB] text-[#0461BA]'
         : 'border-neutral-300 bg-white text-transparent hover:border-[#0461BA]'
         } ${className}`}
@@ -659,6 +690,7 @@ const ITEMS_PER_PAGE = 20;
 export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
+  const { add: addToBriefcase, remove: removeFromBriefcase, isInBriefcase } = useBriefcase();
   const { scope, setScope } = useScope();
   // The browser is only reachable in project scope (LeftRail hides Documents in
   // enterprise mode); fall back to the first project if scope is mid-transition.
@@ -666,7 +698,7 @@ export function DocumentBrowser() {
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('compact-table');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [sortBy] = useState<'dateModified' | 'title' | 'id'>(
     'dateModified'
   );
@@ -688,6 +720,9 @@ export function DocumentBrowser() {
   }, [activeProjectId]);
   const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+  // Keyboard/active-row cursor (distinct from the checked set) + range anchor.
+  const [activeDocId, setActiveDocId] = useState<string | null>(null);
+  const selectionAnchorRef = useRef<string | null>(null);
 
   // Navigate-from-search: switch workspace scope, open the folder, and select/highlight the document.
   // [TODO-ENG] When direct object URLs are implemented (via a DB mapping table of objectType+id → canonical URL),
@@ -744,6 +779,9 @@ export function DocumentBrowser() {
   };
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
+  // Column chooser dropdown — closes on outside click / Escape (shared handler below).
+  const [showColumnChooser, setShowColumnChooser] = useState(false);
+  const columnChooserRef = useRef<HTMLDivElement>(null);
   // Column filters for table view
   const [columnFilters, setColumnFilters] = useState<
     Map<ColumnKey, ColumnFilter>>(
@@ -1000,14 +1038,18 @@ export function DocumentBrowser() {
 if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
         setShowExportMenu(false);
       }
+      if (columnChooserRef.current && !columnChooserRef.current.contains(event.target as Node)) {
+        setShowColumnChooser(false);
+      }
     };
 
-    // Escape closes the row action menu and export dropdown (WCAG 2.1.2).
+    // Escape closes the row action menu, export dropdown and column chooser (WCAG 2.1.2).
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setOpenActionMenuId(null);
       setOpenActionSubmenuKey(null);
       setShowExportMenu(false);
+      setShowColumnChooser(false);
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
@@ -1123,6 +1165,100 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     });
   };
 
+  // Ordered list of the rows the user can actually navigate (visible order,
+  // skipping collapsed groups). Drives arrow-key movement and Shift-range.
+  const navigableDocs = useMemo<Document[]>(() => {
+    if (groupByColumn) {
+      const out: Document[] = [];
+      groupedSections.forEach((section) => {
+        if (collapsedGroups.has(section.key)) return;
+        const perCount = perGroupDisplayedCounts.get(section.key) ?? ITEMS_PER_PAGE;
+        out.push(...section.documents.slice(0, perCount));
+      });
+      return out;
+    }
+    return displayedDocuments;
+  }, [groupByColumn, groupedSections, collapsedGroups, perGroupDisplayedCounts, displayedDocuments]);
+
+  // Add every id between two rows (inclusive) to the selection — Shift+click / Shift+Arrow.
+  const selectRange = (fromId: string, toId: string) => {
+    const ids = navigableDocs.map((d) => d.id);
+    const a = ids.indexOf(fromId);
+    const b = ids.indexOf(toId);
+    if (a === -1 || b === -1) return;
+    const [lo, hi] = a <= b ? [a, b] : [b, a];
+    setSelectedDocumentIds((prev) => {
+      const next = new Set(prev);
+      for (let i = lo; i <= hi; i++) next.add(ids[i]);
+      return next;
+    });
+  };
+
+  const scrollRowIntoView = (docId: string) => {
+    const el = dataContainerRef.current?.querySelector(`[data-doc-id="${CSS.escape(docId)}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  };
+
+  // Click on a row body (or its checkbox): plain = toggle that row + set anchor;
+  // Shift = extend the contiguous range from the anchor. Always moves the cursor.
+  const handleRowActivate = (doc: Document, e: { shiftKey: boolean }) => {
+    const anchor = selectionAnchorRef.current;
+    if (e.shiftKey && anchor) {
+      selectRange(anchor, doc.id);
+    } else {
+      toggleDocumentSelection(doc.id);
+      selectionAnchorRef.current = doc.id;
+    }
+    setActiveDocId(doc.id);
+    dataContainerRef.current?.focus({ preventScroll: true });
+  };
+
+  // Keyboard model on the list container: Ctrl/Cmd+A = select all, Up/Down move
+  // the cursor (Shift extends the range), Space toggles the cursor row.
+  const handleListKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input, textarea, [contenteditable="true"]')) return;
+    const ids = navigableDocs.map((d) => d.id);
+
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      // "Select all docs" = the whole filtered set, not just the lazy-loaded slice.
+      setSelectedDocumentIds(new Set(orderedDocuments.map((d) => d.id)));
+      return;
+    }
+
+    if (ids.length === 0) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const curIdx = activeDocId ? ids.indexOf(activeDocId) : -1;
+      const nextIdx =
+        curIdx === -1
+          ? 0
+          : e.key === 'ArrowDown'
+            ? Math.min(curIdx + 1, ids.length - 1)
+            : Math.max(curIdx - 1, 0);
+      const nextId = ids[nextIdx];
+      setActiveDocId(nextId);
+      if (e.shiftKey) {
+        const anchor = selectionAnchorRef.current ?? activeDocId ?? nextId;
+        selectionAnchorRef.current = anchor;
+        selectRange(anchor, nextId);
+      }
+      scrollRowIntoView(nextId);
+      return;
+    }
+
+    if (e.key === ' ' || e.key === 'Spacebar') {
+      if (target.closest('button')) return; // let a focused button handle Space
+      e.preventDefault();
+      if (activeDocId) {
+        toggleDocumentSelection(activeDocId);
+        selectionAnchorRef.current = activeDocId;
+      }
+    }
+  };
+
   const toDocumentDetail = (doc: Document): DetailPanelData => ({
     objectType: 'document',
     objectId: doc.id,
@@ -1178,24 +1314,33 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
   const renderDocumentRow = (doc: Document) => {
     const isSelected = selectedDocumentIds.has(doc.id);
+    const isActive = activeDocId === doc.id;
 
     return (
       <tr
         key={doc.id}
-        className={`transition-colors group ${
+        data-doc-id={doc.id}
+        onClick={(e) => handleRowActivate(doc, e)}
+        className={`transition-colors group cursor-pointer ${
           isSelected || highlightedDocId === doc.id
             ? 'bg-[#E8F1FB]'
             : panelData?.docId === doc.id
-              ? 'bg-[#F0F6FF] ring-1 ring-inset ring-[#0461BA]/20'
+              ? 'bg-[#F0F6FF]'
               : 'hover:bg-neutral-50'
+        } ${
+          isActive
+            ? 'ring-2 ring-inset ring-[#0461BA]'
+            : panelData?.docId === doc.id
+              ? 'ring-1 ring-inset ring-[#0461BA]/20'
+              : ''
         }`}
       >
-        <td className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+        <td>
           <SelectionCheckboxButton
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              toggleDocumentSelection(doc.id);
+              handleRowActivate(doc, e);
             }}
             checked={isSelected}
             ariaLabel={isSelected ? t('documentBrowser.deselectDocument', { id: doc.id }) : t('documentBrowser.selectDocument', { id: doc.id })}
@@ -1208,15 +1353,24 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             case 'id':
               return (
                 <React.Fragment key={doc.id + '-cells'}>
-                  <td key={col.key} style={tdStyle} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
-                    <button
-                      onClick={() => setPanelData(toDocumentDetail(doc))}
-                      className="text-[#0461BA] hover:text-[#035299] font-medium text-left transition-colors"
-                    >
-                      {doc.id}
-                    </button>
+                  <td key={col.key} style={tdStyle}>
+                    <span className="inline-flex items-center gap-1.5">
+                      {/* Filetype icon — same mapping as the grid cards, for a consistent cue. */}
+                      {getFileTypeIcon(doc.fileType)({ size: 16, className: 'shrink-0' })}
+                      <button
+                        onClick={(e) => {
+                          // Reference link opens the properties panel — never toggles the row.
+                          e.stopPropagation();
+                          setPanelData(toDocumentDetail(doc));
+                          setActiveDocId(doc.id);
+                        }}
+                        className="text-[#0461BA] hover:text-[#035299] font-medium text-left transition-colors"
+                      >
+                        {doc.id}
+                      </button>
+                    </span>
                   </td>
-                  <td className={viewMode === 'compact-table' ? 'p-2 w-28 relative' : 'p-4 w-32 relative'}>
+                  <td className="w-28 relative">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={(e) => {
@@ -1233,7 +1387,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                             setOpenActionSubmenuKey(null);
                           }
                         }}
-                        className={`w-7 h-7 rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                        className={`w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
                           }`}
                         aria-label={t('documentBrowser.actionsFor', { id: doc.id })}
                       >
@@ -1247,7 +1401,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         }}
                         title={t('documentBrowser.askFlintAbout', { id: doc.id })}
                         aria-label={t('documentBrowser.askFlintAbout', { id: doc.id })}
-                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-7 h-7 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]"
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]"
                       >
                         <SparklesIcon size={14} />
                       </button>
@@ -1263,7 +1417,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         }}
                         title={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
                         aria-label={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
-                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-7 h-7 rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
+                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
                           ? 'bg-neutral-100 text-neutral-700 opacity-100'
                           : 'text-neutral-600 hover:bg-neutral-200'
                           }`}
@@ -1365,12 +1519,20 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                               </button>
                             </div>
 
-                            {/* Add to Briefcase Item */}
+                            {/* Add to / Remove from Briefcase Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [TODO-ENG] wire Add to Briefcase — endpoint unconfirmed [TBD] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
-                                <div className="text-neutral-500 mt-0.5"><BriefcaseIcon size={16} /></div>
+                              <button onClick={(e) => {
+                                e.preventDefault(); e.stopPropagation();
+                                if (isInBriefcase(doc.id)) {
+                                  removeFromBriefcase(doc.id);
+                                } else {
+                                  addToBriefcase({ docId: doc.id, title: doc.title, reference: doc.id, revision: doc.revisionNumber, status: doc.status, fileType: doc.fileType, fileSize: doc.fileSize, author: doc.author, projectName: doc.project, folderId: doc.folderId });
+                                }
+                                setOpenActionMenuId(null);
+                              }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                                <div className={isInBriefcase(doc.id) ? 'text-[#0461BA] mt-0.5' : 'text-neutral-500 mt-0.5'}><BriefcaseIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
-                                  <span className="text-sm font-medium text-neutral-900">Add to Briefcase</span>
+                                  <span className="text-sm font-medium text-neutral-900">{isInBriefcase(doc.id) ? 'Remove from Briefcase' : 'Add to Briefcase'}</span>
                                 </div>
                               </button>
                             </div>
@@ -1383,7 +1545,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               );
             case 'title':
               return (
-                <td key={col.key} style={tdStyle} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+                <td key={col.key} style={tdStyle}>
                   <button
                     onClick={() => setPanelData(toDocumentDetail(doc))}
                     className="text-neutral-900 group-hover:text-[#0461BA] transition-colors font-medium text-left"
@@ -1394,13 +1556,13 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               );
             case 'revisionNumber':
               return (
-                <td key={col.key} style={tdStyle} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-500 font-medium'}>
+                <td key={col.key} style={tdStyle} className="text-neutral-500 font-medium">
                   {doc.revisionNumber}
                 </td>
               );
             case 'status':
               return (
-                <td key={col.key} style={tdStyle} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
+                <td key={col.key} style={tdStyle}>
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${statusColors[doc.status]}`}>
                     {doc.status}
                   </span>
@@ -1408,25 +1570,25 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               );
             case 'documentType':
               return (
-                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
+                <td key={col.key} className="text-neutral-600">
                   {doc.documentType}
                 </td>
               );
             case 'author':
               return (
-                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
+                <td key={col.key} className="text-neutral-600">
                   {doc.author}
                 </td>
               );
             case 'dateModified':
               return (
-                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-600'}>
+                <td key={col.key} className="text-neutral-600">
                   {doc.dateModified}
                 </td>
               );
             default:
               return (
-                <td key={col.key} className={viewMode === 'compact-table' ? 'p-2' : 'p-4 text-neutral-500'}>
+                <td key={col.key} className="text-neutral-500">
                   {getDocumentColumnText(doc, col.key) || '--'}
                 </td>
               );
@@ -1552,9 +1714,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     groupByColumn.trim().length > 0 &&
     isGroupableColumn(groupByColumn);
   const groupedColumnLabel = hasActiveGrouping ? columnLabelLookup.get(groupByColumn) ?? groupByColumn : null;
-
-  // Column chooser dropdown state
-  const [showColumnChooser, setShowColumnChooser] = useState(false);
 
   // Drag-and-drop state
   const [draggedCol, setDraggedCol] = useState<ColumnKey | null>(null);
@@ -1979,7 +2138,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                     viewMode={viewMode}
                     onViewModeChange={setViewMode} />
                   {/* Column chooser button (three dots) */}
-                  <div className="relative">
+                  <div className="relative" ref={columnChooserRef}>
                     <button
                       onClick={() => setShowColumnChooser((v) => !v)}
                       className="h-7 w-7 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-colors inline-flex items-center justify-center"
@@ -2011,12 +2170,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                             </label>
                           ))}
                         </div>
-                        <button
-                          className="mt-3 w-full py-1.5 rounded bg-[#0461BA] text-white text-xs font-semibold hover:bg-[#234d96] focus:outline-none focus:ring-2 focus:ring-[#0461BA]"
-                          onClick={() => setShowColumnChooser(false)}
-                        >
-                          Done
-                        </button>
                       </div>
                     )}
                   </div>
@@ -2055,7 +2208,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
               {/* Content Area */}
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                {filteredDocuments.length === 0 && leftPanelMode !== 'folder' && !(hasActiveColumnFilters && (viewMode === 'compact-table' || viewMode === 'table')) ?
+                {filteredDocuments.length === 0 && leftPanelMode !== 'folder' && !(hasActiveColumnFilters && viewMode === 'table') ?
                   <div className="flex flex-col items-center justify-center h-full max-h-[400px] bg-white rounded-lg border border-neutral-200 border-dashed">
                     <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-3">
                       <SearchIcon size={24} className="text-neutral-400" />
@@ -2246,11 +2399,11 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </AnimatePresence>
 
                           {/* Unified scroll wrapper — handles both vertical and horizontal scrolling */}
-                          <div ref={dataContainerRef} className="flex-1 min-h-0 overflow-auto w-full" style={{ scrollbarGutter: 'stable' }}>
-                            <table className="w-full text-sm border-collapse whitespace-nowrap">
+                          <div ref={dataContainerRef} tabIndex={0} onKeyDown={handleListKeyDown} className="flex-1 min-h-0 overflow-auto w-full focus:outline-none" style={{ scrollbarGutter: 'stable' }}>
+                            <table className="w-full doc-table border-collapse whitespace-nowrap">
                               <thead className="sticky top-0 z-20 bg-white shadow-sm">
                                 <tr className="border-b border-neutral-200 bg-neutral-50">
-                                  <th className={viewMode === 'compact-table' ? 'text-left p-2 w-9' : 'text-left p-4 w-10'}>
+                                  <th className="text-left w-10">
                                     <SelectionCheckboxButton
                                       onClick={toggleSelectAllDisplayed}
                                       checked={allDisplayedSelected}
@@ -2267,7 +2420,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                         onDragOver={e => handleDragOver(e, col.key)}
                                         onDrop={e => handleDrop(e, col.key)}
                                         onDragEnd={handleDragEnd}
-                                        className={`${viewMode === 'compact-table' ? 'text-left p-2' : 'text-left p-4'} relative transition-colors`}
+                                        className="text-left relative transition-colors"
                                         style={{
                                           width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
                                           minWidth: columnWidths[col.key] ? `${Math.max(columnWidths[col.key], 60)}px` : undefined,
@@ -2297,7 +2450,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                         />
                                       </th>
                                       {col.key === 'id' && (
-                                        <th className={viewMode === 'compact-table' ? 'p-2 w-28' : 'p-4 w-32'} aria-label="Row actions" />
+                                        <th className="w-28" aria-label="Row actions" />
                                       )}
                                     </React.Fragment>
                                   ))}
@@ -2317,7 +2470,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                     return (
                                       <React.Fragment key={section.key}>
                                         <tr className="bg-[#F8FAFC]">
-                                          <td colSpan={columns.length + 2} className={viewMode === 'compact-table' ? 'px-2 py-2' : 'px-4 py-3'}>
+                                          <td colSpan={columns.length + 2}>
                                             <button
                                               onClick={() => toggleGroupCollapsed(section.key)}
                                               className="flex w-full items-center justify-between gap-3 rounded-md border border-neutral-200 bg-white px-3 py-2 text-left transition-colors hover:border-[#0461BA]/35 hover:bg-[#F8FBFF]"
@@ -2394,26 +2547,16 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               </div>
             </div>
 
-            {/* Split detail panel — third flex column, sits alongside the grid */}
+            {/* Split detail panel — third flex column, sits alongside the grid.
+                Resize handle lives in the browser-layout gap to its left. */}
             {panelData && (
-              <div className="shrink-0 h-full flex" style={{ width: panelWidth }}>
-                {/* Drag handle — left edge of the panel */}
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label="Resize document properties panel"
-                  onMouseDown={(e) => { e.preventDefault(); startPanelResize(); }}
-                  className="relative w-2 shrink-0 cursor-col-resize flex items-center justify-center group z-10">
-                  <div className="absolute inset-y-0 left-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] group-active:bg-[#0461BA] transition-colors" />
-                  <GripVerticalIcon size={13} className="shrink-0 opacity-0 group-hover:opacity-40 text-neutral-400" />
-                </div>
-                <div className="flex-1 min-w-0 h-full">
-                  <DetailSlidePanel
-                    data={panelData}
-                    onClose={() => setPanelData(null)}
-                    variant="split"
-                  />
-                </div>
+              <div className="relative shrink-0 h-full" style={{ width: panelWidth }}>
+                <PanelResizeHandle side="left" onResizeStart={startPanelResize} ariaLabel={t('panel.resize')} />
+                <DetailSlidePanel
+                  data={panelData}
+                  onClose={() => setPanelData(null)}
+                  variant="split"
+                />
               </div>
             )}
 

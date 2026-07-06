@@ -2,6 +2,8 @@
   "navigation": {
     "home": "Accueil",
     "dashboard": "Tableau de bord",
+    "briefcase": "Porte-documents",
+    "briefcaseCount": "Porte-documents, {{count}} documents",
     "documents": "Documents",
     "search": "Recherche",
     "packages": "Lots",
@@ -70,7 +72,8 @@
     "folders": "Dossiers",
     "filters": "Filtres",
     "collapse": "Réduire le panneau",
-    "expand": "Développer le panneau"
+    "expand": "Développer le panneau",
+    "resize": "Glisser pour redimensionner le panneau"
   },
   "appearance": {
     "title": "Apparence",
@@ -90,7 +93,12 @@
     "basicFlush": "Basique plat",
     "basicFlushDesc": "Gris neutre, dense",
     "fluxBadge": "FLUX refactor",
-    "demoBadge": "démo"
+    "demoBadge": "démo",
+    "densityTitle": "Densité",
+    "densityComfortable": "Confortable",
+    "densityComfortableDesc": "Lignes aérées",
+    "densityCompact": "Compact",
+    "densityCompactDesc": "Plus de contenu"
   },
   "metadata": {
     "title": "Métadonnées du document",
@@ -223,6 +231,11 @@
     "viewMap": "Carte",
     "expandMap": "Agrandir la carte",
     "collapseMap": "Réduire la carte",
+    "basemapToggle": "Style de carte",
+    "basemapMap": "Carte",
+    "basemapHybrid": "Hybride",
+    "copyCoords": "Copier les coordonnées",
+    "coordsCopied": "Copié !",
     "notificationsLabel": "Notifications",
     "recentLabel": "Notifications récentes",
     "sharedLabel": "Partagé avec moi",
@@ -638,6 +651,7 @@
     "viewModes": {
       "comfyTable": "Tableau confortable",
       "compactTable": "Tableau compact",
+      "table": "Tableau",
       "grid": "Grille",
       "list": "Liste"
     },

@@ -2,6 +2,8 @@
   "navigation": {
     "home": "Home",
     "dashboard": "Dashboard",
+    "briefcase": "Briefcase",
+    "briefcaseCount": "Briefcase, {{count}} documents",
     "documents": "Documents",
     "search": "Search",
     "packages": "Packages",
@@ -70,7 +72,8 @@
     "folders": "Folders",
     "filters": "Filters",
     "collapse": "Collapse panel",
-    "expand": "Expand panel"
+    "expand": "Expand panel",
+    "resize": "Drag to resize panel"
   },
   "appearance": {
     "title": "Appearance",
@@ -90,7 +93,12 @@
     "basicFlush": "Basic Flush",
     "basicFlushDesc": "Neutral grey, dense",
     "fluxBadge": "FLUX refactor",
-    "demoBadge": "demo"
+    "demoBadge": "demo",
+    "densityTitle": "Density",
+    "densityComfortable": "Comfortable",
+    "densityComfortableDesc": "Roomier rows",
+    "densityCompact": "Compact",
+    "densityCompactDesc": "Fit more on screen"
   },
   "metadata": {
     "title": "Document Metadata",
@@ -223,6 +231,11 @@
     "viewMap": "Map",
     "expandMap": "Expand map",
     "collapseMap": "Collapse map",
+    "basemapToggle": "Map style",
+    "basemapMap": "Map",
+    "basemapHybrid": "Hybrid",
+    "copyCoords": "Copy coordinates",
+    "coordsCopied": "Copied!",
     "notificationsLabel": "Notifications",
     "recentLabel": "Recent Notifications",
     "sharedLabel": "Shared With Me",
@@ -638,6 +651,7 @@
     "viewModes": {
       "comfyTable": "Comfy Table",
       "compactTable": "Compact Table",
+      "table": "Table",
       "grid": "Grid",
       "list": "List"
     },

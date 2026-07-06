@@ -8,11 +8,13 @@ import {
   SearchIcon,
   PackageIcon,
   FolderIcon,
+  BriefcaseIcon,
 } from 'lucide-react';
 import { ColorCustomizer } from './ColorCustomizer';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useSearch } from '../contexts/SearchContext';
+import { useBriefcase } from '../contexts/BriefcaseContext';
 interface LeftRailProps {
   activeItem: string;
   onItemClick: (item: string) => void;
@@ -33,6 +35,7 @@ export function LeftRail({
   const [showColorCustomizer, setShowColorCustomizer] = useState(false);
   const { scope } = useScope();
   const { lastQuery } = useSearch();
+  const { count: briefcaseCount } = useBriefcase();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -56,6 +59,7 @@ export function LeftRail({
 
   const routeActiveItem =
     location.pathname === '/' ? 'dashboard' :
+    location.pathname.startsWith('/briefcase') ? 'briefcase' :
     location.pathname.startsWith('/documents') ? 'documents' :
     location.pathname.startsWith('/search') ? 'search' :
     location.pathname.startsWith('/packages') ? 'packages' :
@@ -68,6 +72,13 @@ export function LeftRail({
       icon: LayoutDashboardIcon,
       label: t('navigation.dashboard'),
       onClick: () => navigate('/'),
+    },
+    {
+      // Briefcase is a cross-workspace, user-level collection — always visible in both scopes.
+      id: 'briefcase',
+      icon: BriefcaseIcon,
+      label: t('navigation.briefcase'),
+      onClick: () => navigate('/briefcase'),
     },
     {
       id: 'chat',
@@ -147,6 +158,14 @@ export function LeftRail({
       >
         {isActive &&
           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-[#0461BA] rounded-r-full" />
+        }
+        {item.id === 'briefcase' && briefcaseCount > 0 &&
+          <span
+            className="absolute top-1 right-3 min-w-[16px] h-4 px-1 rounded-full bg-[#0461BA] text-white text-[10px] font-bold leading-4 text-center tabular-nums shadow-sm ring-2 ring-white"
+            aria-label={t('navigation.briefcaseCount', { count: briefcaseCount })}
+          >
+            {briefcaseCount > 99 ? '99+' : briefcaseCount}
+          </span>
         }
         {isFlint ? (
           <FlintIcon

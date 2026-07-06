@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# FusionLive export / large binaries - not for source control (27+ GB; GitHub rejects >100MB files)
+_FUSION/
