@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './api/queryClient';
 import { DocumentBrowser } from './pages/DocumentBrowser';
 import { Chat } from './pages/Chat';
 import { DesignSystem } from './pages/DesignSystem';
@@ -11,7 +13,6 @@ import { BrandBanner } from './components/BrandBanner';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { ClipboardProvider } from './contexts/ClipboardContext';
 import { LocalizationProvider } from './contexts/LocalizationContext';
-import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { ShellLayoutProvider } from './contexts/ShellLayoutContext';
 import { ScopeProvider } from './contexts/ScopeContext';
 import { SearchProvider } from './contexts/SearchContext';
@@ -19,8 +20,8 @@ import { ViewStyleProvider } from './contexts/ViewStyleContext';
 
 export function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <LocalizationProvider>
-      <WorkspaceProvider>
         <ClipboardProvider>
           <ScopeProvider>
             <ViewStyleProvider>
@@ -48,7 +49,7 @@ export function App() {
             </ViewStyleProvider>
           </ScopeProvider>
         </ClipboardProvider>
-      </WorkspaceProvider>
     </LocalizationProvider>
+    </QueryClientProvider>
   );
 }

@@ -135,17 +135,15 @@ function SearchResultCard({ result }: { result: SearchResult }) {
   const navigate = useNavigate();
   const isPlaceholder = result.resultType === 'placeholder';
 
-  // [TODO-ENG] When a DB object-URL mapping table is available, replace the location.state navigation
-  // below with a direct deep-link route (e.g. /documents/:folderId/:docId) resolved from that table.
+  // Deep link into the browser via URL params — shareable, survives refresh, and
+  // works when opened in a second window (ADR-010 multi-window). DocumentBrowser
+  // validates the params against the loaded tree and switches scope from `ws`.
   const handleFolderClick = () => {
-    navigate('/documents', {
-      state: {
-        folderId: result.folderId,
-        selectedDocId: result.id,
-        projectId: result.projectId,
-        projectName: result.project,
-      },
-    });
+    const params = new URLSearchParams();
+    if (result.projectId) params.set('ws', result.projectId);
+    if (result.folderId) params.set('folder', result.folderId);
+    params.set('doc', result.id);
+    navigate(`/documents?${params.toString()}`);
   };
 
   const folderLabel = result.location.split('/').filter(Boolean).pop() ?? result.location;

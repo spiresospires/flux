@@ -3,8 +3,9 @@
 // [AUTH] When scope changes in production, the old workspace token must be discarded
 // and a new one obtained via G01:POST /auth/workspace-token (ADR-005).
 // [PHASE-1]
-// [TODO-ENG] Migrate to a Zustand scopeStore alongside auth wiring; consolidate with
-// WorkspaceContext (ARCHITECTURE.md open question 6). Preserve the localStorage key.
+// [TODO-ENG] Migrate to a Zustand scopeStore alongside auth wiring. Preserve the
+// localStorage key. (WorkspaceContext was consolidated into this context — this is
+// the single source of workspace scope; ARCHITECTURE.md open question 6, resolved.)
 import React, { createContext, useContext, useState } from 'react';
 import { PROJECTS } from '../data/projects';
 

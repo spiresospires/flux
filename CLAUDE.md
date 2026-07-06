@@ -28,7 +28,6 @@ src/
 | `ScopeContext` | Enterprise vs project mode. Controls dashboard filtering and left-rail visibility. |
 | `LocalizationContext` | `t()` translation helper. Locale files in `public/locales/`. |
 | `ShellLayoutContext` | Left-rail visibility toggle. |
-| `WorkspaceContext` | Active workspace state. |
 | `ClipboardContext` | Cross-page document clipboard (pinned docs shared between pages). |
 | `ViewStyleContext` | Global appearance (`light`/`dark`/`basic`) and layout (`floating`/`flush`). Always active — not gated by project. |
 | `SearchContext` | Persists `lastQuery` so the Search nav button restores the last search. |
@@ -223,8 +222,19 @@ All three dropdown menus (scope selector, notifications, profile) use `createPor
 
 ## Search → DocumentBrowser Navigation
 
-Card click calls `navigate('/documents', { state: { folderId, selectedDocId, projectId, projectName } })`.
-DocumentBrowser `useEffect` reads state, calls `setScope()`, pre-selects folder/doc.
+Card click navigates to `/documents?ws=<projectId>&folder=<folderId>&doc=<docId>` — URL params, not `location.state`, so the link is shareable, survives refresh, and opens correctly in a second browser window. DocumentBrowser derives `selectedFolderId` from the `folder` param (validated against the loaded tree — stale params resolve to null), derives `highlightedDocId` from `doc`, and switches scope from `ws` once the G03 workspace list loads.
+
+---
+
+## Data Layer (React Query + MSW)
+
+All server data flows through HTTP even in the prototype:
+
+- `src/api/` — typed fetch client (`client.ts`, RFC 7807 `ApiError`), endpoint functions (`workspaces` G03, `folders` G05, `documents` G06, `search` G19), `queryKeys.ts` key factory (these keys are the ADR-010 G31 invalidation targets), `queryClient.ts`.
+- `src/hooks/` — `useWorkspaces`, `useFolderTree(wsId)`, `useDocuments(wsId, params)` (useInfiniteQuery, cursor pagination per ADR-011, exposes flattened `documents` + `totalApprox`), `useSearch(wsId, request)`.
+- `src/mocks/handlers.ts` — MSW handlers serve the `src/data` mock sets through the real G03/G05/G06/G19 contracts (keyset cursors, server-side filter/sort, 350 ms latency, RFC 7807 errors). Started from `index.tsx` unless `VITE_API_MODE=real`.
+- **DocumentBrowser**: folder scope/status/type filters + sort + pagination are server-side; category (tag) chips and column text filters remain client-side over loaded pages (marked `[TODO-ENG]`). Grouping fetches everything (limit 1000) because subtotals need the full set.
+- `msw` is installed from the public npm registry — the Idox Nexus proxy does not carry it (404).
 
 ---
 

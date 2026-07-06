@@ -1,7 +1,14 @@
 // DocumentBrowser — the main document grid page (folder tree + grid/list/table views,
-// column sort/filter/reorder/resize, grouping, multi-select, lazy loading, and an
-// inline 'split'-variant DetailSlidePanel). All document/folder data is mocked;
-// sorting, filtering and pagination are client-side and move server-side with G06.
+// column sort/filter/reorder/resize, grouping, multi-select, infinite scroll, and an
+// inline 'split'-variant DetailSlidePanel).
+// Data arrives over HTTP via React Query hooks (useFolderTree / useDocuments) against
+// the G05/G06 contracts — MSW answers in the prototype (src/mocks/handlers.ts).
+// Folder scoping, status/type filters, sort and cursor pagination are SERVER-side
+// (ADR-011); category (tag) chips and per-column text filters are still client-side
+// over the loaded pages — [TODO-ENG] move both to G06 query params.
+// Selection is deep-linkable: /documents?ws=<wsId>&folder=<folderId>&doc=<docId> —
+// the URL is the source of truth so refreshes and second browser windows restore
+// the same view (ADR-010 multi-window).
 // [PHASE-1]
 import React, {
   useCallback,
@@ -19,16 +26,15 @@ import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
-// [MOCK] Per-project document sets — replace with useDocuments(wsId, params); sort/filter/pagination move server-side.
-// [API] G06:GET /workspaces/{wsId}/documents
+// [API] G05:GET /workspaces/{wsId}/folders/tree + G06:GET /workspaces/{wsId}/documents
 // [AUTH]
 // [PHASE-1]
-import { mockDocumentsByProject } from '../data/mockDocuments';
-// [MOCK] Per-project folder trees — replace with useFolderTree(wsId).
-// [API] G05:GET /workspaces/{wsId}/folders/tree
-// [AUTH]
-// [PHASE-1]
-import { mockFoldersByProject } from '../data/mockFolders';
+import { useQuery } from '@tanstack/react-query';
+import { useFolderTree } from '../hooks/useFolderTree';
+import { useDocuments } from '../hooks/useDocuments';
+import { useWorkspaces } from '../hooks/useWorkspaces';
+import { getDocument } from '../api/documents';
+import { queryKeys } from '../api/queryKeys';
 import type { ProjectId } from '../data/projects';
 import {
   LayoutGridIcon,
@@ -60,16 +66,18 @@ import {
   FilesIcon,
   MessageSquareIcon,
   BriefcaseIcon,
-  GripVerticalIcon
+  GripVerticalIcon,
+  AlertTriangleIcon,
+  RefreshCwIcon
 } from
   'lucide-react';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useUserPref } from '../hooks/useUserPref';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Document } from '../types/document';
+import type { Document, DocumentStatus, DocumentType, Folder } from '../types/document';
 type SortDirection = 'asc' | 'desc' | null;
 type ColumnKey = string;
 
@@ -656,6 +664,8 @@ function ColumnHeaderDropdown({
   );
 }
 const ITEMS_PER_PAGE = 20;
+// Stable empty references so hooks/memos don't re-run while queries are loading.
+const EMPTY_FOLDERS: Folder[] = [];
 export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
@@ -667,47 +677,42 @@ export function DocumentBrowser() {
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('compact-table');
-  const [sortBy] = useState<'dateModified' | 'title' | 'id'>(
-    'dateModified'
-  );
   const [leftPanelMode, setLeftPanelMode] = useState<'filter' | 'folder'>(
     'folder'
   );
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const location = useLocation();
   const navigate = useNavigate();
   const activeRailItem = 'documents';
-  // Each workspace has its own folder tree and document set (see src/data) —
-  // switching projects in the banner swaps both wholesale.
-  const projectFolders = mockFoldersByProject[activeProjectId];
-  const projectDocuments = mockDocumentsByProject[activeProjectId];
+  // Folder tree over HTTP (G05, MSW-served in the prototype). Each workspace has
+  // its own tree — switching projects in the banner refetches it.
+  const foldersQuery = useFolderTree(activeProjectId);
+  const projectFolders = foldersQuery.data ?? EMPTY_FOLDERS;
 
-  useEffect(() => {
-    setSelectedFolderId(null);
-    setDisplayedCount(ITEMS_PER_PAGE);
-  }, [activeProjectId]);
-  const [highlightedDocId, setHighlightedDocId] = useState<string | null>(null);
+  // Deep-linkable selection state — ?ws=&folder=&doc= (ADR-010 multi-window).
+  // `folder`/`doc` are DERIVED from the URL (validated below against the loaded
+  // tree), never copied into useState, so refresh/second-window restore is free
+  // and a workspace switch simply invalidates a stale folder param.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: workspaces } = useWorkspaces();
+  const highlightedDocId = searchParams.get('doc');
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
 
-  // Navigate-from-search: switch workspace scope, open the folder, and select/highlight the document.
-  // [TODO-ENG] When direct object URLs are implemented (via a DB mapping table of objectType+id → canonical URL),
-  // replace this location.state pattern with a proper deep-link route e.g. /documents/:folderId/:docId.
+  // Cross-workspace deep link (e.g. from enterprise search): ?ws= switches scope
+  // once the G03 workspace list has loaded.
   useEffect(() => {
-    const state = location.state as {
-      folderId?: string;
-      selectedDocId?: string;
-      projectId?: string;
-      projectName?: string;
-    } | null;
-    if (state?.projectId && state?.projectName) {
-      setScope({ kind: 'project', id: state.projectId, name: state.projectName });
-    }
-    if (state?.folderId) setSelectedFolderId(state.folderId);
-    if (state?.selectedDocId) {
-      setHighlightedDocId(state.selectedDocId);
-      setSelectedDocumentIds(new Set([state.selectedDocId]));
-    }
-  }, [location.state]);
+    const ws = searchParams.get('ws');
+    if (!ws || !workspaces) return;
+    if (scope.kind === 'project' && scope.id === ws) return;
+    const workspace = workspaces.find((w) => w.id === ws);
+    if (workspace) setScope({ kind: 'project', id: workspace.id, name: workspace.name });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, workspaces]);
+
+  useEffect(() => {
+    if (!highlightedDocId) return;
+    // Seed the selection for an external deep link, but never clobber an
+    // existing multi-select (row clicks also write the ?doc= param).
+    setSelectedDocumentIds((prev) => (prev.size === 0 ? new Set([highlightedDocId]) : prev));
+  }, [highlightedDocId]);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [openActionSubmenuKey, setOpenActionSubmenuKey] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -748,9 +753,7 @@ export function DocumentBrowser() {
   const [columnFilters, setColumnFilters] = useState<
     Map<ColumnKey, ColumnFilter>>(
       new Map());
-  // Lazy loading state
-  const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
-  const [isLoading, setIsLoading] = useState(false);
+  // Infinite-scroll sentinel (fetchNextPage is triggered when this scrolls into view)
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [groupByColumn, setGroupByColumn] = useState<ColumnKey | null>(() => loadTableViewPreferences().groupByColumn);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -784,29 +787,56 @@ export function DocumentBrowser() {
     return map;
   }, [projectFolders]);
 
-  const selectedFolderIds = useMemo(() => {
-    if (!selectedFolderId) {
-      return null;
-    }
+  // Selected folder comes straight from the URL, validated against the loaded
+  // tree — a stale ?folder= from another workspace resolves to null (All Documents)
+  // instead of scoping the grid to a folder that doesn't exist here.
+  const folderParam = searchParams.get('folder');
+  const selectedFolderId = folderParam && folderLookup.has(folderParam) ? folderParam : null;
+  const selectFolder = useCallback((folderId: string | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (folderId) next.set('folder', folderId);
+      else next.delete('folder');
+      next.delete('doc'); // a doc deep-link doesn't survive changing folder scope
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
-    const ids = new Set<string>();
-    const stack = [selectedFolderId];
-
-    while (stack.length > 0) {
-      const currentId = stack.pop();
-      if (!currentId || ids.has(currentId)) {
-        continue;
+  // Server-side sort (G06 ?sort=&order= — ADR-011): the active column sort wins,
+  // else newest-modified first. Changing it discards the cursor chain (query key).
+  const serverSort = useMemo(() => {
+    for (const filter of columnFilters.values()) {
+      if (filter.sortDirection) {
+        return { sort: filter.column, order: filter.sortDirection };
       }
-      ids.add(currentId);
-
-      const folder = folderLookup.get(currentId);
-      if (folder) {
-        folder.children.forEach((childId) => stack.push(childId));
-      }
     }
+    return { sort: 'dateModified', order: 'desc' as const };
+  }, [columnFilters]);
 
-    return ids;
-  }, [selectedFolderId, folderLookup]);
+  // Documents over HTTP (G06, cursor-paginated). Folder subtree scoping, status
+  // and type filters run on the server; the subtree expansion that used to live
+  // here client-side is now `recursive=true`.
+  const {
+    documents: projectDocuments,
+    totalApprox,
+    isLoading: isDocsLoading,
+    isError: isDocsError,
+    refetch: refetchDocuments,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useDocuments(activeProjectId, {
+    folderId: selectedFolderId ?? undefined,
+    recursive: true,
+    status: selectedStatus as DocumentStatus[],
+    documentType: selectedDocType as DocumentType[],
+    sort: serverSort.sort,
+    order: serverSort.order,
+    // Grouping needs the full result set for correct group subtotals, so it
+    // fetches everything in one page. [TODO-ENG] Real grouping over large
+    // workspaces needs server-side group aggregation on G06.
+    limit: groupByColumn ? 1000 : ITEMS_PER_PAGE,
+  });
 
   const breadcrumbPath = useMemo(() => {
     if (!selectedFolderId) {
@@ -838,7 +868,6 @@ export function DocumentBrowser() {
       });
       return newFilters;
     });
-    setDisplayedCount(ITEMS_PER_PAGE);
   };
   const handleColumnSortChange = (
     column: ColumnKey,
@@ -869,21 +898,13 @@ export function DocumentBrowser() {
       newFilters.delete(column);
       return newFilters;
     });
-    setDisplayedCount(ITEMS_PER_PAGE);
   };
+  // Client-side residue over the loaded pages: category (tag) chips and per-column
+  // text filters. Folder scope, status/type filters and sorting are server-side
+  // (see useDocuments above). [TODO-ENG] Move these two to G06 query params as well
+  // — tags is not yet in the contract; column text maps to per-field `contains`.
   const filteredDocuments = useMemo(() => {
     let filtered = projectDocuments;
-    if (selectedFolderIds) {
-      filtered = filtered.filter((doc) => !!doc.folderId && selectedFolderIds.has(doc.folderId));
-    }
-    if (selectedStatus.length > 0) {
-      filtered = filtered.filter((doc) => selectedStatus.includes(doc.status));
-    }
-    if (selectedDocType.length > 0) {
-      filtered = filtered.filter((doc) =>
-        selectedDocType.includes(doc.documentType)
-      );
-    }
     if (selectedCategories.length > 0) {
       filtered = filtered.filter((doc) =>
         doc.tags.some((tag) =>
@@ -893,7 +914,6 @@ export function DocumentBrowser() {
         )
       );
     }
-    // Apply column filters (for table view)
     columnFilters.forEach((filter) => {
       if (filter.value) {
         filtered = filtered.filter((doc) => {
@@ -905,70 +925,14 @@ export function DocumentBrowser() {
         });
       }
     });
-    // Apply column sorting
-    let sortColumn: ColumnKey | null = null;
-    let sortDirection: SortDirection = null;
-    columnFilters.forEach((filter) => {
-      if (filter.sortDirection) {
-        sortColumn = filter.column;
-        sortDirection = filter.sortDirection;
-      }
-    });
-    if (sortColumn && sortDirection) {
-      filtered.sort((a, b) => {
-        const aVal = a[sortColumn as keyof typeof a] as string;
-        const bVal = b[sortColumn as keyof typeof b] as string;
-        const comparison = aVal.localeCompare(bVal);
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-    } else {
-      // Default sorting
-      filtered.sort((a, b) => {
-        if (sortBy === 'dateModified') {
-          return (
-            new Date(b.dateModified).getTime() -
-            new Date(a.dateModified).getTime());
-
-        } else if (sortBy === 'title') {
-          return a.title.localeCompare(b.title);
-        } else {
-          return a.id.localeCompare(b.id);
-        }
-      });
-    }
     return filtered;
-  }, [
-    selectedStatus,
-    selectedDocType,
-    selectedCategories,
-    sortBy,
-    selectedFolderIds,
-    columnFilters,
-    projectDocuments]
-  );
-  // Reset displayed count when filters change
-  useEffect(() => {
-    setDisplayedCount(ITEMS_PER_PAGE);
-  }, [
-    selectedStatus,
-    selectedDocType,
-    selectedCategories,
-    selectedFolderId,
-    leftPanelMode,
-    groupByColumn]
-  );
-  // Lazy loading with Intersection Observer
+  }, [selectedCategories, columnFilters, projectDocuments]);
+  // Infinite scroll: the sentinel asks React Query for the next cursor page (ADR-011).
   const loadMore = useCallback(() => {
-    if (displayedCount >= filteredDocuments.length || isLoading) return;
-    setIsLoading(true);
-    // Simulate network delay for lazy loading
-    setTimeout(() => {
-      setDisplayedCount((prev) =>
-        Math.min(prev + ITEMS_PER_PAGE, filteredDocuments.length)
-      );
-      setIsLoading(false);
-    }, 500);
-  }, [displayedCount, filteredDocuments.length, isLoading]);
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
   useEffect(() => {
     if (groupByColumn) return; // use per-group sentinels when grouped
     const currentRef = loadMoreRef.current;
@@ -1029,7 +993,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
       return aValue.localeCompare(bValue);
     });
   }, [filteredDocuments, groupByColumn, t]);
-  const displayedDocuments = orderedDocuments.slice(0, displayedCount);
+  // Every loaded (cursor-paged) row renders; the server decides page boundaries.
+  const displayedDocuments = orderedDocuments;
   // Build grouped sections from the full orderedDocuments so subtotals
   // reflect the true totals even when lazy-loading per-group items.
   const groupedSections = useMemo<GroupedDocumentSection[]>(() => {
@@ -1091,8 +1056,14 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
       observers.forEach((o) => o.disconnect());
     };
   }, [groupedSections]);
-  const hasMore = displayedCount < orderedDocuments.length;
+  const hasMore = hasNextPage ?? false;
   const hasActiveColumnFilters = columnFilters.size > 0 && [...columnFilters.values()].some(f => f.value);
+  // Header count: the server's totalApprox (ADR-011) unless a client-side filter
+  // (tags / column text) is narrowing the loaded pages, in which case only the
+  // locally visible count is truthful.
+  const documentCount = (selectedCategories.length > 0 || hasActiveColumnFilters)
+    ? filteredDocuments.length
+    : (totalApprox ?? filteredDocuments.length);
   const allDisplayedSelected =
     displayedDocuments.length > 0 &&
     displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
@@ -1139,6 +1110,42 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     description: doc.description,
   });
 
+  // Opening a document writes ?doc= so the selection is shareable and survives
+  // refresh; closing removes it. The panel itself is fed by the single-document
+  // endpoint below, so a deep-linked doc opens even when its row isn't in the
+  // loaded cursor pages.
+  const openDocumentPanel = (doc: Document) => {
+    setPanelData(toDocumentDetail(doc));
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('doc', doc.id);
+      return next;
+    }, { replace: true });
+  };
+  const closeDocumentPanel = () => {
+    setPanelData(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('doc');
+      return next;
+    }, { replace: true });
+  };
+
+  // [API] G06:GET /workspaces/{wsId}/documents/{docId} — resolves the ?doc= deep
+  // link independently of the list, because under cursor pagination (ADR-011) the
+  // row may not be in the loaded pages. Row highlight stays best-effort.
+  // [TODO-ENG] If "scroll to the deep-linked row" becomes a requirement, G06 needs
+  // a seek/around parameter — decide with engineering.
+  const { data: deepLinkedDoc } = useQuery({
+    queryKey: queryKeys.document(activeProjectId, highlightedDocId ?? ''),
+    queryFn: () => getDocument(activeProjectId, highlightedDocId!),
+    enabled: !!highlightedDocId,
+  });
+  useEffect(() => {
+    if (deepLinkedDoc) setPanelData(toDocumentDetail(deepLinkedDoc));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkedDoc]);
+
   const handleExport = (type: 'visible' | 'all') => {
     const colsToExport = type === 'visible' ? columns : allColumns;
 
@@ -1146,7 +1153,9 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     // Wrapping each heading in quotes and doubling any internal quotes for standard CSV escaping mapping.
     const headerRow = colsToExport.map(c => `"${c.label.replace(/"/g, '""')}"`).join(',') + '\n';
 
-    // 2. Generate Data Rows mapping through all filtered items (ignoring lazy load limit)
+    // 2. Data rows come from the loaded (cursor-paged) items only.
+    // [TODO-ENG] Full exports belong server-side (G27 exports) — the client can't
+    // see beyond the pages it has fetched under ADR-011.
     const dataRows = filteredDocuments.map(doc => {
       return colsToExport.map(col => {
         let val = getDocumentColumnText(doc, col.key);
@@ -1210,7 +1219,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 <React.Fragment key={doc.id + '-cells'}>
                   <td key={col.key} style={tdStyle} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
                     <button
-                      onClick={() => setPanelData(toDocumentDetail(doc))}
+                      onClick={() => openDocumentPanel(doc)}
                       className="text-[#0461BA] hover:text-[#035299] font-medium text-left transition-colors"
                     >
                       {doc.id}
@@ -1289,7 +1298,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Properties Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPanelData(toDocumentDetail(doc)); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openDocumentPanel(doc); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><InfoIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Properties</span>
@@ -1385,7 +1394,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               return (
                 <td key={col.key} style={tdStyle} className={viewMode === 'compact-table' ? 'p-2' : 'p-4'}>
                   <button
-                    onClick={() => setPanelData(toDocumentDetail(doc))}
+                    onClick={() => openDocumentPanel(doc)}
                     className="text-neutral-900 group-hover:text-[#0461BA] transition-colors font-medium text-left"
                   >
                     {doc.title}
@@ -1736,7 +1745,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     keys.forEach((k) => initMap.set(k, ITEMS_PER_PAGE));
     setPerGroupDisplayedCounts(initMap);
     setGroupByColumn(draggedCol);
-    setDisplayedCount(ITEMS_PER_PAGE);
     handleDragEnd();
   };
 
@@ -1744,7 +1752,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     setGroupByColumn(null);
     setCollapsedGroups(new Set());
     setPerGroupDisplayedCounts(new Map());
-    setDisplayedCount(ITEMS_PER_PAGE);
   };
 
   const toggleGroupCollapsed = (groupKey: string) => {
@@ -1811,10 +1818,25 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   onCategoryChange={setSelectedCategories} /> :
 
 
+                foldersQuery.isLoading ?
+                  <div className="space-y-2 p-3 animate-pulse" aria-busy="true" aria-label="Loading folders">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="h-6 bg-neutral-100 rounded" style={{ marginLeft: (i % 3) * 12 }} />
+                    ))}
+                  </div> :
+                foldersQuery.isError ?
+                  <div className="p-3 text-xs text-neutral-500">
+                    <p className="font-medium text-neutral-700 mb-1">Couldn't load folders</p>
+                    <button
+                      onClick={() => foldersQuery.refetch()}
+                      className="inline-flex items-center gap-1 text-[#0461BA] hover:underline">
+                      <RefreshCwIcon size={11} /> Retry
+                    </button>
+                  </div> :
                 <FolderTree
                   folders={projectFolders}
                   selectedFolderId={selectedFolderId}
-                  onFolderSelect={setSelectedFolderId} />
+                  onFolderSelect={selectFolder} />
 
               }
             </CollapsibleFilterPanel>
@@ -1835,7 +1857,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   <div className="min-w-0 pr-4 min-h-[40px] flex flex-col justify-center">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-600 flex-wrap">
                       <button
-                        onClick={() => setSelectedFolderId(null)}
+                        onClick={() => selectFolder(null)}
                         className={`hover:text-[#0461BA] transition-colors ${selectedFolderId === null ? 'text-[#0461BA] font-semibold' : ''}`}
                       >
                         All Documents
@@ -1844,7 +1866,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         <React.Fragment key={crumb.id}>
                           <ChevronRightIcon size={12} className="text-neutral-300" />
                           <button
-                            onClick={() => setSelectedFolderId(crumb.id)}
+                            onClick={() => selectFolder(crumb.id)}
                             className={`hover:text-[#0461BA] transition-colors ${selectedFolderId === crumb.id ? 'text-[#0461BA] font-semibold' : ''}`}
                           >
                             {crumb.name}
@@ -1852,7 +1874,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         </React.Fragment>
                       ))}
                     </div>
-                    <p className="text-[11px] text-neutral-500 mt-1">{filteredDocuments.length} documents</p>
+                    <p className="text-[11px] text-neutral-500 mt-1">{documentCount} documents</p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedStatus.map((s) => (
                         <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
@@ -1899,7 +1921,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                             {breadcrumbPath.length > 0 ? breadcrumbPath.map((crumb) => crumb.name).join(' / ') : 'Selected folder'}
                           </span>
                           <button
-                            onClick={() => setSelectedFolderId(null)}
+                            onClick={() => selectFolder(null)}
                             aria-label="Clear folder scope"
                             className="ml-2 text-[#0461BA] hover:text-[#034E8F] p-1 rounded-full"
                           >
@@ -1908,14 +1930,14 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         </span>
                       ) : (
                         <button
-                          onClick={() => setSelectedFolderId(null)}
+                          onClick={() => selectFolder(null)}
                           className={`hover:text-[#0461BA] transition-colors ${selectedFolderId === null ? 'text-[#0461BA] font-semibold' : ''}`}
                         >
                           All Documents
                         </button>
                       )}
                     </div>
-                    <p className="text-[11px] text-neutral-500 mt-1">{filteredDocuments.length} documents</p>
+                    <p className="text-[11px] text-neutral-500 mt-1">{documentCount} documents</p>
                     {/* Folder scope is now removable via the chip's X button; no extra links needed */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedStatus.map((s) => (
@@ -2055,7 +2077,32 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
               {/* Content Area */}
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                {filteredDocuments.length === 0 && leftPanelMode !== 'folder' && !(hasActiveColumnFilters && (viewMode === 'compact-table' || viewMode === 'table')) ?
+                {isDocsError ?
+                  // RFC 7807 errors surface here with a retry — the states the mock
+                  // data era never exercised. [PHASE-1]
+                  <div className="flex flex-col items-center justify-center h-full max-h-[400px] bg-white rounded-lg border border-rose-200 border-dashed">
+                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-3">
+                      <AlertTriangleIcon size={24} className="text-rose-400" />
+                    </div>
+                    <p className="text-neutral-900 font-semibold text-lg">
+                      Couldn't load documents
+                    </p>
+                    <p className="text-neutral-500 text-sm mt-1">
+                      Something went wrong talking to the server
+                    </p>
+                    <button
+                      onClick={() => refetchDocuments()}
+                      className="mt-4 inline-flex items-center gap-2 px-3 h-8 rounded-md bg-[#0461BA] text-white text-xs font-medium hover:bg-[#035299] transition-colors">
+                      <RefreshCwIcon size={13} /> Try again
+                    </button>
+                  </div> :
+                isDocsLoading ?
+                  <div className="space-y-2 animate-pulse" aria-busy="true" aria-label="Loading documents">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <div key={i} className="h-11 bg-neutral-100 rounded-md" />
+                    ))}
+                  </div> :
+                filteredDocuments.length === 0 && leftPanelMode !== 'folder' && !(hasActiveColumnFilters && (viewMode === 'compact-table' || viewMode === 'table')) ?
                   <div className="flex flex-col items-center justify-center h-full max-h-[400px] bg-white rounded-lg border border-neutral-200 border-dashed">
                     <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-3">
                       <SearchIcon size={24} className="text-neutral-400" />
@@ -2078,7 +2125,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           ref={loadMoreRef}
                           className="flex justify-center py-8">
 
-                          {isLoading ?
+                          {isFetchingNextPage ?
                             <div className="flex items-center gap-2 text-neutral-500">
                               <LoaderIcon size={20} className="animate-spin" />
                               <span className="text-sm">
@@ -2096,7 +2143,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         {displayedDocuments.map((doc) =>
                           <div key={doc.id}>
                             <button
-                              onClick={() => setPanelData(toDocumentDetail(doc))}
+                              onClick={() => openDocumentPanel(doc)}
                               className={`w-full text-left block border p-3 hover:shadow-sm transition-all bg-white rounded-md group ${highlightedDocId === doc.id ? 'border-[#0461BA] ring-2 ring-[#0461BA]/20 shadow-md' : 'border-neutral-200 hover:border-neutral-300'}`}>
 
                               <div className="flex gap-3">
@@ -2184,7 +2231,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         )}
                         {hasMore && !hasActiveGrouping && (
                           <div ref={loadMoreRef} className="flex justify-center py-8">
-                            {isLoading ? (
+                            {isFetchingNextPage ? (
                               <div className="flex items-center gap-2 text-neutral-500">
                                 <LoaderIcon size={20} className="animate-spin" />
                                 <span className="text-sm">Loading more documents...</span>
@@ -2366,7 +2413,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {hasMore &&
                               <div ref={loadMoreRef} className="flex justify-center py-8">
-                                {isLoading ? (
+                                {isFetchingNextPage ? (
                                   <div className="flex items-center gap-2 text-neutral-500">
                                     <LoaderIcon size={20} className="animate-spin" />
                                     <span className="text-sm">Loading more documents...</span>
@@ -2410,7 +2457,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 <div className="flex-1 min-w-0 h-full">
                   <DetailSlidePanel
                     data={panelData}
-                    onClose={() => setPanelData(null)}
+                    onClose={closeDocumentPanel}
                     variant="split"
                   />
                 </div>

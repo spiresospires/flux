@@ -428,7 +428,7 @@ src/stores/
 |---|---|---|
 | `flux.currentScope` | `scopeStore` | Active workspace/scope |
 | `flux-view-style` | `viewStyleStore` | Appearance + layout preference |
-| `flux.currentProject` | `scopeStore` | Legacy — consolidate with `flux.currentScope` |
+| ~~`flux.currentProject`~~ | — | Removed 2026-07-06 with `WorkspaceContext`; `flux.currentScope` is the only scope key |
 
 ---
 
@@ -490,7 +490,7 @@ VITE_REGION=DEV
 | `src/data/mockPlaceholders.ts` | UI placeholders | Keep or remove after real data lands |
 | `src/data/searchData.ts` | Static search corpus | `useSearch(wsId, query)` → G19 |
 | `src/utils/search.ts` | Client-side filter | Delete once G19 wired |
-| `src/contexts/WorkspaceContext.tsx` | Static workspace names | Merge into `scopeStore` → G03 |
+| ~~`src/contexts/WorkspaceContext.tsx`~~ | ~~Static workspace names~~ | Deleted 2026-07-06 — consolidated into `ScopeContext` |
 
 ---
 
@@ -555,7 +555,7 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 3. **`[TODO-ENG]` Feature flag service** — how is the "Try New" per-user opt-in persisted? G02 user preferences or external service?  
 4. **`[TODO-ENG]` NFS → S3 migration** — file content serving strategy during migration; G07 must abstract the storage backend.  
 5. **`[TODO-ENG]` Subdomain routing** — confirm final region subdomain scheme; affects `VITE_API_BASE_URL` per deployment.  
-6. **`[TODO-ENG]` `WorkspaceContext` vs `ScopeContext`** — prototype has both; consolidate to single `scopeStore` (Zustand) before wiring auth.  
+6. ~~**`WorkspaceContext` vs `ScopeContext`**~~ — **Resolved 2026-07-06:** `WorkspaceContext` deleted; `ScopeContext` is the single source of workspace scope (it becomes the Zustand `scopeStore` when auth is wired). The legacy `flux.currentProject` localStorage key is gone; only `flux.currentScope` remains.  
 7. **`[TODO-ENG]` CORS policy** — Spring Boot must allow requests from the React SPA origin per region.  
 8. **`[TODO-ENG]` Error boundary** — add a top-level React error boundary that handles RFC 7807 ProblemDetails for user-facing error display.
 9. **`[TODO-ENG]` G31 transport & fan-out (ADR-010)** — confirm SSE vs WebSocket against infra (ALB idle timeouts, per-node connection limits); pick the cluster fan-out mechanism (e.g. Redis pub/sub) and the replay-buffer retention window.
