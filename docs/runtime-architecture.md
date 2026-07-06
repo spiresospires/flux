@@ -1,8 +1,8 @@
 # Runtime Architecture Diagram
 
-This diagram describes the **current implementation** in this repository: a client-side React SPA driven mostly by mock data and `localStorage`.
+This diagram describes the **current implementation** in this repository: a client-side React SPA whose server data flows over HTTP through React Query hooks, answered by MSW handlers serving the mock datasets through the real API contracts.
 
-For the **planned production target** with Spring Boot, Oracle, S3, React Query, and Zustand, see [ARCHITECTURE.md](../ARCHITECTURE.md).
+For the **planned production target** with Spring Boot, Oracle, S3, and Zustand, see [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ```mermaid
 flowchart TD
@@ -29,7 +29,13 @@ flowchart TD
     end
   end
 
-  subgraph MockData["Client-side data layer"]
+  subgraph DataLayer["HTTP data layer (React Query + MSW)"]
+    Hooks["src/hooks/<br/>useWorkspaces · useFolderTree · useDocuments · useSearch"]
+    Api["src/api/<br/>typed fetch client, endpoints, queryKeys, queryClient"]
+    MSW["src/mocks/handlers.ts<br/>MSW mock backend — G03/G05/G06/G19 contracts,<br/>cursor pagination (ADR-011), RFC 7807 errors"]
+  end
+
+  subgraph MockData["Mock datasets (behind MSW for wired pages)"]
     Projects["projects.ts<br/>workspace list + map metadata"]
     Docs["mockDocuments.ts<br/>per-project document corpus"]
     Folders["mockFolders.ts<br/>per-project folder trees"]
@@ -72,8 +78,14 @@ flowchart TD
   Documents --> Localization
   Documents --> Clipboard
   Documents --> UserPrefs
-  Documents --> Docs
-  Documents --> Folders
+  Documents --> Hooks
+  Hooks --> Api
+  Api -- "fetch /api/v1 (HTTP)" --> MSW
+  MSW --> Projects
+  MSW --> Docs
+  MSW --> Folders
+  MSW --> SearchData
+  MSW --> SearchUtils
 
   Search --> Scope
   Search --> SearchCtx
@@ -105,18 +117,17 @@ flowchart TD
 
 ## Reading Guide
 
-- `App.tsx` is the composition root. It wires providers first, then renders the global shell and feature routes.
-- Most feature pages read from shared React Context plus centralized mock datasets under `src/data/`.
-- The documents feature is the heaviest module and acts as the prototype's center of gravity.
-- Search is fully client-side today: `searchData.ts` builds the corpus, and `utils/search.ts` performs matching.
-- Persistence is browser-local today. There is no real API-backed state layer yet.
+- `App.tsx` is the composition root. It wires `QueryClientProvider` and the context providers first, then renders the global shell and feature routes. `index.tsx` starts the MSW worker before React renders (skipped when `VITE_API_MODE=real`).
+- **DocumentBrowser is fully wired to the HTTP data layer**: folder tree (G05) and documents (G06, cursor-paginated infinite scroll per ADR-011) arrive via React Query hooks; folder scope, status/type filters and sort are server-side. Selection is deep-linkable via `/documents?ws=&folder=&doc=`.
+- The remaining feature pages (Dashboard, Chat, SearchResults, DocumentDetail, BrandBanner) still import mock datasets directly — they migrate to the same hooks next; `useSearch`/G19 is already built and MSW-served.
+- Persistence of UI state is browser-local (`localStorage`), with cross-window sync via `storage` events (`useUserPref`).
 - `WorkspaceContext` was consolidated into `ScopeContext` (2026-07-06); `ScopeContext` is the single source of workspace scope.
 
 ## Current Boundary
 
-The current app is still a **UX prototype**, not a production-integrated system:
+The prototype now exercises the production API contracts over real HTTP, but is not yet production-integrated:
 
-- No React Query cache layer is active yet.
-- No Zustand store is active yet.
-- No typed `src/api/` client exists yet.
-- The only real fetch in the current runtime is locale JSON loading for localization.
+- MSW answers `/api/v1` from static mock datasets; swap to Spring Boot via `VITE_API_MODE=real` + `VITE_API_BASE_URL` — no component changes.
+- No Zustand store is active yet (contexts migrate when auth lands, per ARCHITECTURE.md §State Management).
+- No auth: requests carry no JWT; the G01 token flows are design-only (ADR-005).
+- No G31 real-time event stream yet (ADR-010) — cache invalidation is timer/navigation-driven, not push-driven.
