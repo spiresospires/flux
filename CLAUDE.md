@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Flux is a React 18 + TypeScript front-end prototype for a FusionLive EDMS (Engineering Document Management System). Built with Vite, Tailwind CSS 3, Framer Motion, Lucide React, and React Router v6. All data is currently mocked — no live API.
+Flux is a React 18 + TypeScript front-end prototype for a FusionLive EDMS (Engineering Document Management System). Built with Vite, Tailwind CSS 3, Framer Motion, Lucide React, React Router v6, TanStack React Query v5, and MSW. Server data flows over HTTP against the documented API contracts; MSW answers those requests from the mock datasets (see §Data Layer) — set `VITE_API_MODE=real` to bypass it.
 
 **Run locally:** `npm run dev` (or double-click `flux-dev.bat`) → http://localhost:5173
 
@@ -29,7 +29,9 @@ src/
 | `LocalizationContext` | `t()` translation helper. Locale files in `public/locales/`. |
 | `ShellLayoutContext` | Left-rail visibility toggle. |
 | `ClipboardContext` | Cross-page document clipboard (pinned docs shared between pages). |
+| `BriefcaseContext` | User-scoped cross-workspace briefcase. Adapter over React Query (`/user/briefcase` via MSW) — stable `useBriefcase()` interface, optimistic mutations. |
 | `ViewStyleContext` | Global appearance (`light`/`dark`/`basic`) and layout (`floating`/`flush`). Always active — not gated by project. |
+| `DensityContext` | Global density (`compact` default / `comfortable`) → `html[data-density]`, drives the density CSS vars in index.css. |
 | `SearchContext` | Persists `lastQuery` so the Search nav button restores the last search. |
 
 ---
@@ -168,6 +170,7 @@ Drop-in replacement for `useState` that persists to `localStorage` under `flux.u
 | `docBrowser.treeWidth` | `320` | DocumentBrowser folder-tree/filter island width |
 | `dashboard.view` | `'widgets'` | Dashboard Widgets/Map toggle (both scopes) |
 | `dashboard.mapBasemap` | `'map'` | Map basemap: OSM (`map`) vs satellite Hybrid (`hybrid`) |
+| `ui.density` | `'compact'` | Global density (DensityContext → `html[data-density]`) |
 
 **Planned usages (not yet wired):** document browser column choice, column order, column widths.
 
@@ -237,9 +240,10 @@ Card click navigates to `/documents?ws=<projectId>&folder=<folderId>&doc=<docId>
 
 All server data flows through HTTP even in the prototype:
 
-- `src/api/` — typed fetch client (`client.ts`, RFC 7807 `ApiError`), endpoint functions (`workspaces` G03, `folders` G05, `documents` G06, `search` G19), `queryKeys.ts` key factory (these keys are the ADR-010 G31 invalidation targets), `queryClient.ts`.
+- `src/api/` — typed fetch client (`client.ts`, RFC 7807 `ApiError`), endpoint functions (`workspaces` G03, `folders` G05, `documents` G06, `search` G19, `briefcase` `/user/briefcase`), `queryKeys.ts` key factory (these keys are the ADR-010 G31 invalidation targets), `queryClient.ts`.
 - `src/hooks/` — `useWorkspaces`, `useFolderTree(wsId)`, `useDocuments(wsId, params)` (useInfiniteQuery, cursor pagination per ADR-011, exposes flattened `documents` + `totalApprox`), `useSearch(wsId, request)`.
-- `src/mocks/handlers.ts` — MSW handlers serve the `src/data` mock sets through the real G03/G05/G06/G19 contracts (keyset cursors, server-side filter/sort, 350 ms latency, RFC 7807 errors). Started from `index.tsx` unless `VITE_API_MODE=real`.
+- `src/mocks/handlers.ts` — MSW handlers serve the `src/data` mock sets through the real G03/G05/G06/G19 + `/user/briefcase` contracts (keyset cursors, server-side filter/sort, 350 ms latency, RFC 7807 errors). Started from `index.tsx` unless `VITE_API_MODE=real`. The briefcase handlers persist to the `flux.briefcase` localStorage key (the mock server's durable store).
+- **Briefcase** is user-scoped, not workspace-scoped — `BriefcaseContext` adapts React Query to the stable `useBriefcase()` interface with optimistic mutations; consumers never talk HTTP directly.
 - **DocumentBrowser**: folder scope/status/type filters + sort + pagination are server-side; category (tag) chips and column text filters remain client-side over loaded pages (marked `[TODO-ENG]`). Grouping fetches everything (limit 1000) because subtotals need the full set.
 - `msw` is installed from the public npm registry — the Idox Nexus proxy does not carry it (404).
 

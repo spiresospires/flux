@@ -14,6 +14,8 @@ flowchart TD
       Localization["LocalizationContext<br/>loads locale packs"]
       Scope["ScopeContext<br/>enterprise/project scope"]
       ViewStyle["ViewStyleContext<br/>appearance + layout"]
+      Density["DensityContext<br/>compact/comfortable density"]
+      Briefcase["BriefcaseContext<br/>user-scoped briefcase<br/>(React Query adapter)"]
       Clipboard["ClipboardContext<br/>saved document clipboard"]
       SearchCtx["SearchContext<br/>last search query"]
       UserPrefs["useUserPref<br/>feature-level UI preferences"]
@@ -24,6 +26,7 @@ flowchart TD
       Documents["DocumentBrowser<br/>folders + filters + grid/list/table"]
       Search["SearchResults<br/>client-side full-text search"]
       Chat["Chat<br/>mock conversations + scope-aware history"]
+      MyBriefcase["MyBriefcase<br/>cross-workspace briefcase grid"]
       Packages["Packages<br/>package library and workflow prototype"]
       Detail["DocumentDetail<br/>single-document view"]
     end
@@ -42,6 +45,7 @@ flowchart TD
     DashboardData["mockDashboard.ts<br/>todos, notifications, activity"]
     SearchData["searchData.ts<br/>search corpus built from docs/folders/placeholders"]
     SearchUtils["utils/search.ts<br/>matching + facet counts"]
+    BriefcaseSeed["briefcaseSeed.ts<br/>demo briefcase items"]
   end
 
   subgraph Persistence["Browser persistence and static assets"]
@@ -60,6 +64,8 @@ flowchart TD
   App --> Localization
   App --> Scope
   App --> ViewStyle
+  App --> Density
+  App --> Briefcase
   App --> Clipboard
   App --> SearchCtx
   App --> UserPrefs
@@ -89,10 +95,13 @@ flowchart TD
 
   Search --> Scope
   Search --> SearchCtx
-  Search --> SearchData
+  Search --> Hooks
   SearchData --> Docs
   SearchData --> Folders
-  Search --> SearchUtils
+
+  MyBriefcase --> Briefcase
+  Briefcase --> Api
+  MSW --> BriefcaseSeed
 
   Chat --> Scope
   Chat --> Clipboard
@@ -118,8 +127,8 @@ flowchart TD
 ## Reading Guide
 
 - `App.tsx` is the composition root. It wires `QueryClientProvider` and the context providers first, then renders the global shell and feature routes. `index.tsx` starts the MSW worker before React renders (skipped when `VITE_API_MODE=real`).
-- **DocumentBrowser is fully wired to the HTTP data layer**: folder tree (G05) and documents (G06, cursor-paginated infinite scroll per ADR-011) arrive via React Query hooks; folder scope, status/type filters and sort are server-side. Selection is deep-linkable via `/documents?ws=&folder=&doc=`.
-- The remaining feature pages (Dashboard, Chat, SearchResults, DocumentDetail, BrandBanner) still import mock datasets directly — they migrate to the same hooks next; `useSearch`/G19 is already built and MSW-served.
+- **DocumentBrowser, SearchResults and the Briefcase are fully wired to the HTTP data layer**: folder tree (G05), documents (G06, cursor-paginated infinite scroll per ADR-011), search (G19, server-side facets + type filter) and the user-scoped briefcase (`/user/briefcase`, optimistic mutations behind `BriefcaseContext`). DocumentBrowser selection is deep-linkable via `/documents?ws=&folder=&doc=`.
+- The remaining direct mock consumers (Dashboard, Chat, DocumentDetail, BrandBanner, ProjectMapView) migrate to the same hooks next.
 - Persistence of UI state is browser-local (`localStorage`), with cross-window sync via `storage` events (`useUserPref`).
 - `WorkspaceContext` was consolidated into `ScopeContext` (2026-07-06); `ScopeContext` is the single source of workspace scope.
 

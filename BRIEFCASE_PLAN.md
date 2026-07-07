@@ -1,6 +1,6 @@
 # My Briefcase — Implementation Plan
 
-> Status: **Briefcase 1 built & verified (2026-06-15).** Stages 2–4 pending.
+> Status: **Briefcase 1 built & verified (2026-06-15); data layer wired to `/user/briefcase` over HTTP (2026-07-07).** Stages 2–4 pending.
 > Plan captured 2026-06-15.
 > Source material: `_FUSION/BRIEFCASE HOW IT CURRENTLY IS DESCRIBED.txt` (product framing)
 > and `_FUSION/BRIEFCASE IDEAS.pdf` (19 customer ideas).
@@ -18,9 +18,9 @@ sessions, spans all workspaces the user can access.
 
 | Concern | Decision | Rationale |
 |---|---|---|
-| **State layer** | New `BriefcaseContext` mirroring `ClipboardContext.tsx`, storing `BriefcaseItem[]` (a wrapper), not raw `Document[]` | Briefcase needs per-item metadata (source workspace, added date, pinned revision, dynamic flag) that Clipboard doesn't |
-| **Persistence** | `localStorage` key `flux.briefcase`, same pattern as clipboard | Matches convention; add `// TODO: replace with GET/POST /api/user/briefcase` Oracle marker |
-| **"Workspace" identity** | `Document.project` (project name) is the workspace proxy; resolve id/label via `PROJECTS` in `src/data/projects.ts` | `Document` has no `workspaceId`; project *is* the workspace in FLUX. Satisfies the "retain source workspace" rule without a schema change |
+| **State layer** | `BriefcaseContext` keeps the stable `useBriefcase()` interface, but internally it is a React Query adapter — server state in the `['user','briefcase']` cache, mutations optimistic (instant toggle, rollback on error) | Briefcase needs per-item metadata (source workspace, added date, pinned revision, dynamic flag) that Clipboard doesn't; consumers never talk HTTP directly |
+| **Persistence** | ~~localStorage~~ → **`GET/POST/PATCH/DELETE /user/briefcase`** (`src/api/briefcase.ts`), answered by MSW in the prototype (updated 2026-07-07). The MSW handlers persist to the original `flux.briefcase` localStorage key as the mock server's durable store, so pre-API demo briefcases carry over | User-scoped, NOT workspace-scoped — calls carry the platform token. `[TODO-ENG]` API group (suggested G02, alongside `/user/preferences`) — ARCHITECTURE.md open question 12 |
+| **"Workspace" identity** | `Document.project` (project name) is the workspace proxy; resolved via `useWorkspaces()` (G03) at add-time | `Document` has no `workspaceId`; project *is* the workspace in FLUX. Satisfies the "retain source workspace" rule without a schema change |
 | **Provider placement** | `<BriefcaseProvider>` nested inside `<ClipboardProvider>` in `App.tsx` | Same level as clipboard |
 | **Route** | `/briefcase` -> new `MyBriefcase` page; added to `<Routes>` and `routeActiveItem` map in `LeftRail.tsx` | |
 | **Nav visibility** | **Always visible in both scopes** (unlike Documents, which is project-only) | Briefcase is cross-workspace/user-level — must not be gated by scope |

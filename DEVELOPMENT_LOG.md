@@ -1,18 +1,21 @@
-﻿# Flux EDMS â€” Development Log
+﻿# Flux EDMS — Development Log
 
-> **Purpose**: Single reference for future Claude sessions. Read this first. It covers architecture, every completed feature, key decisions, and known constraints.
+> **Purpose**: Session-by-session development log. Sections 1–8 are kept current
+> (last sanitised 2026-07-07); sections 9+ are dated entries recording the state
+> at the time they were written. For the authoritative architecture reference see
+> **ARCHITECTURE.md** (API contracts, ADRs) and **CLAUDE.md** (working conventions).
 
 ---
 
 ## 1. Project Overview
 
-**Flux** is a React 18 + TypeScript prototype for an Engineering Document Management System (EDMS). It is a frontend-only demo â€” all data is mocked; there is no backend.
+**Flux** is a React 18 + TypeScript prototype for an Engineering Document Management System (EDMS). Server data flows over HTTP through React Query hooks against the documented FusionLive API contracts (G03 workspaces, G05 folders, G06 documents, G19 search, `/user/briefcase`); in the prototype those requests are answered by an MSW mock backend (`src/mocks/`) serving the mock datasets. Set `VITE_API_MODE=real` + `VITE_API_BASE_URL` to point at a real backend — no component changes.
 
 | Item | Value |
 |---|---|
-| Location | `C:\GitHub\flux` |
-| Stack | React 18, TypeScript, Vite, Tailwind CSS 3, Framer Motion, Lucide React, React Router v6 |
-| Entry point | `src/App.tsx` |
+| Location | repo root (originally `C:\GitHub\flux` on the first dev machine) |
+| Stack | React 18, TypeScript, Vite, Tailwind CSS 3, Framer Motion, Lucide React, React Router v6, TanStack React Query v5, MSW |
+| Entry point | `src/index.tsx` (starts MSW, then renders `src/App.tsx`) |
 | Port | Vite default (5173) |
 | Product name displayed | FusionLive |
 
@@ -25,71 +28,79 @@
 | Path | Component | Notes |
 |---|---|---|
 | `/` | `Dashboard` | Home / enterprise overview |
-| `/documents` | `DocumentBrowser` | Project-scoped doc tree |
+| `/documents` | `DocumentBrowser` | Project-scoped doc tree; deep-linkable via `?ws=&folder=&doc=` |
 | `/search` | `SearchResults` | Global search with `?q=` param |
-| `/chat` | `DocumentBrowser` | Placeholder â€” routed to DocumentBrowser |
+| `/chat` | `Chat` | Flint AI assistant |
+| `/briefcase` | `MyBriefcase` | User-scoped cross-workspace briefcase |
 | `/design-system` | `DesignSystem` | Internal component reference |
 | `/packages` | `Packages` | Placeholder |
 
-### 2.2 Context Provider Stack (outer â†’ inner, in `App.tsx`)
+### 2.2 Context Provider Stack (outer → inner, in `App.tsx`)
 
 ```
-LocalizationProvider
-  WorkspaceProvider
+QueryClientProvider (React Query — all server state)
+  LocalizationProvider
     ClipboardProvider
-      ScopeProvider
-        SearchProvider          â† added this session
-          ShellLayoutProvider
-            BrowserRouter
-              BrandBanner (global)
-              Routes
+      BriefcaseProvider
+        ScopeProvider
+          ViewStyleProvider
+            DensityProvider
+              SearchProvider
+                ShellLayoutProvider
+                  BrowserRouter
+                    BrandBanner (global)
+                    Routes
 ```
 
 ### 2.3 Key Contexts
 
 | Context | File | What it stores |
 |---|---|---|
-| `ScopeContext` | `src/contexts/ScopeContext.tsx` | Current scope: `{ kind: 'enterprise' }` or `{ kind: 'project', id, name }` |
-| `SearchContext` | `src/contexts/SearchContext.tsx` | `lastQuery: string` â€” last executed search term |
+| `ScopeContext` | `src/contexts/ScopeContext.tsx` | Current scope: `{ kind: 'enterprise' }` or `{ kind: 'project', id, name }`. Single source of workspace scope (`WorkspaceContext` was consolidated into it, 2026-07-06) |
+| `SearchContext` | `src/contexts/SearchContext.tsx` | `lastQuery: string` — last executed search term |
 | `LocalizationContext` | `src/contexts/LocalizationContext.tsx` | i18n translation function `t()` |
 | `ShellLayoutContext` | `src/contexts/ShellLayoutContext.tsx` | `isLeftRailVisible`, `toggleLeftRail` |
-| `WorkspaceContext` | `src/contexts/WorkspaceContext.tsx` | Workspace-level state |
+| `ViewStyleContext` | `src/contexts/ViewStyleContext.tsx` | Appearance (`light`/`dark`/`basic`) + layout (`floating`/`flush`) |
+| `DensityContext` | `src/contexts/DensityContext.tsx` | Global density (`compact`/`comfortable`) → `html[data-density]` |
 | `ClipboardContext` | `src/contexts/ClipboardContext.tsx` | Document clipboard/selection state |
+| `BriefcaseContext` | `src/contexts/BriefcaseContext.tsx` | Adapter over React Query for the user-scoped briefcase (`/user/briefcase` via MSW) — stable `useBriefcase()` interface, optimistic mutations |
 
 ### 2.4 Data Layer
 
-All data is mock â€” no API calls.
+Server data is fetched over HTTP and cached by React Query; the mock datasets are served through the real API contracts by MSW.
 
-| File | Contents |
-|---|---|
-| `src/data/projects.ts` | **Single source of truth for project names/IDs** â€” import this everywhere |
-| `src/data/mockDocuments.ts` | Mock document records (uses `PROJECTS` names) |
-| `src/data/mockFolders.ts` | Mock folder tree |
-| `src/data/mockPlaceholders.ts` | Mock placeholder records |
-| `src/data/mockDashboard.ts` | Dashboard stats, notifications |
-| `src/data/searchData.ts` | Builds `searchRecords[]` from mockDocuments + mockPlaceholders |
+| Layer | Files | Contents |
+|---|---|---|
+| API client | `src/api/` | Typed fetch client (RFC 7807 `ApiError`), endpoint modules (workspaces/folders/documents/search/briefcase), `queryKeys.ts`, `queryClient.ts` |
+| Hooks | `src/hooks/` | `useWorkspaces`, `useFolderTree`, `useDocuments` (cursor-paginated infinite), `useSearch` |
+| Mock backend | `src/mocks/handlers.ts` | MSW handlers: keyset cursors (ADR-011), server-side filter/sort, facet aggregations, briefcase store, 350 ms latency |
+| Mock datasets | `src/data/` | `projects.ts` (single source of project names/IDs), `mockDocuments.ts`, `mockFolders.ts`, `mockPlaceholders.ts`, `mockDashboard.ts`, `searchData.ts`, `briefcaseSeed.ts` — consumed by the MSW handlers; Dashboard/Chat/BrandBanner/DocumentDetail still import some directly (migration pending) |
 
 ---
 
 ## 3. Key Architectural Decisions
 
-### 3.1 Single Source of Truth â€” Projects
+### 3.1 Single Source of Truth — Projects
 
 `src/data/projects.ts` exports `PROJECTS` (a `const` array) and `ProjectId` type. All components and mock data import from here. **Never define project names inline anywhere else.**
 
 ```ts
+// Current ids after the WA mining re-theme (§13); each entry also carries
+// client / assetType / phase / location for the map view.
 export const PROJECTS = [
-  { id: 'shard', name: 'The Shard, London' },
-  { id: 'skyline', name: 'Skyline' },
-  { id: 'tower', name: 'Tower' },
-  { id: 'empire', name: 'Empire State' },
+  { id: 'marra-ridge', name: 'Marra Ridge Iron Ore Mine' /* … */ },
+  { id: 'hedland', name: 'Port Hedland Berth 6 Expansion' /* … */ },
+  { id: 'kwinana', name: 'Kwinana Lithium Hydroxide Plant' /* … */ },
+  { id: 'goldfields', name: 'Goldfields Rail Duplication' /* … */ },
 ] as const;
 export type ProjectId = typeof PROJECTS[number]['id'];
 ```
 
+In the UI this list now arrives via `useWorkspaces()` (G03 over HTTP); `PROJECTS` remains the seed the MSW handler serves.
+
 **Why**: Prior to this, mock data used arbitrary project names ('Refinery Upgrade 2024', 'Safety Compliance 2024', etc.) that never matched the scope dropdown names, so the project workspace badge never appeared on search cards and scope-switching on navigation never worked.
 
-### 3.2 Search Persistence â€” SearchContext
+### 3.2 Search Persistence — SearchContext
 
 `SearchContext` stores `lastQuery`. `SearchResults` writes to it via `setLastQuery(query)` in a `useEffect`. `LeftRail` reads `lastQuery` and navigates to `/search?q=<lastQuery>` when the Search button is clicked (falls back to `/search` if empty).
 
@@ -97,13 +108,13 @@ export type ProjectId = typeof PROJECTS[number]['id'];
 
 ### 3.3 Scope Switching on Search Navigation
 
-When a user clicks a search result card â†’ `navigate('/documents', { state: { folderId, selectedDocId, projectId, projectName } })` â†’ `DocumentBrowser` reads `location.state` in a `useEffect` â†’ calls `setScope({ kind: 'project', id: projectId, name: projectName })` and pre-selects the folder and document.
+When a user clicks a search result card → `navigate('/documents', { state: { folderId, selectedDocId, projectId, projectName } })` → `DocumentBrowser` reads `location.state` in a `useEffect` → calls `setScope({ kind: 'project', id: projectId, name: projectName })` and pre-selects the folder and document.
 
-This is a `location.state` pattern. When a DB object-URL mapping table exists, replace it with a direct deep-link route resolved from that table.
+**Superseded (2026-07-06, §22):** navigation now uses URL params — `/documents?ws=<wsId>&folder=<folderId>&doc=<docId>`. The URL is the source of truth (validated against loaded data), so links are shareable, survive refresh, and open correctly in a second browser window (ADR-010 multi-window).
 
-### 3.4 Dynamic FilterBar â€” Scalable by Design
+### 3.4 Dynamic FilterBar — Scalable by Design
 
-`SearchResults` uses `countResultsByType(results)` to get a `Record<SearchResultType, number>` map. `filterCategories` is derived dynamically from `Object.entries(counts)` sorted by count descending. Adding a new `SearchResultType` to the data **automatically** causes a new filter pill to appear â€” no code changes needed.
+`SearchResults` uses `countResultsByType(results)` to get a `Record<SearchResultType, number>` map. `filterCategories` is derived dynamically from `Object.entries(counts)` sorted by count descending. Adding a new `SearchResultType` to the data **automatically** causes a new filter pill to appear — no code changes needed.
 
 `resultTypeLabels` provides friendly display names; unknown types fall back to capitalised slug.
 
@@ -113,7 +124,7 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 
 1. A hidden `<span>` (off-screen, `opacity-0`) renders the longest project name to measure its natural pixel width.
 2. `ResizeObserver` on `searchContainerRef` re-fires on resize.
-3. Width = `Math.min(naturalWidth, searchLeft - dropLeft - 100)` â€” never gets within 100px of the search input.
+3. Width = `Math.min(naturalWidth, searchLeft - dropLeft - 100)` — never gets within 100px of the search input.
 4. Minimum clamped to 60px.
 
 ---
@@ -121,17 +132,17 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 ## 4. Component Reference
 
 ### `BrandBanner` (`src/components/BrandBanner.tsx`)
-- Fixed top bar, `h-[45px]`, `z-[60]`
+- Fixed top bar, `h-[60px]`, `z-[60]`
 - Left: toggle rail button + scope dropdown
 - Centre: global search input (submits to `/search?q=`)
 - Right: notifications bell (badge + hover preview), profile avatar, "FusionLive" label
 - Scope dropdown: dynamic width, project search input, `Home` option resets to enterprise scope
 
 ### `LeftRail` (`src/components/LeftRail.tsx`)
-- Fixed left, `top-[45px]`, `w-[88px]`, `z-20`
+- Fixed left, `top-[60px]`, `w-[88px]`, `z-20`
 - Logo button: navigates to `/` and resets scope to enterprise
-- Nav order: **Chat â†’ Search â†’ Documents**
-- Documents item: **only rendered when `scope.kind === 'project'`**
+- Nav order: **Dashboard → Briefcase → Flint (Chat) → Search → Documents**
+- Documents item: **only rendered when `scope.kind === 'project'`**; Briefcase always visible (user-scoped), with live counter badge
 - Search button: navigates to `/search?q=<lastQuery>` if `lastQuery` exists
 - Bottom: Settings (opens ColorCustomizer popover)
 
@@ -145,13 +156,13 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 - Writes `lastQuery` to `SearchContext` on each query change
 
 ### `DocumentBrowser` (`src/pages/DocumentBrowser.tsx`)
-- Route: `/documents`
-- Reads `location.state` on mount to pre-select folder + document and switch scope
-- TODO: replace `location.state` navigation with direct deep-link route when DB URL mapping is available
+- Route: `/documents?ws=&folder=&doc=` — selection derives from (and writes back to) URL params, validated against loaded data
+- Folder tree (G05) + documents (G06, cursor-paginated infinite scroll) over HTTP via `useFolderTree`/`useDocuments`; folder scope, status/type filters and sort are server-side
+- `?doc=` resolves through `GET /documents/{docId}` and opens the properties panel even when the row isn't in the loaded pages
 
 ### `Dashboard` (`src/pages/Dashboard.tsx`)
 - Route: `/`
-- Grid layout with sticky left panel (`sticky top-0`) â€” must be `top-0` not `top-3` to stay top-aligned with right panel
+- Grid layout with sticky left panel (`sticky top-0`) — must be `top-0` not `top-3` to stay top-aligned with right panel
 - Resets `selectedSection` to `'overview'` when `scope.kind === 'enterprise'`
 
 ---
@@ -161,12 +172,12 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 | # | Feature | Files Changed |
 |---|---|---|
 | 1 | Dashboard: white header background on Highlights Overview nav | `Dashboard.tsx` |
-| 2 | Dashboard: top-align left panel with right content panel | `Dashboard.tsx` â€” `sticky top-3` â†’ `sticky top-0` |
+| 2 | Dashboard: top-align left panel with right content panel | `Dashboard.tsx` — `sticky top-3` → `sticky top-0` |
 | 3 | BrandBanner: dynamic scope dropdown width (capped 100px from search input) | `BrandBanner.tsx` |
 | 4 | BrandBanner: chevron pushed to far right; project search input replaces "PROJECTS" label | `BrandBanner.tsx` |
 | 5 | Logo click resets to enterprise scope | `LeftRail.tsx` |
 | 6 | Documents nav item hidden on enterprise scope | `LeftRail.tsx` |
-| 7 | Nav order: Chat â†’ Search â†’ Documents | `LeftRail.tsx` |
+| 7 | Nav order: Chat → Search → Documents | `LeftRail.tsx` |
 | 8 | Dashboard: resets to overview when scope switches to enterprise | `Dashboard.tsx` |
 | 9 | EDMS filename sanitisation rules documented | `CLAUDE.md` |
 | 10 | Search result cards: compact redesign, project workspace badge, amber folder icon link, right margin | `SearchResults.tsx` |
@@ -180,26 +191,27 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 
 ## 6. EDMS Filename Sanitisation Rules
 
-These are hard requirements â€” apply to any filename handling, validation, storage, or download logic.
+These are hard requirements — apply to any filename handling, validation, storage, or download logic.
 
-1. **Do not strip** engineering unit symbols for feet (â€²) and inches (â€³).
+1. **Do not strip** engineering unit symbols for feet (′) and inches (″).
 2. **Recognise** these Unicode workarounds used in engineering filenames:
-   - `â€³` (U+2033 Double Prime) â€” inches
-   - `''` (two ASCII single quotes, 39Ã—2) â€” inches
-   - `"` (U+201D Right Double Quotation Mark) â€” inches
-   - `â€²` (U+2032 Single Prime) â€” feet
+   - `″` (U+2033 Double Prime) — inches
+   - `''` (two ASCII single quotes, 39×2) — inches
+   - `"` (U+201D Right Double Quotation Mark) — inches
+   - `′` (U+2032 Single Prime) — feet
 3. **UTF-8 everywhere**: filename handling, storage, and DB schemas must use strict UTF-8.
-4. **Windows-safe conversion**: when preparing files for Windows download, convert blocked OS characters (e.g. true `"` U+0022) to their safe engineering equivalents (`â€³` or `''`) â€” **do not delete them**.
-5. **Backend regex**: validation patterns must explicitly allow `â€²`, `â€³`, `'`, and `"` (U+201D).
+4. **Windows-safe conversion**: when preparing files for Windows download, convert blocked OS characters (e.g. true `"` U+0022) to their safe engineering equivalents (`″` or `''`) — **do not delete them**.
+5. **Backend regex**: validation patterns must explicitly allow `′`, `″`, `'`, and `"` (U+201D).
 
 ---
 
 ## 7. Known Constraints / TODOs
 
-- `/chat` route currently renders `DocumentBrowser` as a placeholder â€” needs a real chat component.
-- `SearchResultCard.handleFolderClick` uses `navigate` with `location.state`. When a DB object-URL mapping table is available, replace with a direct deep-link route (e.g. `/documents/:folderId/:docId`).
-- Placeholder records do not carry a `project` field in the current mock schema â€” `project: undefined` in `searchData.ts`. Add when mock data is updated.
-- `filterCategories` only includes types present in current results â€” a type with zero results across all data never appears, which is correct behaviour for a dynamic filter.
+- ~~`/chat` placeholder~~ — done: `/chat` renders the Flint `Chat` page. The real G29 SSE streaming contract is specified in ARCHITECTURE.md but the reply is still a canned `setTimeout` mock.
+- ~~`location.state` navigation~~ — done (2026-07-06): search→browser navigation uses URL params (`?ws=&folder=&doc=`).
+- Placeholder records do not carry a `project` field in the current mock schema — `project: undefined` in `searchData.ts`. Add when mock data is updated.
+- `filterCategories` only includes types present in current results — now driven by the server's G19 `aggregations` (computed over the full result set, stable while a type tab is active).
+- Dashboard, Chat, BrandBanner, DocumentDetail and ProjectMapView still import mock datasets directly — remaining migration to the React Query hooks.
 
 ---
 
@@ -215,10 +227,10 @@ These are hard requirements â€” apply to any filename handling, validation,
 | Enterprise scope | `violet-*` | Scope button when enterprise selected |
 
 Fixed shell dimensions:
-- Top bar height: `45px`
+- Top bar height: `60px`
 - Left rail width: `88px`
 - Left rail offset CSS var: `--left-rail-width` (88px)
-- Main content offset: `mt-[45px]`, `ml-[var(--left-rail-width,88px)]`
+- Main content offset: `mt-[60px]`, `ml-[var(--left-rail-width,88px)]`
 
 ---
 
@@ -241,7 +253,7 @@ Applied the ARCHITECTURE.md marker convention (`[MOCK]` / `[API]` / `[AUTH]` / `
 
 **Deleted:** `src/AppRouter.tsx` (never imported; App.tsx owns the single BrowserRouter) and `src/components/FolderTree_old.tsx` (unreferenced).
 
-**Reduced motion (WCAG 2.3.3):** `<MotionConfig reducedMotion="user">` wraps the app in App.tsx â€” every Framer Motion animation now respects the OS setting. CSS keyframes (`docs-nav-appear`) and transitions suppressed via `prefers-reduced-motion` block in index.css.
+**Reduced motion (WCAG 2.3.3):** `<MotionConfig reducedMotion="user">` wraps the app in App.tsx — every Framer Motion animation now respects the OS setting. CSS keyframes (`docs-nav-appear`) and transitions suppressed via `prefers-reduced-motion` block in index.css.
 
 **Escape-to-close (WCAG 2.1.2)** added to: BrandBanner (all four menus, shared handler), ClipboardDropdown, DetailSlidePanel (both variants), ColorCustomizer, DocumentBrowser ViewModeDropdown / ColumnHeaderDropdown popover / row action menu + export menu.
 
@@ -257,12 +269,12 @@ Still open (larger work): focus trap in drawer dialog, FolderTree role="tree" + 
 
 ## 11. Search White-Page Fix (Flush View) + 1000-Document Mock Data (2026-06-09)
 
-**Bug:** Banner search showed result counts but a white page below â€” only in flush view styles.
+**Bug:** Banner search showed result counts but a white page below — only in flush view styles.
 **Root cause:** `SearchResults.tsx` tagged its page *header* with `data-component="content-panel"`. The flush height fix in index.css applies `min-height: 100% !important` to content-panel (intended for the main content column on Dashboard/Chat/Packages, where content-panel is flex-1). On the shrink-0 search header it inflated the header to full page height, squeezing the results section to ~4px below the fold inside an overflow-hidden layout. Floating view was unaffected, which is why it went unnoticed.
 **Fix:** Header re-tagged `data-component="header-panel"` with a new flush CSS rule (radius/shadow zeroed, no min-height) and a code comment warning against reusing content-panel on shrink-0 headers. Verified in flush+basic and floating: header 70px, results render in both.
 
 **Mock data scale-up:** mockDocuments.ts category generator lengths raised from 367 to exactly 1000 total (each category ~2.7x). IDs stay unique (3-digit padding per category).
-**Folder counts now computed:** mockFolders.ts no longer hardcodes `documentCount` â€” counts are derived from mockDocuments per folderId, parents aggregate their subtree. The old literals had already drifted (e.g. folders claiming docs that did not exist); folders with no documents now honestly show 0. The literal counts in the tree are inert placeholders.
+**Folder counts now computed:** mockFolders.ts no longer hardcodes `documentCount` — counts are derived from mockDocuments per folderId, parents aggregate their subtree. The old literals had already drifted (e.g. folders claiming docs that did not exist); folders with no documents now honestly show 0. The literal counts in the tree are inert placeholders.
 
 Verified: Documents page shows "1000 documents", search for EQUIP returns 63 results and renders, no console errors after reload.
 
@@ -272,7 +284,7 @@ Verified: Documents page shows "1000 documents", search for EQUIP returns 63 res
 
 **Change:** Selecting "All Workspaces" in the top-banner scope dropdown now calls `navigate('/')` alongside `setScope({ kind: 'enterprise' })` (BrandBanner.tsx).
 
-**Why:** There is no all-workspaces documents view â€” customers operate within one project envelope at a time and switch projects via the workspace dropdown. Previously, switching to enterprise scope while on /documents left the user on a dead page (Documents nav hidden, content project-scoped). Enterprise scope is now equivalent to "go Home", matching the existing logo/Home button behaviour.
+**Why:** There is no all-workspaces documents view — customers operate within one project envelope at a time and switch projects via the workspace dropdown. Previously, switching to enterprise scope while on /documents left the user on a dead page (Documents nav hidden, content project-scoped). Enterprise scope is now equivalent to "go Home", matching the existing logo/Home button behaviour.
 
 **Behaviour matrix:** All Workspaces -> always Dashboard. Project selection -> scope changes, user stays on current page.
 
@@ -284,11 +296,11 @@ Verified in browser: from /documents in project scope, selecting All Workspaces 
 
 **Project rename (full, incl. ids):** shard/skyline/tower/empire -> marra-ridge (Marra Ridge Iron Ore Mine, Pilbara), hedland (Port Hedland Berth 6 Expansion, carries isFluxRefactor), kwinana (Kwinana Lithium Hydroxide Plant), goldfields (Goldfields Rail Duplication, Kalgoorlie). projects.ts entries now carry client / assetType / phase / location for the map. ScopeContext re-validates the persisted scope id against PROJECTS so stale localStorage falls back to enterprise.
 
-**Per-project mock data:** mockDocuments.ts rebuilt as a spec-driven generator â€” each project has its own themed category specs (mine/port/plant/rail) producing 1140/920/1060/840 docs (3960 total). mockFolders.ts rebuilt: shared EPC top-level taxonomy (01 PM -> 08 Handover & Ops), project-specific subfolders, counts computed. New exports mockDocumentsByProject / mockFoldersByProject keyed by ProjectId; flat exports remain as the all-projects union for search.
+**Per-project mock data:** mockDocuments.ts rebuilt as a spec-driven generator — each project has its own themed category specs (mine/port/plant/rail) producing 1140/920/1060/840 docs (3960 total). mockFolders.ts rebuilt: shared EPC top-level taxonomy (01 PM -> 08 Handover & Ops), project-specific subfolders, counts computed. New exports mockDocumentsByProject / mockFoldersByProject keyed by ProjectId; flat exports remain as the all-projects union for search.
 
-**DocumentBrowser:** removed the PROJECT_SCALE shuffle hack (it keyed off WorkspaceContext.currentWorkspace, which the banner never updates â€” why all projects looked identical). Now selects tree + documents via ScopeContext scope.id. useWorkspace dropped from this page.
+**DocumentBrowser:** removed the PROJECT_SCALE shuffle hack (it keyed off WorkspaceContext.currentWorkspace, which the banner never updates — why all projects looked identical). Now selects tree + documents via ScopeContext scope.id. useWorkspace dropped from this page.
 
-**Chat:** local PROJECTS duplicate deleted â€” now imports from data/projects (closes the earlier [TODO-ENG]); canned conversation scopes remapped to new ids.
+**Chat:** local PROJECTS duplicate deleted — now imports from data/projects (closes the earlier [TODO-ENG]); canned conversation scopes remapped to new ids.
 
 **Dashboard Map view:** enterprise-only Widgets/Map toggle (persisted: useUserPref dashboard.view). ProjectMapView.tsx = Leaflet + react-leaflet (new deps) on OSM tiles, divIcon pins (no default marker PNGs). Hover opens clickable popup: project title/Open -> setScope (project dashboard), Documents -> /documents, Flint -> /chat, all project-scoped. Popup stats (doc count, in-review, overdue, unread) derive from the per-project mocks. Map wrapper has relative z-0 so Leaflet panes stay below the top banner. New locale keys dashboard.viewWidgets/viewMap (en-US, fr-FR).
 
@@ -298,13 +310,13 @@ Verified in browser: scope dropdown shows new names; Marra Ridge documents = 114
 
 ## 14. Map Panel Refinement, Dashboard Crash Fix, Flint Context Chip (2026-06-10)
 
-**Dashboard white-screen fix (was a real bug masquerading as a "pre-existing TS warning"):** in Dashboard.tsx, `todoFiltered.map((t) => ...)` and `toTodoDetail(t: TodoItem)` shadowed the `t()` translation function, then called `t(''statuses.overdue'')` on a TodoItem â€” a runtime TypeError that unmounted the whole React tree (no error boundary) whenever the To Do section rendered. Params renamed to `todo`; the TS2349 errors are gone from tsc. All 11 Highlights-overview paths verified working (4 stat tiles, 3 View-all links, 4 left-list sections, plus todo-row -> detail panel). Rule: never name a callback param `t`.
+**Dashboard white-screen fix (was a real bug masquerading as a "pre-existing TS warning"):** in Dashboard.tsx, `todoFiltered.map((t) => ...)` and `toTodoDetail(t: TodoItem)` shadowed the `t()` translation function, then called `t(''statuses.overdue'')` on a TodoItem — a runtime TypeError that unmounted the whole React tree (no error boundary) whenever the To Do section rendered. Params renamed to `todo`; the TS2349 errors are gone from tsc. All 11 Highlights-overview paths verified working (4 stat tiles, 3 View-all links, 4 left-list sections, plus todo-row -> detail panel). Rule: never name a callback param `t`.
 
-**Map layout:** map now renders inside the content panel only â€” left section list stays visible. Widgets/Map toggle moved to the top-LEFT of the panel toolbar; an expand/collapse button (top-right, Maximize2/Minimize2) maximises the map over the full dashboard area and back (transient useState, not persisted). Selecting a section from the left list switches back to widgets. Maximised state resets on any scope change.
+**Map layout:** map now renders inside the content panel only — left section list stays visible. Widgets/Map toggle moved to the top-LEFT of the panel toolbar; an expand/collapse button (top-right, Maximize2/Minimize2) maximises the map over the full dashboard area and back (transient useState, not persisted). Selecting a section from the left list switches back to widgets. Maximised state resets on any scope change.
 
-**Flint context:** map pin Flint now navigates with `?ask=<project name>&askKind=project` (matching the existing folder/document entry points). Chat.tsx shows a context chip on the empty state â€” kind icon (building/folder/file) + "Context: <label>" + project scope when relevant. Marker comments in Chat.tsx and ProjectMapView.tsx document the future G29 payload shape ({ scope: { wsId }, context: { type, id } }) and note labels must become object IDs when wired. New locale keys: chat.contextLabel, dashboard.expandMap/collapseMap (en-US, fr-FR).
+**Flint context:** map pin Flint now navigates with `?ask=<project name>&askKind=project` (matching the existing folder/document entry points). Chat.tsx shows a context chip on the empty state — kind icon (building/folder/file) + "Context: <label>" + project scope when relevant. Marker comments in Chat.tsx and ProjectMapView.tsx document the future G29 payload shape ({ scope: { wsId }, context: { type, id } }) and note labels must become object IDs when wired. New locale keys: chat.contextLabel, dashboard.expandMap/collapseMap (en-US, fr-FR).
 
-Verified in browser: toggle renders inside panel top-left; map 560px wide beside the section list, 848px maximised, collapse restores; pin Flint -> /chat?ask=Goldfields...&askKind=project with visible chip; folder chat button -> chip shows "02 Engineering Â· Goldfields Rail Duplication"; no new console errors.
+Verified in browser: toggle renders inside panel top-left; map 560px wide beside the section list, 848px maximised, collapse restores; pin Flint -> /chat?ask=Goldfields...&askKind=project with visible chip; folder chat button -> chip shows "02 Engineering · Goldfields Rail Duplication"; no new console errors.
 
 
 ---
@@ -400,3 +412,15 @@ Verified in browser (DOM-level): right-click at map centre opens the menu with c
 **Filetype icons in table rows.** `getFileTypeIcon` is now exported from `DocumentCard.tsx` and reused in the DocumentBrowser table `id` column, so each Reference shows the same filetype cue as the grid cards.
 
 Verified in browser (DOM-level, multiple widths): density toggle re-flows table + folder tree (compact 29px / comfy 41px rows, folder 30px); all row interactions behave (toggle, reference-opens-panel, Ctrl+A=all, arrows move cursor, Space toggles, Shift+click / Shift+Arrow range); grid previews render at 442px (219x122, scrolls) and 1440px (4 cols, 226x126); table Reference cells show the filetype icon. No console errors / no Vite overlay.
+
+---
+
+## 22. HTTP Data Layer Merge, Briefcase API Wiring, Docs Sanitise (2026-07-07)
+
+**Merge (cae7ec8):** §21's density/row-interaction/briefcase work was developed in parallel with the React Query + MSW data layer (ce5e92d..cb9297e) and merged with the principle *his UI wins, our data layer carries it*. DocumentBrowser now serves folder scope/status/type filters, sort and cursor pagination (ADR-011) from the MSW mock backend while keeping the §21 interaction model; the Reference link routes through `openDocumentPanel` so `?doc=` stays on the URL; `viewMode` is `grid | list | table` with density from CSS vars; the resurrected `sortBy` state was dropped again (server-side).
+
+**Briefcase onto the data layer:** `BriefcaseContext` keeps its stable `useBriefcase()` interface (nine consumer files untouched) but its internals are now React Query: `GET/POST/PATCH/DELETE /user/briefcase` (`src/api/briefcase.ts`) with optimistic mutations (instant toggle, rollback on error, invalidate on settle). The MSW handlers own the seed and persist to the same `flux.briefcase` localStorage key the old context used, so existing demo briefcases carry over. Workspace identity resolves via `useWorkspaces()` (G03) instead of the static `PROJECTS` import. The endpoint is user-scoped, NOT workspace-scoped — `[TODO-ENG]` confirm the API group (suggested G02, alongside `/user/preferences`).
+
+**Docs sanitised:** repaired CP1252 mojibake throughout this file (51 sequences — em dashes, arrows, prime marks); refreshed §1–8 to current truth (route map, provider stack, contexts table, HTTP data layer, 60px banner, nav order); marked §3.3 and the §7 TODOs superseded where the work landed; ARCHITECTURE.md, CLAUDE.md, BRIEFCASE_PLAN.md and docs/runtime-architecture.md updated to match.
+
+Verified in browser: fresh load seeds 8 briefcase items through `GET /user/briefcase`; add from a search card → server count 9 (POST), toggle off → 8 (DELETE); MyBriefcase page renders the items grouped by workspace; tsc shows only the known unused-import baseline.

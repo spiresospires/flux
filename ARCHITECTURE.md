@@ -318,6 +318,26 @@ LLM responses must **stream token-by-token** — a request/response chat UI cann
 | Notification feed | `GET /workspaces/{wsId}/messages` (G13) | |
 | Mark read | `PATCH /workspaces/{wsId}/messages/{msgId}` (G13) | |
 
+### My Briefcase (`MyBriefcase.tsx`, `BriefcaseContext.tsx`)
+
+A private, **user-scoped, cross-workspace** collection of document references (see BRIEFCASE_PLAN.md). Because items span workspaces, briefcase calls carry the **platform token**, not a workspace token — the only Phase 1 surface with that property.
+
+| Prototype | API | Notes |
+|---|---|---|
+| `useBriefcase()` items | `GET /user/briefcase` | Wired via MSW; React Query cache `['user','briefcase']` |
+| Add reference | `POST /user/briefcase` | Idempotent on `docId`; optimistic update |
+| Static/dynamic toggle | `PATCH /user/briefcase/{docId}` | Body `{ isDynamic }` |
+| Remove / bulk remove / clear | `DELETE /user/briefcase[?docId=…]` | No params = clear all |
+| Freshness state (`newer-available` etc.) | [TBD] | Needs a server-side revision comparison — decide with the briefcase group |
+
+```ts
+// [API] /user/briefcase — src/api/briefcase.ts (MSW-served in the prototype)
+// [TODO-ENG] Not in the G01–G30 set; suggested home is G02 (users & profiles),
+//            alongside /user/preferences. Confirm group + final paths.
+// [AUTH] Platform token (user-scoped)
+// [PHASE-1]
+```
+
 ### Async Operations
 
 Large uploads, bulk operations, and any G05/G06 write that may take >2 s return `202 Accepted` with a job reference. Poll using G25:
@@ -342,6 +362,7 @@ src/
     documents.ts       ← G06: list, get, patch, delete, revisions, relationships
     content.ts         ← G07: download, upload, thumbnail
     search.ts          ← G19: full-text search, facets
+    briefcase.ts       ← /user/briefcase: user-scoped briefcase ([TODO-ENG] group)
     messages.ts        ← G13: notifications, mark-read
     jobs.ts            ← G25: job polling helper
     errors.ts          ← RFC 7807 ProblemDetails error type + handler
@@ -561,7 +582,8 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 9. **`[TODO-ENG]` G31 transport & fan-out (ADR-010)** — confirm SSE vs WebSocket against infra (ALB idle timeouts, per-node connection limits); pick the cluster fan-out mechanism (e.g. Redis pub/sub) and the replay-buffer retention window.
 10. **`[TODO-ENG]` `totalApprox` source (ADR-011)** — exact `COUNT(*)` per list request is off the table; decide between folder rollup counters, cached counts with TTL, or sampled estimates.
 11. **`[TODO-ENG]` Event → permission edge case (ADR-010)** — when a user *loses* access to a document, the invalidate→refetch model handles it (refetch 403s / omits the row), but confirm the event stream itself is filtered to entities the subscriber can see, or accept that entity IDs alone may leak existence.
+12. **`[TODO-ENG]` Briefcase API group** — `/user/briefcase` is user-scoped (platform token) and not in the G01–G30 set; suggested home is G02 alongside `/user/preferences`. Also decide how the freshness states (`newer-available` / `checked-out` / `unavailable`) are computed server-side.
 
 ---
 
-*Last updated: 2026-07-06 — added ADR-010 (real-time sync & multi-window), ADR-011 (cursor pagination), G29 streaming spec, G31 events group*
+*Last updated: 2026-07-07 — briefcase wired to `/user/briefcase` (MSW + React Query, optimistic mutations); prototype `src/api/` layer now real for G03/G05/G06/G19 + briefcase. Prior: 2026-07-06 — ADR-010 (real-time sync & multi-window), ADR-011 (cursor pagination), G29 streaming spec, G31 events group.*
