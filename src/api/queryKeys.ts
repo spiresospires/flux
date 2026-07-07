@@ -13,4 +13,6 @@ export const queryKeys = {
   document: (wsId: string, docId: string) => ['document', wsId, docId] as const,
   searchRoot: (wsId: string) => ['search', wsId] as const,
   search: (wsId: string, request: SearchRequest) => ['search', wsId, request] as const,
+  /** User-scoped (no wsId) — the briefcase spans every workspace the user can access. */
+  briefcase: ['user', 'briefcase'] as const,
 };

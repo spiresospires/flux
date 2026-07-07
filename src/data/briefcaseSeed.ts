@@ -1,6 +1,8 @@
 // [MOCK] Demo briefcase contents — cross-workspace, with deliberately varied states so the
 // badges (current / newer-available / checked-out / unavailable) and workspace grouping are
-// visible on first load. Replaced by GET /api/user/briefcase once wired.
+// visible on first load. Consumed ONLY by the MSW mock backend (src/mocks/handlers.ts,
+// /user/briefcase handlers) — pages go through useBriefcase() → HTTP. Deleted with the
+// rest of src/mocks when the real backend lands.
 // docIds reference real generated documents (see mockDocuments.ts) so membership highlights
 // correctly in the Document Browser and search results.
 import { BriefcaseItem } from '../types/briefcase';

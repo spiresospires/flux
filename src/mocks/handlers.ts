@@ -9,10 +9,12 @@ import { http, HttpResponse, delay } from 'msw';
 import { API_BASE } from '../api/client';
 import type { DocumentListResponse, SearchResponse, Workspace } from '../api/types';
 import type { Document, Folder } from '../types/document';
+import type { BriefcaseItem } from '../types/briefcase';
 import { PROJECTS, type ProjectId } from '../data/projects';
 import { mockDocumentsByProject } from '../data/mockDocuments';
 import { mockFoldersByProject } from '../data/mockFolders';
 import { searchRecords } from '../data/searchData';
+import { briefcaseSeed } from '../data/briefcaseSeed';
 import { searchEverything, countResultsByType } from '../utils/search';
 import { ENTERPRISE_SEARCH_SCOPE } from '../api/search';
 
@@ -87,6 +89,30 @@ function paginate<T extends { id: string }>(
       ? encodeCursor(items[items.length - 1].id)
       : null;
   return { items, nextCursor };
+}
+
+// ── Briefcase store (user-scoped) ──────────────────────────────────────────────
+// The mock "server's" durable store. Persisted to localStorage under the same
+// key the pre-API BriefcaseContext used, so existing demo briefcases carry over.
+// Seeded with cross-workspace items on first run (see briefcaseSeed.ts).
+const BRIEFCASE_STORAGE_KEY = 'flux.briefcase';
+
+function readBriefcase(): BriefcaseItem[] {
+  try {
+    const saved = localStorage.getItem(BRIEFCASE_STORAGE_KEY);
+    if (saved) return JSON.parse(saved) as BriefcaseItem[];
+  } catch {
+    /* fall through to seed */
+  }
+  return [...briefcaseSeed];
+}
+
+function writeBriefcase(items: BriefcaseItem[]): void {
+  try {
+    localStorage.setItem(BRIEFCASE_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    /* storage unavailable — non-fatal in the prototype */
+  }
 }
 
 const DATE_FIELDS = new Set(['dateModified', 'dateCreated']);
@@ -212,5 +238,52 @@ export const handlers = [
 
     const response: SearchResponse = { items, nextCursor, aggregations, totalApprox: typed.length };
     return HttpResponse.json(response);
+  }),
+
+  // ── Briefcase (user-scoped — no {wsId}; see src/api/briefcase.ts) ───────────
+  http.get(`${API_BASE}/user/briefcase`, async () => {
+    await delay(LATENCY_MS);
+    return HttpResponse.json(readBriefcase());
+  }),
+
+  http.post(`${API_BASE}/user/briefcase`, async ({ request }) => {
+    await delay(LATENCY_MS);
+    const item = (await request.json()) as BriefcaseItem;
+    if (!item?.docId) return problem(400, 'Invalid briefcase item', 'docId is required');
+    const items = readBriefcase();
+    // Idempotent on docId — re-adding returns the existing item unchanged.
+    const existing = items.find((i) => i.docId === item.docId);
+    if (existing) return HttpResponse.json(existing);
+    const updated = [item, ...items];
+    writeBriefcase(updated);
+    return HttpResponse.json(item, { status: 201 });
+  }),
+
+  http.patch(`${API_BASE}/user/briefcase/:docId`, async ({ params, request }) => {
+    await delay(LATENCY_MS);
+    const docId = decodeURIComponent(params.docId as string);
+    const body = (await request.json()) as { isDynamic?: boolean };
+    const items = readBriefcase();
+    const target = items.find((i) => i.docId === docId);
+    if (!target) return problem(404, 'Briefcase item not found', `No item '${docId}'`);
+    const updated = items.map((i) =>
+      i.docId === docId ? { ...i, isDynamic: body.isDynamic ?? i.isDynamic } : i
+    );
+    writeBriefcase(updated);
+    return HttpResponse.json(updated.find((i) => i.docId === docId));
+  }),
+
+  // DELETE /user/briefcase          → clear all
+  // DELETE /user/briefcase?docId=a&docId=b → remove listed items
+  http.delete(`${API_BASE}/user/briefcase`, async ({ request }) => {
+    await delay(LATENCY_MS);
+    const ids = new URL(request.url).searchParams.getAll('docId');
+    if (ids.length === 0) {
+      writeBriefcase([]);
+    } else {
+      const idSet = new Set(ids);
+      writeBriefcase(readBriefcase().filter((i) => !idSet.has(i.docId)));
+    }
+    return new HttpResponse(null, { status: 204 });
   }),
 ];

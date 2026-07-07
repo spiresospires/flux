@@ -49,6 +49,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, problem);
   }
 
+  // 204 No Content (e.g. DELETE) has no body to parse.
+  if (res.status === 204) return undefined as T;
+
   return (await res.json()) as T;
 }
 
@@ -59,5 +62,12 @@ export const apiClient = {
   post<T>(path: string, body: unknown): Promise<T> {
     // [TODO-ENG] Add the Idempotency-Key header to POSTs once the backend honours it.
     return request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+  },
+  patch<T>(path: string, body: unknown): Promise<T> {
+    // [TODO-ENG] Concurrency: send If-Match with the entity's ETag once exposed (ADR — optimistic locking).
+    return request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
+  },
+  delete<T>(path: string): Promise<T> {
+    return request<T>(path, { method: 'DELETE' });
   },
 };
