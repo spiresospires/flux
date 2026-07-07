@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flux — API Status Dashboard</title>
+<style>
+  :root {
+    --bg: #EAEEF6;
+    --panel: #FFFFFF;
+    --panel-soft: #F5F8FC;
+    --ink: #1B2431;
+    --muted: #5C6B7F;
+    --faint: #8A97A8;
+    --line: #DCE3EE;
+    --accent: #0461BA;
+    --accent-ink: #0461BA;
+    --accent-soft: #E8F1FB;
+    --ok: #0E8A5F;
+    --ok-soft: #E2F5EC;
+    --warn: #A05A08;
+    --warn-soft: #FCEFDC;
+    --idle: #64748B;
+    --idle-soft: #EEF2F6;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E1622;
+      --panel: #172232;
+      --panel-soft: #1D2A3D;
+      --ink: #E4EBF5;
+      --muted: #97A6BA;
+      --faint: #6B7A8F;
+      --line: #273550;
+      --accent: #5EA5EC;
+      --accent-ink: #7CB6F0;
+      --accent-soft: #14283F;
+      --ok: #3FBE8B;
+      --ok-soft: #10312A;
+      --warn: #E2A85C;
+      --warn-soft: #33270F;
+      --idle: #8DA0B5;
+      --idle-soft: #212D3F;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #EAEEF6; --panel: #FFFFFF; --panel-soft: #F5F8FC; --ink: #1B2431;
+    --muted: #5C6B7F; --faint: #8A97A8; --line: #DCE3EE;
+    --accent: #0461BA; --accent-ink: #0461BA; --accent-soft: #E8F1FB;
+    --ok: #0E8A5F; --ok-soft: #E2F5EC; --warn: #A05A08; --warn-soft: #FCEFDC;
+    --idle: #64748B; --idle-soft: #EEF2F6;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1622; --panel: #172232; --panel-soft: #1D2A3D; --ink: #E4EBF5;
+    --muted: #97A6BA; --faint: #6B7A8F; --line: #273550;
+    --accent: #5EA5EC; --accent-ink: #7CB6F0; --accent-soft: #14283F;
+    --ok: #3FBE8B; --ok-soft: #10312A; --warn: #E2A85C; --warn-soft: #33270F;
+    --idle: #8DA0B5; --idle-soft: #212D3F;
+  }
+
+  html { background: var(--bg); }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ---------- header ---------- */
+  header .eyebrow {
+    font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--accent-ink); font-weight: 700; margin-bottom: 6px;
+  }
+  header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; margin-bottom: 6px; }
+  header .sub { color: var(--muted); max-width: 72ch; }
+  header .meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--faint); }
+  header .meta code { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* ---------- summary strip ---------- */
+  .summary {
+    display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .summary .item { display: flex; align-items: baseline; gap: 7px; }
+  .summary .n { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary .lbl { font-size: 12.5px; color: var(--muted); }
+  .summary .n.ok { color: var(--ok); }
+  .summary .n.warn { color: var(--warn); }
+  .summary .n.idle { color: var(--idle); }
+  .summary .n.accent { color: var(--accent-ink); }
+  .summary .divider { width: 1px; align-self: stretch; background: var(--line); }
+
+  /* ---------- filter bar ---------- */
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg); padding: 10px 2px;
+  }
+  .chip {
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+    border-radius: 999px; padding: 4px 13px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  :root[data-theme="dark"] .chip[aria-pressed="true"], .dark-chip-fix { color: #fff; }
+  .chip:focus-visible, .search:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .search {
+    font: inherit; font-size: 12.5px; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 14px; min-width: 190px; flex: 0 1 240px; margin-left: auto;
+  }
+  .search::placeholder { color: var(--faint); }
+  .filter-note { font-size: 12px; color: var(--faint); width: 100%; display: none; }
+  .filter-note.on { display: block; }
+
+  /* ---------- panels & tables ---------- */
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  section.panel > .panel-head { padding: 16px 18px 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  section.panel h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  section.panel .hint { font-size: 12.5px; color: var(--muted); }
+  .table-scroll { overflow-x: auto; padding: 10px 8px 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 860px; }
+  th {
+    text-align: left; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--faint); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--panel-soft); }
+  td .g { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td code, .q-body code { font-family: var(--mono); font-size: 11.5px; color: var(--muted); word-break: break-all; }
+  td .desc { font-weight: 600; }
+  td .consumer { color: var(--muted); font-size: 12px; }
+  td.notes { color: var(--muted); font-size: 12.5px; max-width: 340px; min-width: 240px; }
+  .qref { color: var(--accent-ink); font-weight: 600; white-space: nowrap; }
+
+  /* pills */
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+    border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+  }
+  .pill.ok { color: var(--ok); background: var(--ok-soft); }
+  .pill.warn { color: var(--warn); background: var(--warn-soft); }
+  .pill.idle { color: var(--idle); background: var(--idle-soft); }
+  .pill.info { color: var(--accent-ink); background: var(--accent-soft); }
+  .team {
+    display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+    border: 1px solid var(--line); color: var(--muted); border-radius: 5px;
+    padding: 1px 6px; margin-right: 3px; white-space: nowrap;
+  }
+  .team.hot { border-color: var(--accent); color: var(--accent-ink); }
+
+  /* ---------- questions ---------- */
+  .q-list { padding: 8px 18px 16px; display: flex; flex-direction: column; }
+  .q-row { display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .q-row:last-child { border-bottom: none; }
+  .q-num {
+    flex: 0 0 34px; font-variant-numeric: tabular-nums; font-weight: 700;
+    color: var(--accent-ink); font-size: 13px; padding-top: 1px;
+  }
+  .q-body { flex: 1 1 auto; max-width: 78ch; }
+  .q-body .q-text { margin-bottom: 3px; }
+  .q-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 11.5px; color: var(--faint); }
+  .q-row.resolved .q-text { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--faint); }
+  .q-row .pill { align-self: flex-start; margin-top: 2px; }
+
+  /* ---------- cross-cutting ---------- */
+  .rules { padding: 8px 18px 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .rule { background: var(--panel-soft); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+  .rule .t { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700; color: var(--accent-ink); margin-bottom: 3px; }
+  .rule .b { font-size: 12.5px; color: var(--muted); }
+  .rule .b strong { color: var(--ink); }
+  .rule .ref { font-size: 11px; color: var(--faint); margin-top: 4px; font-family: var(--mono); }
+
+  /* ---------- phase 2 / changelog ---------- */
+  details { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  details summary {
+    cursor: pointer; padding: 14px 18px; font-size: 15px; font-weight: 700;
+    list-style: none; display: flex; align-items: baseline; gap: 10px;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "▸"; color: var(--faint); font-size: 12px; transition: transform 0.15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { details summary::before { transition: none; } }
+  details summary .hint { font-weight: 400; font-size: 12.5px; color: var(--muted); }
+  .p2-grid { padding: 4px 18px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+  .p2 { display: flex; gap: 9px; align-items: baseline; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; background: var(--panel-soft); }
+  .p2 .g { font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .p2 .d { font-size: 12.5px; }
+  .p2 .n { font-size: 11.5px; color: var(--faint); }
+  .p2.dep { opacity: 0.6; }
+  .log { padding: 6px 18px 16px; }
+  .log-row { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .log-row:last-child { border-bottom: none; }
+  .log-date { flex: 0 0 92px; font-family: var(--mono); font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .log-text { font-size: 13px; color: var(--muted); max-width: 80ch; }
+  .log-text strong { color: var(--ink); }
+
+  footer { font-size: 12px; color: var(--faint); text-align: center; }
+  footer code { font-family: var(--mono); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Flux · FusionLive EDMS front-end prototype</div>
+    <h1>API Status Dashboard</h1>
+    <p class="sub">Shared tracker for the Flux SPA ↔ backend engineering handover: every API group, its contract state, what the front end already exercises over HTTP, and the open questions that need an engineering answer.</p>
+    <div class="meta">
+      <span>Last updated <strong>2026-07-07</strong></span>
+      <span>Source of truth: <code>docs/api-status.md</code> (flux repo)</span>
+      <span>Contract detail &amp; ADRs: <code>ARCHITECTURE.md</code></span>
+    </div>
+  </header>
+
+  <div class="summary" role="group" aria-label="Phase 1 summary">
+    <div class="item"><span class="n">12</span><span class="lbl">Phase 1 groups</span></div>
+    <div class="divider" aria-hidden="true"></div>
+    <div class="item"><span class="n ok">5</span><span class="lbl">wired over HTTP (MSW)</span></div>
+    <div class="item"><span class="n warn">2</span><span class="lbl">mock only</span></div>
+    <div class="item"><span class="n idle">5</span><span class="lbl">stubbed / not started</span></div>
+    <div class="divider" aria-hidden="true"></div>
+    <div class="item"><span class="n idle">0</span><span class="lbl">backend endpoints live</span></div>
+    <div class="divider" aria-hidden="true"></div>
+    <div class="item"><span class="n accent">20</span><span class="lbl">open questions</span></div>
+    <div class="item"><span class="n ok">1</span><span class="lbl">resolved</span></div>
+  </div>
+
+  <div class="filters" role="toolbar" aria-label="Filter by engineering team">
+    <button class="chip" data-team="all" aria-pressed="true">All teams</button>
+    <button class="chip" data-team="api" aria-pressed="false">API · Spring Boot</button>
+    <button class="chip" data-team="db" aria-pressed="false">Database · Oracle</button>
+    <button class="chip" data-team="msg" aria-pressed="false">Messaging</button>
+    <button class="chip" data-team="llm" aria-pressed="false">LLM gateway</button>
+    <button class="chip" data-team="infra" aria-pressed="false">Infra</button>
+    <button class="chip" data-team="fe" aria-pressed="false">Front end</button>
+    <input class="search" id="q" type="search" placeholder="Filter rows… (e.g. cursor, SSE, briefcase)" aria-label="Free-text filter">
+    <div class="filter-note" id="filterNote"></div>
+  </div>
+
+  <section class="panel" id="phase1">
+    <div class="panel-head">
+      <h2>Phase 1 API groups</h2>
+      <span class="hint"><span class="pill ok">Wired (MSW)</span> = the SPA already calls this contract over HTTP; swap MSW for the real service and it should just work.</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Group</th><th>Description / base path</th><th>SPA consumer</th>
+            <th>Contract</th><th>Front end</th><th>Backend</th><th>Team</th><th>Notes &amp; open items</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">G01</span></td>
+            <td><span class="desc">Authentication &amp; tokens</span><br><code>/auth</code></td>
+            <td class="consumer">App.tsx · planned authStore</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span></td>
+            <td class="notes">ADR-005 two-token JWT; workspace-token exchange on scope switch; 401 refresh interceptor marked in <code>src/api/client.ts</code></td>
+          </tr>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">G02</span></td>
+            <td><span class="desc">Users &amp; profiles</span><br><code>/users</code> · <code>/workspaces/{wsId}/members</code></td>
+            <td class="consumer">—</td>
+            <td><span class="pill idle">Draft</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span></td>
+            <td class="notes">Candidate home for user prefs, favourites, "Try New" flag and briefcase — <span class="qref">Q3, Q12, Q16</span></td>
+          </tr>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">G03</span></td>
+            <td><span class="desc">Workspaces</span><br><code>/workspaces</code></td>
+            <td class="consumer">useWorkspaces → BrandBanner, Dashboard, map</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill ok">Wired (MSW)</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span></td>
+            <td class="notes">Dashboard stats endpoint unconfirmed <span class="qref">Q2</span>; project geo metadata home unconfirmed <span class="qref">Q17</span></td>
+          </tr>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">G05</span></td>
+            <td><span class="desc">Folder management</span><br><code>/workspaces/{wsId}/folders</code></td>
+            <td class="consumer">useFolderTree → FolderTree</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill ok">Wired (MSW)</span> <span class="hint">read only</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span></td>
+            <td class="notes">Folder CRUD not exercised yet; writes need <code>Idempotency-Key</code> + ETag/<code>If-Match</code> <span class="qref">Q13</span></td>
+          </tr>
+          <tr data-teams="api db" data-filter-row>
+            <td><span class="g">G06</span></td>
+            <td><span class="desc">Documents</span><br><code>/workspaces/{wsId}/documents</code></td>
+            <td class="consumer">useDocuments (infinite query) → DocumentBrowser</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill ok">Wired (MSW)</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span><span class="team">DB</span></td>
+            <td class="notes">Cursor pagination per ADR-011. Category chips + column text filters still client-side <span class="qref">Q14</span>; grouping subtotals need server aggregation <span class="qref">Q15</span>; <code>totalApprox</code> source <span class="qref">Q10</span></td>
+          </tr>
+          <tr data-teams="api infra" data-filter-row>
+            <td><span class="g">G07</span></td>
+            <td><span class="desc">Document content</span><br><code>…/documents/{docId}/content</code></td>
+            <td class="consumer">Download / upload / thumbnail actions, MyBriefcase bulk download</td>
+            <td><span class="pill idle">Draft</span></td>
+            <td><span class="pill warn">Stubbed</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span><span class="team">INFRA</span></td>
+            <td class="notes">NFS → S3 migration strategy <span class="qref">Q4</span>; renditions likely content variants <span class="qref">Q16</span>; uploads return async job (G25)</td>
+          </tr>
+          <tr data-teams="api msg" data-filter-row>
+            <td><span class="g">G13</span></td>
+            <td><span class="desc">Messages &amp; notifications</span><br><code>/workspaces/{wsId}/messages</code></td>
+            <td class="consumer">Dashboard feed, BrandBanner bell, "Message" doc action</td>
+            <td><span class="pill idle">Draft</span></td>
+            <td><span class="pill warn">Mock</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span><span class="team">MSG</span></td>
+            <td class="notes">Deliberately separate from G31: G13 is user-facing content, G31 is cache-invalidation plumbing (ADR-010)</td>
+          </tr>
+          <tr data-teams="api db" data-filter-row>
+            <td><span class="g">G19</span></td>
+            <td><span class="desc">Search</span><br><code>POST /workspaces/{wsId}/search</code></td>
+            <td class="consumer">useSearch → SearchResults</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill ok">Wired (MSW)</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span><span class="team">DB</span></td>
+            <td class="notes">Facet <code>aggregations</code> drive FilterPanel chips. Enterprise all-workspaces search currently a sentinel <code>wsId</code> <span class="qref">Q18</span>. Saved searches = Phase 2</td>
+          </tr>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">G25</span></td>
+            <td><span class="desc">Async jobs</span><br><code>/workspaces/{wsId}/jobs</code></td>
+            <td class="consumer">(global — uploads, bulk ops)</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span></td>
+            <td class="notes">Any write &gt;2 s returns <code>202</code> + job ref; G31 <code>job.updated</code> replaces polling when the stream is healthy</td>
+          </tr>
+          <tr data-teams="llm" data-filter-row>
+            <td><span class="g">G29</span></td>
+            <td><span class="desc">AI assistant — Flint</span><br><code>/workspaces/{wsId}/assistant</code></td>
+            <td class="consumer">Chat.tsx (1.2 s setTimeout mock today)</td>
+            <td><span class="pill idle">Draft</span></td>
+            <td><span class="pill warn">Mock</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">LLM</span></td>
+            <td class="notes">SSE token-stream contract proposed (<code>message.delta / complete / error</code>) — confirm against LLM gateway <span class="qref">Q1</span>; context payload <code>{ scope, context: { type, id } }</code></td>
+          </tr>
+          <tr data-teams="msg infra" data-filter-row>
+            <td><span class="g">G31</span></td>
+            <td><span class="desc">Real-time events</span><br><code>/workspaces/{wsId}/events</code></td>
+            <td class="consumer">(global — invalidation targets = <code>queryKeys.ts</code>)</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">MSG</span><span class="team">INFRA</span></td>
+            <td class="notes">ADR-010. Transport (SSE vs WebSocket), cluster fan-out, replay buffer <span class="qref">Q9</span>; permission-filtered stream <span class="qref">Q11</span>. "N new documents" pill UX rule — never auto-insert mid-scroll</td>
+          </tr>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">—</span></td>
+            <td><span class="desc">User briefcase</span><br><code>/user/briefcase</code></td>
+            <td class="consumer">BriefcaseContext → MyBriefcase, doc actions</td>
+            <td><span class="pill info">Proposed</span></td>
+            <td><span class="pill ok">Wired (MSW)</span> <span class="hint">optimistic mutations</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team hot">API</span></td>
+            <td class="notes">User-scoped (platform token), not in G01–G30 — suggested home G02 <span class="qref">Q12</span>; freshness states need server-side revision comparison</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="questions">
+    <div class="panel-head">
+      <h2>Open questions for engineering</h2>
+      <span class="hint">Q1–Q12 match ARCHITECTURE.md §Open Questions; Q13+ harvested from <code>[TODO-ENG]</code> / <code>[TBD]</code> markers in the code.</span>
+    </div>
+    <div class="q-list">
+      <div class="q-row" data-teams="llm" data-filter-row>
+        <div class="q-num">Q1</div>
+        <div class="q-body"><div class="q-text">G29 SSE streaming contract (<code>message.delta / complete / error</code>) and the context payload schema — confirm against the LLM gateway design.</div>
+        <div class="q-tags"><span class="team hot">LLM</span> G29</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q2</div>
+        <div class="q-body"><div class="q-text">Dashboard stats: a G03 workspace summary, or a dedicated G26 endpoint?</div>
+        <div class="q-tags"><span class="team hot">API</span> G03 · G26</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q3</div>
+        <div class="q-body"><div class="q-text">"Try New" feature-flag persistence — G02 user preferences or an external feature-flag service?</div>
+        <div class="q-tags"><span class="team hot">API</span> G02</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="infra api" data-filter-row>
+        <div class="q-num">Q4</div>
+        <div class="q-body"><div class="q-text">NFS → S3 migration: G07 must abstract the storage backend while content moves.</div>
+        <div class="q-tags"><span class="team hot">INFRA</span><span class="team">API</span> G07</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="infra" data-filter-row>
+        <div class="q-num">Q5</div>
+        <div class="q-body"><div class="q-text">Final region subdomain scheme — affects <code>VITE_API_BASE_URL</code> per deployment (ma / us / uk / eu).</div>
+        <div class="q-tags"><span class="team hot">INFRA</span></div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row resolved" data-teams="fe" data-filter-row>
+        <div class="q-num">Q6</div>
+        <div class="q-body"><div class="q-text">WorkspaceContext vs ScopeContext consolidation.</div>
+        <div class="q-tags"><span class="team">FE</span> Resolved 2026-07-06 — ScopeContext is the single source of workspace scope</div></div>
+        <span class="pill ok">Resolved</span>
+      </div>
+      <div class="q-row" data-teams="api infra" data-filter-row>
+        <div class="q-num">Q7</div>
+        <div class="q-body"><div class="q-text">CORS policy: Spring Boot must allow the SPA origin per region.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">INFRA</span></div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="fe" data-filter-row>
+        <div class="q-num">Q8</div>
+        <div class="q-body"><div class="q-text">Top-level React error boundary that renders RFC 7807 ProblemDetails for user-facing errors.</div>
+        <div class="q-tags"><span class="team hot">FE</span></div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="msg infra" data-filter-row>
+        <div class="q-num">Q9</div>
+        <div class="q-body"><div class="q-text">G31 transport — SSE vs WebSocket against ALB idle timeouts and per-node connection limits; cluster fan-out mechanism (e.g. Redis pub/sub); replay-buffer retention window.</div>
+        <div class="q-tags"><span class="team hot">MSG</span><span class="team">INFRA</span> G31 · ADR-010</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="db api" data-filter-row>
+        <div class="q-num">Q10</div>
+        <div class="q-body"><div class="q-text"><code>totalApprox</code> source — folder rollup counters, cached counts with TTL, or sampled estimates. Exact <code>COUNT(*)</code> per list request is ruled out (ADR-011).</div>
+        <div class="q-tags"><span class="team hot">DB</span><span class="team">API</span> G06 · G19</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="msg" data-filter-row>
+        <div class="q-num">Q11</div>
+        <div class="q-body"><div class="q-text">Event-stream permission filtering — is <code>/events</code> filtered to entities the subscriber can see, or do entity IDs alone leak existence? (Losing access is otherwise handled by invalidate → refetch.)</div>
+        <div class="q-tags"><span class="team hot">MSG</span><span class="team">Security</span> G31 · G04 · ADR-010</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q12</div>
+        <div class="q-body"><div class="q-text">Briefcase API group home (suggested G02, alongside <code>/user/preferences</code>) and server-side computation of the freshness states (<code>newer-available</code> / <code>checked-out</code> / <code>unavailable</code>).</div>
+        <div class="q-tags"><span class="team hot">API</span> /user/briefcase</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q13</div>
+        <div class="q-body"><div class="q-text"><code>Idempotency-Key</code> on POSTs and ETag/<code>If-Match</code> optimistic locking — confirm the backend honours both (client call-sites are already marked).</div>
+        <div class="q-tags"><span class="team hot">API</span> G05 · G06</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q14</div>
+        <div class="q-body"><div class="q-text">Category (tag) chips and column text filters as G06 query params — currently client-side over loaded pages only.</div>
+        <div class="q-tags"><span class="team hot">API</span> G06</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api db" data-filter-row>
+        <div class="q-num">Q15</div>
+        <div class="q-body"><div class="q-text">Grouping subtotals over large collections — the SPA currently fetches everything (limit 1000) to compute group counts; needs a server-side aggregation answer.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">DB</span> G06</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q16</div>
+        <div class="q-body"><div class="q-text">Endpoint homes for row/panel actions: Subscribe (G23?), Favourite (G02?), Share link (dynamic/static), Renditions (G07 content variants?).</div>
+        <div class="q-tags"><span class="team hot">API</span> G02 · G07 · G23</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api db" data-filter-row>
+        <div class="q-num">Q17</div>
+        <div class="q-body"><div class="q-text">Project geo metadata (lat/lng/locality for the map view) — G03 workspace attributes or G16 metadata schema? Not in the current G03 draft.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">DB</span> G03 · G16</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api db" data-filter-row>
+        <div class="q-num">Q18</div>
+        <div class="q-body"><div class="q-text">Enterprise (all-workspaces) search — the SPA passes a sentinel <code>wsId</code> today; needs a real cross-workspace search contract.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">DB</span> G19</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q19</div>
+        <div class="q-body"><div class="q-text">Placeholders — a G06 document state or a separate resource?</div>
+        <div class="q-tags"><span class="team hot">API</span> G06</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q20</div>
+        <div class="q-body"><div class="q-text">Feedback widget endpoint (<code>POST /api/v1/feedback</code>) — confirm the service home.</div>
+        <div class="q-tags"><span class="team hot">API</span></div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q21</div>
+        <div class="q-body"><div class="q-text">Publish OpenAPI specs per group so the SPA can generate types (<code>openapi-typescript</code> → <code>src/api/types/generated/</code>).</div>
+        <div class="q-tags"><span class="team hot">API</span> all groups</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Cross-cutting contracts</h2>
+      <span class="hint">Apply to every group — the SPA is already built against these.</span>
+    </div>
+    <div class="rules">
+      <div class="rule"><div class="t">Errors</div><div class="b">RFC 7807 <strong>application/problem+json</strong> on every non-2xx response.</div><div class="ref">src/api/client.ts · ApiError</div></div>
+      <div class="rule"><div class="t">Pagination</div><div class="b">Keyset/cursor only — <strong>{ items, nextCursor, totalApprox }</strong>. No offset paging, no X-Total-Count.</div><div class="ref">ADR-011</div></div>
+      <div class="rule"><div class="t">Auth</div><div class="b">Two-token JWT: platform token + per-workspace token exchange on scope switch.</div><div class="ref">ADR-005 · G01</div></div>
+      <div class="rule"><div class="t">Identifiers</div><div class="b"><strong>UUIDs on the wire</strong>; UUID–integer bridge inside Oracle.</div><div class="ref">ADR-009</div></div>
+      <div class="rule"><div class="t">Real-time</div><div class="b">One SSE stream per workspace (G31), kept separate from G13 messages. Invalidation targets = the React Query key factory.</div><div class="ref">ADR-010 · src/api/queryKeys.ts</div></div>
+      <div class="rule"><div class="t">Coexistence</div><div class="b">Struts + SPA share the Oracle schema until <strong>Jul 2027</strong>; Struts writes must stay valid for REST reads.</div><div class="ref">ARCHITECTURE.md</div></div>
+      <div class="rule"><div class="t">Filenames</div><div class="b">UTF-8 everywhere; preserve ′ ″ engineering unit symbols; Windows-safe " → ″ conversion on download.</div><div class="ref">CLAUDE.md · filename rules</div></div>
+    </div>
+  </section>
+
+  <details>
+    <summary>Phase 2 groups <span class="hint">18 groups, all contracts draft — plus 2 deprecated</span></summary>
+    <div class="p2-grid">
+      <div class="p2"><span class="g">G04</span><span class="d">Permissions &amp; ACL <span class="n">— interacts with Q11</span></span></div>
+      <div class="p2"><span class="g">G08</span><span class="d">Document packages <span class="n">— SPA prototype exists</span></span></div>
+      <div class="p2"><span class="g">G09</span><span class="d">Transmittals</span></div>
+      <div class="p2"><span class="g">G10</span><span class="d">Reviews &amp; approvals</span></div>
+      <div class="p2"><span class="g">G11</span><span class="d">Tasks</span></div>
+      <div class="p2"><span class="g">G12</span><span class="d">RFIs</span></div>
+      <div class="p2"><span class="g">G14</span><span class="d">Audit log</span></div>
+      <div class="p2"><span class="g">G15</span><span class="d">Reports</span></div>
+      <div class="p2"><span class="g">G16</span><span class="d">Metadata schemas <span class="n">— possible geo home (Q17)</span></span></div>
+      <div class="p2"><span class="g">G17</span><span class="d">Attributes</span></div>
+      <div class="p2"><span class="g">G20</span><span class="d">Contacts</span></div>
+      <div class="p2"><span class="g">G21</span><span class="d">Companies</span></div>
+      <div class="p2"><span class="g">G23</span><span class="d">Notifications config <span class="n">— likely Subscribe home (Q16)</span></span></div>
+      <div class="p2"><span class="g">G24</span><span class="d">Integrations</span></div>
+      <div class="p2"><span class="g">G26</span><span class="d">Dashboards config <span class="n">— alt. stats home (Q2)</span></span></div>
+      <div class="p2"><span class="g">G27</span><span class="d">Exports <span class="n">— full doc-grid export belongs here</span></span></div>
+      <div class="p2"><span class="g">G28</span><span class="d">Templates</span></div>
+      <div class="p2"><span class="g">G30</span><span class="d">Calendar</span></div>
+      <div class="p2 dep"><span class="g">G18</span><span class="d">BPM <span class="n">— deprecated, returns 410</span></span></div>
+      <div class="p2 dep"><span class="g">G22</span><span class="d">Programme Mgmt <span class="n">— deprecated, returns 410</span></span></div>
+    </div>
+  </details>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Change log</h2></div>
+    <div class="log">
+      <div class="log-row"><div class="log-date">2026-07-07</div><div class="log-text"><strong>Tracker created.</strong> Briefcase wired to <code>/user/briefcase</code> over HTTP (React Query + MSW, optimistic mutations).</div></div>
+      <div class="log-row"><div class="log-date">2026-07-07</div><div class="log-text">SearchResults wired to <strong>G19</strong> over HTTP (useSearch + MSW).</div></div>
+      <div class="log-row"><div class="log-date">2026-07-06</div><div class="log-text"><strong>ADR-010</strong> (real-time sync &amp; multi-window) and <strong>ADR-011</strong> (cursor pagination) adopted; G31 events group and G29 SSE streaming spec proposed.</div></div>
+      <div class="log-row"><div class="log-date">2026-07-06</div><div class="log-text">DocumentBrowser wired to <strong>G06</strong> (server-side filters, sort, cursor pagination); folder tree to <strong>G05</strong>; workspaces to <strong>G03</strong> — all via MSW against the real contracts.</div></div>
+    </div>
+  </section>
+
+  <footer>Generated from <code>docs/api-status.md</code> in the flux repo — update that file, then regenerate this page.</footer>
+</div>
+
+<script>
+(function () {
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-team]'));
+  var rows = Array.prototype.slice.call(document.querySelectorAll('[data-filter-row]'));
+  var search = document.getElementById('q');
+  var note = document.getElementById('filterNote');
+  var activeTeam = 'all';
+
+  function apply() {
+    var text = search.value.trim().toLowerCase();
+    var shown = 0;
+    rows.forEach(function (row) {
+      var teams = (row.getAttribute('data-teams') || '').split(/\s+/);
+      var teamOk = activeTeam === 'all' || teams.indexOf(activeTeam) !== -1;
+      var textOk = !text || row.textContent.toLowerCase().indexOf(text) !== -1;
+      var show = teamOk && textOk;
+      row.style.display = show ? '' : 'none';
+      if (show) shown++;
+    });
+    var filtered = activeTeam !== 'all' || text;
+    note.classList.toggle('on', !!filtered);
+    if (filtered) {
+      note.textContent = 'Showing ' + shown + ' of ' + rows.length + ' rows' +
+        (activeTeam !== 'all' ? ' for team "' + activeTeam.toUpperCase() + '"' : '') +
+        (text ? ' matching "' + search.value.trim() + '"' : '') + '.';
+    }
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      activeTeam = chip.getAttribute('data-team');
+      chips.forEach(function (c) { c.setAttribute('aria-pressed', String(c === chip)); });
+      apply();
+    });
+  });
+  search.addEventListener('input', apply);
+})();
+</script>

@@ -2,7 +2,7 @@
 
 Single source of truth for the state of every API group the Flux SPA depends on. This file drives the shared **API Status Dashboard** webpage — update this file first, then regenerate the page, so the two never disagree.
 
-**Dashboard:** https://claude.ai/code/artifact/ccbc6c85-17a0-421e-8d8b-638b403cadba (Claude Artifact — redeployed to the same URL on every update)
+**Dashboard:** [api-status.html](api-status.html) — self-contained, no server or build step; double-click it (or open it from your file manager) and it runs in the browser. Regenerated from this file on every update.
 
 Full contract detail, ADRs and endpoint shapes live in [ARCHITECTURE.md](../ARCHITECTURE.md). This file tracks **status**, not specification.
 
