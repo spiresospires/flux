@@ -25,7 +25,7 @@ This plan is the running progress record for the work. Update it whenever a step
 | Step | Status | Scope | Commit target |
 |---|---|---|---|
 | 1 | Complete | Create OKF bundle skeleton, section indexes, concept type reference, and this adoption plan. | `docs: add OKF knowledge bundle skeleton` |
-| 2 | Pending | Extract ADR concepts from `ARCHITECTURE.md` into `docs/knowledge/architecture/`. | `docs: add OKF ADR concepts` |
+| 2 | Complete | Extract ADR concepts from `ARCHITECTURE.md` into `docs/knowledge/architecture/`. | `docs: add OKF ADR concepts` |
 | 3 | Pending | Extract Phase 1 API group concepts into `docs/knowledge/api/`. | `docs: add OKF API group concepts` |
 | 4 | Pending | Add cross-links, directory indexes, and an open-questions concept. | `docs: link OKF concepts and indexes` |
 | 5 | Pending | Add transition notes from existing docs into the OKF bundle, keeping source docs canonical. | `docs: document OKF transition boundaries` |
@@ -33,5 +33,4 @@ This plan is the running progress record for the work. Update it whenever a step
 
 # Current Boundary
 
-Step 1 only establishes the bundle structure. It does not move or rewrite existing project documentation.
-
+Steps 1 and 2 establish the bundle structure and ADR concepts. Existing project documentation remains canonical during the transition.

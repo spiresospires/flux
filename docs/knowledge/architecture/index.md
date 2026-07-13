@@ -2,14 +2,13 @@
 
 Architecture concepts will live here as OKF concept documents.
 
-Initial extraction targets:
+# ADRs
 
-* `adr-005-two-token-jwt.md` - Two-token JWT authentication model.
-* `adr-009-uuid-integer-bridge.md` - UUID on the wire, integer primary keys in Oracle.
-* `adr-010-realtime-sync.md` - SSE and multi-window real-time sync model.
-* `adr-011-cursor-pagination.md` - Cursor pagination and live-list behavior.
+* [ADR-005 - Two-Token JWT Auth](adr-005-two-token-jwt.md) - Platform and workspace-scoped token model.
+* [ADR-009 - UUID-Integer Bridge](adr-009-uuid-integer-bridge.md) - UUIDs on the wire with integer IDs inside Oracle.
+* [ADR-010 - Real-time Sync and Multi-Window Architecture](adr-010-realtime-sync.md) - SSE, cache invalidation, and multi-window coordination.
+* [ADR-011 - Cursor Pagination](adr-011-cursor-pagination.md) - Keyset cursor pagination and live-list behavior.
 
-Canonical source during transition:
+# Canonical Source During Transition
 
 * [ARCHITECTURE.md](../../../ARCHITECTURE.md)
-
