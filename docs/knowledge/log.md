@@ -2,6 +2,9 @@
 
 ## 2026-07-13
 
+* **Update**: Added [Engineering Open Questions](open-questions.md) with links to affected ADR and API concepts.
+* **Update**: Expanded bundle, architecture, API, and feature indexes with cross-link maps for easier traversal.
+* **Update**: Marked step 4 complete in the [OKF adoption plan](adoption-plan.md).
 * **Update**: Added Phase 1 API group concept documents for [G01](api/g01-auth.md), [G02](api/g02-users-profiles.md), [G03](api/g03-workspaces.md), [G05](api/g05-folders.md), [G06](api/g06-documents.md), [G07](api/g07-document-content.md), [G13](api/g13-messages-notifications.md), [G19](api/g19-search.md), [G25](api/g25-jobs.md), [G29](api/g29-assistant.md), [G31](api/g31-events.md), and [User Briefcase](api/user-briefcase.md).
 * **Update**: Marked step 3 complete in the [OKF adoption plan](adoption-plan.md).
 * **Update**: Added ADR concept documents for [ADR-005](architecture/adr-005-two-token-jwt.md), [ADR-009](architecture/adr-009-uuid-integer-bridge.md), [ADR-010](architecture/adr-010-realtime-sync.md), and [ADR-011](architecture/adr-011-cursor-pagination.md).

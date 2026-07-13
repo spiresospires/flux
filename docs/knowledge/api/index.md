@@ -17,6 +17,33 @@ API group concepts will live here as OKF concept documents.
 * [G31 - Real-time Events](g31-events.md) - Real-time event stream and cache invalidation.
 * [User Briefcase](user-briefcase.md) - User-scoped cross-workspace briefcase contract.
 
+# Status Views
+
+| Contract status | Concepts |
+|---|---|
+| Proposed | [G01](g01-auth.md), [G03](g03-workspaces.md), [G05](g05-folders.md), [G06](g06-documents.md), [G19](g19-search.md), [G25](g25-jobs.md), [G31](g31-events.md), [User Briefcase](user-briefcase.md) |
+| Draft | [G02](g02-users-profiles.md), [G07](g07-document-content.md), [G13](g13-messages-notifications.md), [G29](g29-assistant.md) |
+
+| Frontend status | Concepts |
+|---|---|
+| Wired through MSW | [G03](g03-workspaces.md), [G05](g05-folders.md), [G06](g06-documents.md), [G19](g19-search.md), [User Briefcase](user-briefcase.md) |
+| Mock or stubbed | [G07](g07-document-content.md), [G13](g13-messages-notifications.md), [G29](g29-assistant.md) |
+| Not started | [G01](g01-auth.md), [G02](g02-users-profiles.md), [G25](g25-jobs.md), [G31](g31-events.md) |
+
+# Cross-Cutting Contracts
+
+| Concern | Concepts |
+|---|---|
+| Auth and scope | [G01](g01-auth.md), [G02](g02-users-profiles.md), [G03](g03-workspaces.md), [User Briefcase](user-briefcase.md), [ADR-005](../architecture/adr-005-two-token-jwt.md) |
+| IDs | [G03](g03-workspaces.md), [G05](g05-folders.md), [G06](g06-documents.md), [G31](g31-events.md), [ADR-009](../architecture/adr-009-uuid-integer-bridge.md) |
+| Cursor pagination | [G06](g06-documents.md), [G19](g19-search.md), [G29](g29-assistant.md), [ADR-011](../architecture/adr-011-cursor-pagination.md) |
+| Real-time invalidation | [G13](g13-messages-notifications.md), [G25](g25-jobs.md), [G31](g31-events.md), [ADR-010](../architecture/adr-010-realtime-sync.md) |
+| Content and async work | [G06](g06-documents.md), [G07](g07-document-content.md), [G25](g25-jobs.md), [User Briefcase](user-briefcase.md) |
+
+# Open Questions
+
+See [Engineering Open Questions](../open-questions.md) for unresolved decisions linked back to these API concepts.
+
 # Canonical Sources During Transition
 
 * [ARCHITECTURE.md](../../../ARCHITECTURE.md)
