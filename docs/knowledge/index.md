@@ -8,6 +8,7 @@ It is a companion to the existing project documentation, not a replacement. Duri
 
 * [Adoption plan](adoption-plan.md) - Step-by-step migration plan and progress record for the OKF layer.
 * [Concept types](concept-types.md) - Local concept type vocabulary used by this bundle.
+* [Transition boundaries](transition-boundaries.md) - Canonical-source rules and drift-control guidance.
 * [Open questions](open-questions.md) - Cross-linked unresolved engineering decisions.
 * [Architecture](architecture/) - ADRs, runtime decisions, and architecture concepts.
 * [API](api/) - API group concepts and cross-cutting API contracts.
@@ -27,3 +28,7 @@ It is a companion to the existing project documentation, not a replacement. Duri
 * [API status tracker](../api-status.md) - Current status for API groups, open questions, and cross-cutting contracts.
 * [Runtime architecture](../runtime-architecture.md) - Current implementation architecture diagram.
 * [Briefcase plan](../../BRIEFCASE_PLAN.md) - Current implementation plan for My Briefcase.
+
+# Transition Boundary
+
+Canonical long-form docs remain the source of truth during this adoption phase. See [Transition boundaries](transition-boundaries.md) for source ownership, update rules, and drift-control guidance.

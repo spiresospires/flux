@@ -2,6 +2,8 @@
 
 ## 2026-07-13
 
+* **Update**: Added [OKF Transition Boundaries](transition-boundaries.md) to define canonical sources, update rules, and drift-control guidance.
+* **Update**: Marked step 5 complete in the [OKF adoption plan](adoption-plan.md).
 * **Update**: Added [Engineering Open Questions](open-questions.md) with links to affected ADR and API concepts.
 * **Update**: Expanded bundle, architecture, API, and feature indexes with cross-link maps for easier traversal.
 * **Update**: Marked step 4 complete in the [OKF adoption plan](adoption-plan.md).
