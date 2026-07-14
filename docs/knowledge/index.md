@@ -1,3 +1,7 @@
+---
+okf_version: "0.1"
+---
+
 # Flux Knowledge Bundle
 
 This directory is the OKF-style structured knowledge layer for the Flux prototype and production handoff.
