@@ -10,11 +10,14 @@ import { API_BASE } from '../api/client';
 import type { DocumentListResponse, SearchResponse, Workspace } from '../api/types';
 import type { Document, Folder } from '../types/document';
 import type { BriefcaseItem } from '../types/briefcase';
+import type { AdRule, AdRuleSet, AdSettings } from '../types/distribution';
 import { PROJECTS, type ProjectId } from '../data/projects';
 import { mockDocumentsByProject } from '../data/mockDocuments';
 import { mockFoldersByProject } from '../data/mockFolders';
 import { searchRecords } from '../data/searchData';
 import { briefcaseSeed } from '../data/briefcaseSeed';
+import { adRuleSetSeedByProject, defaultAdSettings } from '../data/distributionSeed';
+import { adUsers, workgroupsByProject, CURRENT_USER_ID } from '../data/workgroupsSeed';
 import { searchEverything, countResultsByType } from '../utils/search';
 import { ENTERPRISE_SEARCH_SCOPE } from '../api/search';
 
@@ -110,6 +113,35 @@ function readBriefcase(): BriefcaseItem[] {
 function writeBriefcase(items: BriefcaseItem[]): void {
   try {
     localStorage.setItem(BRIEFCASE_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    /* storage unavailable — non-fatal in the prototype */
+  }
+}
+
+// ── Automatic Distribution store (workspace-scoped) ────────────────────────────
+// The mock server's durable store for AD rule sets + settings, persisted per
+// workspace under flux.ad.<wsId> (AUTO_DISTRIBUTION_PLAN.md). Rule mutations
+// touch the DRAFT only; publish (AD 2) will snapshot draft → published/history.
+interface AdStore {
+  ruleSet: AdRuleSet;
+  settings: AdSettings;
+}
+
+const AD_STORAGE_PREFIX = 'flux.ad.';
+
+function readAdStore(wsId: ProjectId): AdStore {
+  try {
+    const saved = localStorage.getItem(AD_STORAGE_PREFIX + wsId);
+    if (saved) return JSON.parse(saved) as AdStore;
+  } catch {
+    /* fall through to seed */
+  }
+  return { ruleSet: adRuleSetSeedByProject[wsId], settings: defaultAdSettings };
+}
+
+function writeAdStore(wsId: ProjectId, store: AdStore): void {
+  try {
+    localStorage.setItem(AD_STORAGE_PREFIX + wsId, JSON.stringify(store));
   } catch {
     /* storage unavailable — non-fatal in the prototype */
   }
@@ -285,5 +317,85 @@ export const handlers = [
       writeBriefcase(readBriefcase().filter((i) => !idSet.has(i.docId)));
     }
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // ── Automatic Distribution (see src/api/distribution.ts) ────────────────────
+  http.get(`${API_BASE}/workspaces/:wsId/distribution/ruleset`, async ({ params }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    return HttpResponse.json(readAdStore(wsId).ruleSet);
+  }),
+
+  http.get(`${API_BASE}/workspaces/:wsId/distribution/settings`, async ({ params }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    return HttpResponse.json(readAdStore(wsId).settings);
+  }),
+
+  http.post(`${API_BASE}/workspaces/:wsId/distribution/rules`, async ({ params, request }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    const body = (await request.json()) as Omit<AdRule, 'id' | 'updatedAt' | 'updatedBy'>;
+    if (!body?.name?.trim()) return problem(400, 'Invalid rule', 'name is required');
+    const rule: AdRule = {
+      ...body,
+      id: `r-${crypto.randomUUID()}`, // UUID per ADR-009
+      updatedAt: new Date().toISOString(),
+      updatedBy: CURRENT_USER_ID,
+    };
+    const store = readAdStore(wsId);
+    store.ruleSet.draft.rules = [rule, ...store.ruleSet.draft.rules];
+    writeAdStore(wsId, store);
+    return HttpResponse.json(rule, { status: 201 });
+  }),
+
+  http.patch(`${API_BASE}/workspaces/:wsId/distribution/rules/:ruleId`, async ({ params, request }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    const ruleId = decodeURIComponent(params.ruleId as string);
+    const body = (await request.json()) as AdRule;
+    const store = readAdStore(wsId);
+    const existing = store.ruleSet.draft.rules.find((r) => r.id === ruleId);
+    if (!existing) return problem(404, 'Rule not found', `No draft rule '${ruleId}'`);
+    const updated: AdRule = {
+      ...body,
+      id: ruleId,
+      updatedAt: new Date().toISOString(),
+      updatedBy: CURRENT_USER_ID,
+    };
+    store.ruleSet.draft.rules = store.ruleSet.draft.rules.map((r) => (r.id === ruleId ? updated : r));
+    writeAdStore(wsId, store);
+    return HttpResponse.json(updated);
+  }),
+
+  http.delete(`${API_BASE}/workspaces/:wsId/distribution/rules/:ruleId`, async ({ params }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    const ruleId = decodeURIComponent(params.ruleId as string);
+    const store = readAdStore(wsId);
+    if (!store.ruleSet.draft.rules.some((r) => r.id === ruleId)) {
+      return problem(404, 'Rule not found', `No draft rule '${ruleId}'`);
+    }
+    store.ruleSet.draft.rules = store.ruleSet.draft.rules.filter((r) => r.id !== ruleId);
+    writeAdStore(wsId, store);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Workgroups are read-only in this phase — served straight from the seed.
+  http.get(`${API_BASE}/workspaces/:wsId/workgroups`, async ({ params }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    return HttpResponse.json(workgroupsByProject[wsId]);
+  }),
+
+  http.get(`${API_BASE}/users`, async () => {
+    await delay(LATENCY_MS);
+    return HttpResponse.json(adUsers);
   }),
 ];

@@ -150,6 +150,9 @@ const withCategoryAttributes = (doc: Document, index: number): Document => {
 
   return {
     ...doc,
+    // Discipline mirrors the inferred category — the primary Automatic
+    // Distribution condition field (AUTO_DISTRIBUTION_PLAN.md).
+    discipline: category,
     tags: doc.tags.includes(normalizedCategory) ? doc.tags : [...doc.tags, normalizedCategory],
     ...buildCategoryFields(category, index),
   };

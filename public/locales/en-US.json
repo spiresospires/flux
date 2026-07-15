@@ -9,6 +9,9 @@
     "packages": "Packages",
     "chat": "Flint",
     "settings": "Settings",
+    "admin": "Admin",
+    "distribution": "Distribution",
+    "workgroups": "Workgroups",
     "main": "Main navigation"
   },
   "banner": {

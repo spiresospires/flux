@@ -10,6 +10,8 @@ import { Packages } from './pages/Packages';
 import { Dashboard } from './pages/Dashboard';
 import { SearchResults } from './pages/SearchResults';
 import { MyBriefcase } from './pages/MyBriefcase';
+import { AutomaticDistribution } from './pages/admin/AutomaticDistribution';
+import { Workgroups } from './pages/admin/Workgroups';
 import { BrandBanner } from './components/BrandBanner';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { ClipboardProvider } from './contexts/ClipboardContext';
@@ -20,6 +22,7 @@ import { ScopeProvider } from './contexts/ScopeContext';
 import { SearchProvider } from './contexts/SearchContext';
 import { ViewStyleProvider } from './contexts/ViewStyleContext';
 import { DensityProvider } from './contexts/DensityContext';
+import { PermissionProvider } from './contexts/PermissionContext';
 
 export function App() {
   return (
@@ -31,6 +34,7 @@ export function App() {
             <ViewStyleProvider>
             <DensityProvider>
             <SearchProvider>
+              <PermissionProvider>
               <ShellLayoutProvider>
                 {/* reducedMotion="user" disables all Framer Motion transforms when the OS
                     prefers-reduced-motion setting is on (WCAG 2.3.3). CSS keyframes are
@@ -45,12 +49,15 @@ export function App() {
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/search" element={<SearchResults />} />
                     <Route path="/briefcase" element={<MyBriefcase />} />
+                    <Route path="/admin/distribution" element={<AutomaticDistribution />} />
+                    <Route path="/admin/workgroups" element={<Workgroups />} />
                     <Route path="/design-system" element={<DesignSystem />} />
                     <Route path="/packages" element={<Packages />} />
                   </Routes>
                 </BrowserRouter>
                 </MotionConfig>
               </ShellLayoutProvider>
+              </PermissionProvider>
             </SearchProvider>
             </DensityProvider>
             </ViewStyleProvider>

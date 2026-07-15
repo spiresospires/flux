@@ -33,6 +33,8 @@
 | `/chat` | `Chat` | Flint AI assistant |
 | `/briefcase` | `MyBriefcase` | User-scoped cross-workspace briefcase |
 | `/design-system` | `DesignSystem` | Internal component reference |
+| `/admin/distribution` | `AutomaticDistribution` | Permission-gated (`ad.view`/`ad.manage`), project scope; tab in `?tab=` param |
+| `/admin/workgroups` | `Workgroups` | Read-only workgroup list; same gating |
 | `/packages` | `Packages` | Placeholder |
 
 ### 2.2 Context Provider Stack (outer → inner, in `App.tsx`)
@@ -46,10 +48,11 @@ QueryClientProvider (React Query — all server state)
           ViewStyleProvider
             DensityProvider
               SearchProvider
-                ShellLayoutProvider
-                  BrowserRouter
-                    BrandBanner (global)
-                    Routes
+                PermissionProvider
+                  ShellLayoutProvider
+                    BrowserRouter
+                      BrandBanner (global)
+                      Routes
 ```
 
 ### 2.3 Key Contexts
@@ -64,6 +67,7 @@ QueryClientProvider (React Query — all server state)
 | `DensityContext` | `src/contexts/DensityContext.tsx` | Global density (`compact`/`comfortable`) → `html[data-density]` |
 | `ClipboardContext` | `src/contexts/ClipboardContext.tsx` | Document clipboard/selection state |
 | `BriefcaseContext` | `src/contexts/BriefcaseContext.tsx` | Adapter over React Query for the user-scoped briefcase (`/user/briefcase` via MSW) — stable `useBriefcase()` interface, optimistic mutations |
+| `PermissionContext` | `src/contexts/PermissionContext.tsx` | FLUX's first permission concept: `hasPermission('ad.manage'/'ad.view')`. [MOCK] backed by `useUserPref('dev.adPermission')` + demo switcher in the profile menu |
 
 ### 2.4 Data Layer
 
@@ -71,10 +75,10 @@ Server data is fetched over HTTP and cached by React Query; the mock datasets ar
 
 | Layer | Files | Contents |
 |---|---|---|
-| API client | `src/api/` | Typed fetch client (RFC 7807 `ApiError`), endpoint modules (workspaces/folders/documents/search/briefcase), `queryKeys.ts`, `queryClient.ts` |
-| Hooks | `src/hooks/` | `useWorkspaces`, `useFolderTree`, `useDocuments` (cursor-paginated infinite), `useSearch` |
-| Mock backend | `src/mocks/handlers.ts` | MSW handlers: keyset cursors (ADR-011), server-side filter/sort, facet aggregations, briefcase store, 350 ms latency |
-| Mock datasets | `src/data/` | `projects.ts` (single source of project names/IDs), `mockDocuments.ts`, `mockFolders.ts`, `mockPlaceholders.ts`, `mockDashboard.ts`, `searchData.ts`, `briefcaseSeed.ts` — consumed by the MSW handlers; Dashboard/Chat/BrandBanner/DocumentDetail still import some directly (migration pending) |
+| API client | `src/api/` | Typed fetch client (RFC 7807 `ApiError`), endpoint modules (workspaces/folders/documents/search/briefcase/distribution), `queryKeys.ts`, `queryClient.ts` |
+| Hooks | `src/hooks/` | `useWorkspaces`, `useFolderTree`, `useDocuments` (cursor-paginated infinite), `useSearch`, `useDistribution.ts` (rule set/settings/workgroups/users + rule mutations) |
+| Mock backend | `src/mocks/handlers.ts` | MSW handlers: keyset cursors (ADR-011), server-side filter/sort, facet aggregations, briefcase store, AD rule-set store (`flux.ad.<wsId>`), 350 ms latency |
+| Mock datasets | `src/data/` | `projects.ts` (single source of project names/IDs), `mockDocuments.ts`, `mockFolders.ts`, `mockPlaceholders.ts`, `mockDashboard.ts`, `searchData.ts`, `briefcaseSeed.ts`, `distributionSeed.ts`, `workgroupsSeed.ts` — consumed by the MSW handlers; Dashboard/Chat/BrandBanner/DocumentDetail still import some directly (migration pending) |
 
 ---
 
@@ -424,3 +428,21 @@ Verified in browser (DOM-level, multiple widths): density toggle re-flows table 
 **Docs sanitised:** repaired CP1252 mojibake throughout this file (51 sequences — em dashes, arrows, prime marks); refreshed §1–8 to current truth (route map, provider stack, contexts table, HTTP data layer, 60px banner, nav order); marked §3.3 and the §7 TODOs superseded where the work landed; ARCHITECTURE.md, CLAUDE.md, BRIEFCASE_PLAN.md and docs/runtime-architecture.md updated to match.
 
 Verified in browser: fresh load seeds 8 briefcase items through `GET /user/briefcase`; add from a search card → server count 9 (POST), toggle off → 8 (DELETE); MyBriefcase page renders the items grouped by workspace; tsc shows only the known unused-import baseline.
+
+---
+
+## 23. Automatic Distribution — AD 1: Foundation & Rules Authoring (2026-07-13)
+
+First stage of the native Automatic Distribution module replacing FusionLive's Excel matrix (full design + decisions in **AUTO_DISTRIBUTION_PLAN.md**; legacy module reference in `Automatic_Distribution_SKILL.md`). Rule LIST is the source of truth; all-match + dedupe semantics; no single-letter codes in the UI.
+
+**New — model & engine:** `src/types/distribution.ts` (AdRule/AdRuleSet/AdSettings/AdEvaluation, six action types incl. TQ/RFI), `src/types/workgroup.ts`; `src/utils/distributionEngine.ts` — condition-field registry (`AD_CONDITION_FIELDS`: discipline/documentType/status/tags/asset), display helpers, draft-vs-published diff (excludes updatedAt/updatedBy so a revert reads as unchanged), non-blocking `ruleWarnings`. Engine header documents it as MOCK-SERVER-ONLY: real matching runs server-side in the SaaS platform; this module is called only from the MSW handlers and serves as the acceptance spec for the backend.
+
+**New — data & API:** `distributionSeed.ts` (25 rules across the four workspaces, hedland flagship v14; default settings: action precedence + editable reason vocabularies), `workgroupsSeed.ts` (15-user directory incl. 2 inactive, per-workspace workgroups; `CURRENT_USER_ID` = u-ospires). `src/api/distribution.ts` + `useDistribution.ts` hooks + queryKeys entries. MSW handlers persist per-workspace to `flux.ad.<wsId>`; rule mutations touch the DRAFT only and stamp updatedAt/updatedBy server-side; workgroups/users served read-only from seed. `DocumentMetadata` gained `discipline?` (seeded from the inferred category in mockDocuments).
+
+**New — permissions & nav:** `PermissionContext` (`ad.manage` implies `ad.view`; [MOCK] `useUserPref('dev.adPermission')`) with a three-way demo switcher (Manage / Read-only / None) in the BrandBanner profile menu. LeftRail gains a captioned ADMIN section (Distribution + Workgroups) rendered only in project scope with `ad.view`; route→active-item map extended.
+
+**New — pages:** `/admin/distribution` (`pages/admin/AutomaticDistribution.tsx`) — header with published-version + draft-changes chip ("Draft · N changes since vX" / "In sync with vX") and a disabled Publish (AD 2); seven tabs via `?tab=` (Rules live; Matrix/Tester AD 3, Unmatched/Log AD 4, History/Settings AD 2 as staged placeholders); guard cards for no-permission and enterprise scope. Rules tab (`components/distribution/RulesTab.tsx`): switchable group-by (discipline/document type/trigger/none, persisted `ad.rules.groupBy`), search + action/trigger filters, expandable rows (mono condition summary + recipient chips "Civil Leads — Formal Review · Lead Reviewer", inactive recipients flagged red), New/Edited badges from the diff, inline enabled toggle (manage only). Slide-over `RuleEditor.tsx` (drawer pattern): triggers (upload / status→X / manual), condition builder (per-kind operators, multi-select chips for `in`), recipients table (workgroup/user × action × reason), effective dates, priority (tiebreak only — not a list column), amber warnings that never block draft save. `/admin/workgroups` — read-only cards with members, roles, Inactive badges.
+
+Verified in browser (Port Hedland): 10 seed rules grouped by discipline; expand shows conditions + chips; edit→save flips banner to "Draft · 1 change since v14" + Edited badge, persisted to `flux.ad.hedland` stamped u-ospires; create ("11 of 11 rules", New badge, 2 changes) then delete + rename-revert returns "In sync with v14" (proving the updatedAt-excluding diff); read-only mode hides New rule/Publish/toggles; None hides the rail section and direct URL shows the no-access guard; Tester placeholder + `?tab=tester` URL param; Workgroups page renders 6 groups with Inactive strikethrough. tsc: only the pre-existing unused-import baseline.
+
+**Follow-up fix (same day) — perpetual "Loading rules…" (user-reported, Edge):** an Edge tab left open across the handler edits ran a stale bundle whose MSW worker didn't know the `/distribution/*` routes; with `onUnhandledRequest: 'bypass'` those calls fell through to Vite's SPA fallback, which answers **200 text/html**, so `res.json()` threw and React Query retried silently — and RulesTab's gate (`isLoading || !data`) rendered the failure as infinite loading. User fix: hard refresh (Ctrl+F5). Code fix: RulesTab and Workgroups now render an error card with Retry when a query errors **with no cached data** (cached data + failed background refetch keeps showing the list); message hints at Ctrl+F5 on dev builds. Verified by patching `window.fetch` to return the SPA-fallback HTML for `/distribution/*`, switching workspace (fresh query keys): error card + Retry render after retries exhaust; restoring fetch + Retry recovers ("published v5 · 6 of 6 rules"). Note: retry backoff timers throttle in hidden tabs, so the error state can take longer to appear in a backgrounded tab.
