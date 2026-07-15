@@ -26,7 +26,7 @@ Full contract detail, ADRs and endpoint shapes live in [ARCHITECTURE.md](../ARCH
 | Group | Description | Base path | SPA consumer | Contract | Front end | Backend | Team | Notes / open items |
 |---|---|---|---|---|---|---|---|---|
 | G01 | Authentication & tokens (ADR-005 two-token JWT) | `/auth` | `App.tsx`, planned `authStore` | Proposed | Not started | Not started | API | Token exchange on scope switch; 401 refresh interceptor `[TODO-ENG]` in `src/api/client.ts` |
-| G02 | Users & profiles | `/users`, `/workspaces/{wsId}/members` | — | Draft | Not started | Not started | API | Candidate home for user prefs, favourites, "Try New" flag and briefcase (Q3, Q12) |
+| G02 | Users & profiles | `/users`, `/workspaces/{wsId}/members` | Recipient directory and future Workgroups ownership are under review | Draft | **Wired (MSW)** — directory only | Not started | API | Candidate home for user prefs, favourites, briefcase, and workspace-filtered distribution recipients (Q3, Q12, Q24) |
 | G03 | Workspaces | `/workspaces` | `useWorkspaces` → BrandBanner, Dashboard, map | Proposed | **Wired (MSW)** | Not started | API | Dashboard stats endpoint unconfirmed (Q2); project geo metadata home unconfirmed (Q17) |
 | G05 | Folder management | `/workspaces/{wsId}/folders` | `useFolderTree` → FolderTree | Proposed | **Wired (MSW)** — read; CRUD not exercised | Not started | API | Writes need `Idempotency-Key` + ETag/`If-Match` (client marks in place, backend must honour — Q13) |
 | G06 | Documents | `/workspaces/{wsId}/documents` | `useDocuments` (infinite query) → DocumentBrowser | Proposed | **Wired (MSW)** | Not started | API / DB | Cursor pagination per ADR-011. Category chips + column text filters still client-side → need G06 params (Q14); grouping subtotals need server aggregation (Q15); `totalApprox` source (Q10) |
@@ -63,6 +63,15 @@ Full contract detail, ADRs and endpoint shapes live in [ARCHITECTURE.md](../ARCH
 
 **Deprecated:** G18 (BPM), G22 (Programme Mgmt) — return `410 Gone`.
 
+## Unallocated prototype contracts
+
+These contracts are exercised by the SPA but are not assigned to a numbered API group or FLUX delivery phase. Their local AD stage labels do not imply Phase 1 allocation.
+
+| Group | Description | Base path | SPA consumer | Contract | Front end | Backend | Team | Notes / open items |
+|---|---|---|---|---|---|---|---|---|
+| — | Automatic Distribution | `/workspaces/{wsId}/distribution` | `useDistribution` → Admin Distribution rules, history, settings | Draft | **Wired (MSW)** — AD 1/2; AD 3/4 pending | Not started | Unassigned | Group/phase Q22; auth Q23; concurrency Q25; orchestration Q26; metadata Q27; IDs/audit Q28 |
+| — | Workgroups | `/workspaces/{wsId}/workgroups` | `useWorkgroups` → Admin Workgroups and distribution recipient picker | Draft | **Wired (MSW)** — read only | Not started | Unassigned | Reusable workspace-admin domain; decide G02/G04 vs separate ownership and directory scope (Q24) |
+
 ---
 
 ## Open questions for engineering
@@ -92,6 +101,13 @@ Numbering 1–12 matches ARCHITECTURE.md §Open Questions; 13+ are harvested fro
 | 19 | Placeholders — a G06 document state or a separate resource? | G06 | API | Open |
 | 20 | Feedback widget endpoint (`POST /api/v1/feedback`) — confirm service home | — | API | Open |
 | 21 | OpenAPI specs published per group so the SPA can generate types (`openapi-typescript` → `src/api/types/generated/`) | all | API | Open |
+| 22 | Assign Automatic Distribution to an API group and owner, and decide its FLUX delivery phase; AD 1–4 are feature-local stages only | unallocated | Product/API | Open |
+| 23 | Define production enforcement and grant source for `ad.view` and `ad.manage` across read, edit, publish, restore, settings, tester, log, and re-run operations | G01/G04/unallocated | API/Security | Open |
+| 24 | Decide Workgroups ownership and whether distribution recipient lookup must use workspace-filtered membership instead of global `GET /users` | G02/G04/unallocated | API/Security | Open |
+| 25 | Define ETag/`If-Match`, draft `baseVersion` conflict behavior, and idempotency for distribution create, publish, restore, and re-run writes | unallocated | API | Open |
+| 26 | Define transaction, retry, dedupe, compensation, and G25 job boundaries when distribution starts downstream activities | G09/G10/G12/G13/G25/unallocated | API/MSG | Open |
+| 27 | Confirm `discipline` in G06 and whether distribution condition fields and stable values come from G16 metadata schemas | G06/G16/unallocated | API/DB | Open |
+| 28 | Replace mock `ProjectId` values with ADR-009 UUID wire IDs and decide how distribution history integrates with G14 audit and G31 invalidation | G14/G31/unallocated | API/DB/MSG | Open |
 
 ---
 
@@ -102,7 +118,9 @@ Numbering 1–12 matches ARCHITECTURE.md §Open Questions; 13+ are harvested fro
 | Errors | RFC 7807 `application/problem+json` on every non-2xx | `src/api/client.ts` `ApiError` |
 | Pagination | Keyset/cursor only — `{ items, nextCursor, totalApprox }`; no offset paging, no `X-Total-Count` | ADR-011 |
 | Auth | Two-token JWT: platform token + per-workspace token exchange | ADR-005 |
+| Authorisation | Workspace-scoped APIs enforce grants server-side; UI visibility checks are not a security boundary | G04 / Q23 |
 | IDs | UUIDs on the wire; UUID–integer bridge inside Oracle | ADR-009 |
+| Writes | Mutating contracts define idempotency and optimistic concurrency; distribution specifics remain open in Q25 | Q13 / Q25 |
 | Real-time | One SSE stream per workspace (G31), separate from G13; invalidation targets = `src/api/queryKeys.ts` | ADR-010 |
 | Coexistence | Struts + SPA share the Oracle schema until Jul 2027; Struts writes must stay valid for REST reads | ARCHITECTURE.md |
 | Filenames | UTF-8 everywhere; preserve `′ ″` engineering unit symbols; Windows-safe `"` → `″` conversion on download | CLAUDE.md §Filename rules |
@@ -113,9 +131,10 @@ Numbering 1–12 matches ARCHITECTURE.md §Open Questions; 13+ are harvested fro
 
 | Date | Change |
 |---|---|
+| 2026-07-15 | Added the unallocated Automatic Distribution and Workgroups contracts, their AD 1/2 MSW status, cross-group dependencies, and engineering questions Q22–Q28. |
 | 2026-07-07 | Tracker created. Briefcase wired to `/user/briefcase` over HTTP (React Query + MSW, optimistic mutations). |
 | 2026-07-07 | SearchResults wired to G19 over HTTP (`useSearch` + MSW). |
 | 2026-07-06 | ADR-010 (real-time sync & multi-window) and ADR-011 (cursor pagination) adopted; G31 events group and G29 SSE streaming spec proposed. |
 | 2026-07-06 | DocumentBrowser wired to G06 (server-side folder/status/type filters, sort, cursor pagination); folder tree to G05; workspaces to G03 — all via MSW against the real contracts. |
 
-*Last updated: 2026-07-07*
+*Last updated: 2026-07-15*

@@ -214,7 +214,7 @@
     <h1>API Status Dashboard</h1>
     <p class="sub">Shared tracker for the Flux SPA ↔ backend engineering handover: every API group, its contract state, what the front end already exercises over HTTP, and the open questions that need an engineering answer.</p>
     <div class="meta">
-      <span>Last updated <strong>2026-07-07</strong></span>
+      <span>Last updated <strong>2026-07-15</strong></span>
       <span>Source of truth: <code>docs/api-status.md</code> (flux repo)</span>
       <span>Contract detail &amp; ADRs: <code>ARCHITECTURE.md</code></span>
     </div>
@@ -223,13 +223,14 @@
   <div class="summary" role="group" aria-label="Phase 1 summary">
     <div class="item"><span class="n">12</span><span class="lbl">Phase 1 groups</span></div>
     <div class="divider" aria-hidden="true"></div>
-    <div class="item"><span class="n ok">5</span><span class="lbl">wired over HTTP (MSW)</span></div>
+    <div class="item"><span class="n ok">6</span><span class="lbl">Phase 1 wired over HTTP (MSW)</span></div>
     <div class="item"><span class="n warn">2</span><span class="lbl">mock only</span></div>
-    <div class="item"><span class="n idle">5</span><span class="lbl">stubbed / not started</span></div>
+    <div class="item"><span class="n idle">4</span><span class="lbl">stubbed / not started</span></div>
+    <div class="item"><span class="n accent">2</span><span class="lbl">unallocated prototype contracts</span></div>
     <div class="divider" aria-hidden="true"></div>
     <div class="item"><span class="n idle">0</span><span class="lbl">backend endpoints live</span></div>
     <div class="divider" aria-hidden="true"></div>
-    <div class="item"><span class="n accent">20</span><span class="lbl">open questions</span></div>
+    <div class="item"><span class="n accent">27</span><span class="lbl">open questions</span></div>
     <div class="item"><span class="n ok">1</span><span class="lbl">resolved</span></div>
   </div>
 
@@ -272,12 +273,12 @@
           <tr data-teams="api" data-filter-row>
             <td><span class="g">G02</span></td>
             <td><span class="desc">Users &amp; profiles</span><br><code>/users</code> · <code>/workspaces/{wsId}/members</code></td>
-            <td class="consumer">—</td>
+            <td class="consumer">Recipient directory; Workgroups ownership under review</td>
             <td><span class="pill idle">Draft</span></td>
-            <td><span class="pill idle">Not started</span></td>
+            <td><span class="pill ok">Wired (MSW)</span> <span class="hint">directory only</span></td>
             <td><span class="pill idle">Not started</span></td>
             <td><span class="team hot">API</span></td>
-            <td class="notes">Candidate home for user prefs, favourites, "Try New" flag and briefcase — <span class="qref">Q3, Q12, Q16</span></td>
+            <td class="notes">Candidate home for user prefs, briefcase, workspace-filtered distribution recipients, and Workgroups <span class="qref">Q3, Q12, Q24</span></td>
           </tr>
           <tr data-teams="api" data-filter-row>
             <td><span class="g">G03</span></td>
@@ -378,6 +379,40 @@
             <td><span class="pill idle">Not started</span></td>
             <td><span class="team hot">API</span></td>
             <td class="notes">User-scoped (platform token), not in G01–G30 — suggested home G02 <span class="qref">Q12</span>; freshness states need server-side revision comparison</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="unallocated">
+    <div class="panel-head">
+      <h2>Unallocated prototype contracts</h2>
+      <span class="hint">Exercised by the SPA, but not assigned to an API group, team owner, or FLUX delivery phase.</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Group</th><th>Description / base path</th><th>SPA consumer</th><th>Contract</th><th>Front end</th><th>Backend</th><th>Team</th><th>Notes &amp; open items</th></tr></thead>
+        <tbody>
+          <tr data-teams="api msg db" data-filter-row>
+            <td><span class="g">—</span></td>
+            <td><span class="desc">Automatic Distribution</span><br><code>/workspaces/{wsId}/distribution</code></td>
+            <td class="consumer">useDistribution → Admin Distribution rules, history, settings</td>
+            <td><span class="pill idle">Draft</span></td>
+            <td><span class="pill ok">Wired (MSW)</span> <span class="hint">AD 1/2</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team">Unassigned</span></td>
+            <td class="notes">AD 3/4 pending. Group/phase <span class="qref">Q22</span>; auth Q23; concurrency Q25; orchestration Q26; metadata Q27; IDs/audit Q28.</td>
+          </tr>
+          <tr data-teams="api" data-filter-row>
+            <td><span class="g">—</span></td>
+            <td><span class="desc">Workgroups</span><br><code>/workspaces/{wsId}/workgroups</code></td>
+            <td class="consumer">useWorkgroups → Admin Workgroups + distribution recipient picker</td>
+            <td><span class="pill idle">Draft</span></td>
+            <td><span class="pill ok">Wired (MSW)</span> <span class="hint">read only</span></td>
+            <td><span class="pill idle">Not started</span></td>
+            <td><span class="team">Unassigned</span></td>
+            <td class="notes">Reusable workspace-admin domain; decide G02/G04 vs separate ownership and recipient-directory scope <span class="qref">Q24</span>.</td>
           </tr>
         </tbody>
       </table>
@@ -516,6 +551,48 @@
         <div class="q-tags"><span class="team hot">API</span> all groups</div></div>
         <span class="pill warn">Open</span>
       </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q22</div>
+        <div class="q-body"><div class="q-text">Assign Automatic Distribution to an API group and owner, and decide its FLUX delivery phase; AD 1–4 are feature-local stages only.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">Product</span> unallocated</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q23</div>
+        <div class="q-body"><div class="q-text">Define production enforcement and grant source for <code>ad.view</code> and <code>ad.manage</code> across all distribution operations.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">Security</span> G01 · G04 · unallocated</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q24</div>
+        <div class="q-body"><div class="q-text">Decide Workgroups ownership and whether recipient lookup must use workspace-filtered membership instead of global <code>GET /users</code>.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">Security</span> G02 · G04 · unallocated</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api" data-filter-row>
+        <div class="q-num">Q25</div>
+        <div class="q-body"><div class="q-text">Define ETag/<code>If-Match</code>, draft <code>baseVersion</code> conflict behavior, and idempotency for distribution writes.</div>
+        <div class="q-tags"><span class="team hot">API</span> unallocated</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api msg" data-filter-row>
+        <div class="q-num">Q26</div>
+        <div class="q-body"><div class="q-text">Define transaction, retry, dedupe, compensation, and G25 job boundaries when distribution starts downstream activities.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">MSG</span> G09 · G10 · G12 · G13 · G25</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api db" data-filter-row>
+        <div class="q-num">Q27</div>
+        <div class="q-body"><div class="q-text">Confirm <code>discipline</code> in G06 and whether distribution condition fields and stable values come from G16 metadata schemas.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">DB</span> G06 · G16</div></div>
+        <span class="pill warn">Open</span>
+      </div>
+      <div class="q-row" data-teams="api db msg" data-filter-row>
+        <div class="q-num">Q28</div>
+        <div class="q-body"><div class="q-text">Replace mock project IDs with UUID wire IDs and decide how distribution history integrates with G14 audit and G31 invalidation.</div>
+        <div class="q-tags"><span class="team hot">API</span><span class="team">DB</span><span class="team">MSG</span> ADR-009 · G14 · G31</div></div>
+        <span class="pill warn">Open</span>
+      </div>
     </div>
   </section>
 
@@ -528,7 +605,9 @@
       <div class="rule"><div class="t">Errors</div><div class="b">RFC 7807 <strong>application/problem+json</strong> on every non-2xx response.</div><div class="ref">src/api/client.ts · ApiError</div></div>
       <div class="rule"><div class="t">Pagination</div><div class="b">Keyset/cursor only — <strong>{ items, nextCursor, totalApprox }</strong>. No offset paging, no X-Total-Count.</div><div class="ref">ADR-011</div></div>
       <div class="rule"><div class="t">Auth</div><div class="b">Two-token JWT: platform token + per-workspace token exchange on scope switch.</div><div class="ref">ADR-005 · G01</div></div>
+      <div class="rule"><div class="t">Authorisation</div><div class="b">Workspace APIs enforce grants server-side; UI visibility checks are not a security boundary.</div><div class="ref">G04 · Q23</div></div>
       <div class="rule"><div class="t">Identifiers</div><div class="b"><strong>UUIDs on the wire</strong>; UUID–integer bridge inside Oracle.</div><div class="ref">ADR-009</div></div>
+      <div class="rule"><div class="t">Writes</div><div class="b">Mutating contracts define idempotency and optimistic concurrency; distribution specifics remain open.</div><div class="ref">Q13 · Q25</div></div>
       <div class="rule"><div class="t">Real-time</div><div class="b">One SSE stream per workspace (G31), kept separate from G13 messages. Invalidation targets = the React Query key factory.</div><div class="ref">ADR-010 · src/api/queryKeys.ts</div></div>
       <div class="rule"><div class="t">Coexistence</div><div class="b">Struts + SPA share the Oracle schema until <strong>Jul 2027</strong>; Struts writes must stay valid for REST reads.</div><div class="ref">ARCHITECTURE.md</div></div>
       <div class="rule"><div class="t">Filenames</div><div class="b">UTF-8 everywhere; preserve ′ ″ engineering unit symbols; Windows-safe " → ″ conversion on download.</div><div class="ref">CLAUDE.md · filename rules</div></div>
@@ -564,6 +643,7 @@
   <section class="panel">
     <div class="panel-head"><h2>Change log</h2></div>
     <div class="log">
+      <div class="log-row"><div class="log-date">2026-07-15</div><div class="log-text">Added unallocated <strong>Automatic Distribution</strong> and <strong>Workgroups</strong> contracts, AD 1/2 MSW status, dependencies, and questions Q22–Q28.</div></div>
       <div class="log-row"><div class="log-date">2026-07-07</div><div class="log-text"><strong>Tracker created.</strong> Briefcase wired to <code>/user/briefcase</code> over HTTP (React Query + MSW, optimistic mutations).</div></div>
       <div class="log-row"><div class="log-date">2026-07-07</div><div class="log-text">SearchResults wired to <strong>G19</strong> over HTTP (useSearch + MSW).</div></div>
       <div class="log-row"><div class="log-date">2026-07-06</div><div class="log-text"><strong>ADR-010</strong> (real-time sync &amp; multi-window) and <strong>ADR-011</strong> (cursor pagination) adopted; G31 events group and G29 SSE streaming spec proposed.</div></div>

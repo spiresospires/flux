@@ -25,6 +25,7 @@ It is a companion to the existing project documentation, not a replacement. Duri
 * Live updates and list correctness: [ADR-010](architecture/adr-010-realtime-sync.md), [ADR-011](architecture/adr-011-cursor-pagination.md), [G06](api/g06-documents.md), [G19](api/g19-search.md), [G31](api/g31-events.md)
 * Content and storage: [G06](api/g06-documents.md), [G07](api/g07-document-content.md), [G25](api/g25-jobs.md), [User Briefcase](api/user-briefcase.md)
 * AI assistant: [G29](api/g29-assistant.md)
+* Automatic Distribution: [Feature](features/automatic-distribution.md), [provisional API](api/automatic-distribution.md), [Workgroups](api/workgroups.md), [G02](api/g02-users-profiles.md), [G06](api/g06-documents.md)
 
 # Source Documents
 
@@ -32,6 +33,7 @@ It is a companion to the existing project documentation, not a replacement. Duri
 * [API status tracker](../api-status.md) - Current status for API groups, open questions, and cross-cutting contracts.
 * [Runtime architecture](../runtime-architecture.md) - Current implementation architecture diagram.
 * [Briefcase plan](../../BRIEFCASE_PLAN.md) - Current implementation plan for My Briefcase.
+* [Automatic Distribution plan](../../AUTO_DISTRIBUTION_PLAN.md) - Canonical feature decisions and AD 1–4 implementation roadmap.
 
 # Transition Boundary
 

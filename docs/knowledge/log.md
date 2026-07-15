@@ -1,5 +1,14 @@
 # Knowledge Bundle Update Log
 
+## 2026-07-15
+
+* **Feature**: Added [Automatic Distribution](features/automatic-distribution.md) with AD 1/2 prototype status, AD 3/4 boundary, durable decisions, and cross-domain dependencies.
+* **API**: Added provisional unallocated concepts for [Automatic Distribution](api/automatic-distribution.md) and [Workgroups](api/workgroups.md).
+* **Alignment**: Updated [G02](api/g02-users-profiles.md) and [G06](api/g06-documents.md) for recipient-directory, Workgroups, discipline, and metadata-schema dependencies.
+* **Questions**: Added Automatic Distribution engineering questions 22–28 to [Engineering Open Questions](open-questions.md).
+* **Status**: Recorded Automatic Distribution and Workgroups as new design prototypes whose formal delivery has not started; no legacy transition mapping is defined.
+* **Navigation**: Updated the bundle, feature, and API indexes with Automatic Distribution and Workgroups mappings.
+
 ## 2026-07-13
 
 * **Update**: Added [OKF Transition Boundaries](transition-boundaries.md) to define canonical sources, update rules, and drift-control guidance.

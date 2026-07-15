@@ -19,6 +19,7 @@ flowchart TD
       Clipboard["ClipboardContext<br/>saved document clipboard"]
       SearchCtx["SearchContext<br/>last search query"]
       UserPrefs["useUserPref<br/>feature-level UI preferences"]
+      Permissions["PermissionContext<br/>AD demo grants: manage/view/none"]
     end
 
     subgraph Features["Feature pages"]
@@ -29,13 +30,15 @@ flowchart TD
       MyBriefcase["MyBriefcase<br/>cross-workspace briefcase grid"]
       Packages["Packages<br/>package library and workflow prototype"]
       Detail["DocumentDetail<br/>single-document view"]
+      Distribution["AutomaticDistribution<br/>rules + governance tabs"]
+      Workgroups["Workgroups<br/>read-only workspace groups"]
     end
   end
 
   subgraph DataLayer["HTTP data layer (React Query + MSW)"]
-    Hooks["src/hooks/<br/>useWorkspaces · useFolderTree · useDocuments · useSearch"]
+    Hooks["src/hooks/<br/>workspace · document · search · distribution queries"]
     Api["src/api/<br/>typed fetch client, endpoints, queryKeys, queryClient"]
-    MSW["src/mocks/handlers.ts<br/>MSW mock backend — G03/G05/G06/G19 contracts,<br/>cursor pagination (ADR-011), RFC 7807 errors"]
+    MSW["src/mocks/handlers.ts<br/>MSW mock backend — G03/G05/G06/G19 + briefcase<br/>+ unallocated distribution/workgroups contracts"]
   end
 
   subgraph MockData["Mock datasets (behind MSW for wired pages)"]
@@ -46,6 +49,8 @@ flowchart TD
     SearchData["searchData.ts<br/>search corpus built from docs/folders/placeholders"]
     SearchUtils["utils/search.ts<br/>matching + facet counts"]
     BriefcaseSeed["briefcaseSeed.ts<br/>demo briefcase items"]
+    DistributionSeed["distributionSeed.ts<br/>rule sets + settings + history"]
+    WorkgroupsSeed["workgroupsSeed.ts<br/>workspace groups + user directory"]
   end
 
   subgraph Persistence["Browser persistence and static assets"]
@@ -60,6 +65,8 @@ flowchart TD
   App --> Chat
   App --> Packages
   App --> Detail
+  App --> Distribution
+  App --> Workgroups
 
   App --> Localization
   App --> Scope
@@ -69,6 +76,7 @@ flowchart TD
   App --> Clipboard
   App --> SearchCtx
   App --> UserPrefs
+  App --> Permissions
 
   Shell --> Scope
   Shell --> SearchCtx
@@ -92,6 +100,8 @@ flowchart TD
   MSW --> Folders
   MSW --> SearchData
   MSW --> SearchUtils
+  MSW --> DistributionSeed
+  MSW --> WorkgroupsSeed
 
   Search --> Scope
   Search --> SearchCtx
@@ -116,10 +126,19 @@ flowchart TD
   Detail --> Localization
   Detail --> Docs
 
+  Distribution --> Scope
+  Distribution --> Permissions
+  Distribution --> Hooks
+  Workgroups --> Scope
+  Workgroups --> Permissions
+  Workgroups --> Hooks
+
   Scope --> LocalStorage
   ViewStyle --> LocalStorage
   Clipboard --> LocalStorage
   UserPrefs --> LocalStorage
+  Permissions --> UserPrefs
+  DistributionSeed --> LocalStorage
   Documents --> LocalStorage
   Localization --> Locales
 ```
@@ -127,7 +146,8 @@ flowchart TD
 ## Reading Guide
 
 - `App.tsx` is the composition root. It wires `QueryClientProvider` and the context providers first, then renders the global shell and feature routes. `index.tsx` starts the MSW worker before React renders (skipped when `VITE_API_MODE=real`).
-- **DocumentBrowser, SearchResults and the Briefcase are fully wired to the HTTP data layer**: folder tree (G05), documents (G06, cursor-paginated infinite scroll per ADR-011), search (G19, server-side facets + type filter) and the user-scoped briefcase (`/user/briefcase`, optimistic mutations behind `BriefcaseContext`). DocumentBrowser selection is deep-linkable via `/documents?ws=&folder=&doc=`.
+- **DocumentBrowser, SearchResults, Briefcase, Automatic Distribution AD 1/2, and Workgroups are wired to the HTTP data layer**. Automatic Distribution uses provisional, unallocated `/workspaces/{wsId}/distribution/*` and `/workspaces/{wsId}/workgroups` contracts served by MSW; its draft/published/history/settings state persists in browser localStorage.
+- Automatic Distribution AD 3 diagnostics and AD 4 runtime evaluation/log/unmatched flows are not implemented. Its production engine remains server-side by design.
 - The remaining direct mock consumers (Dashboard, Chat, DocumentDetail, BrandBanner, ProjectMapView) migrate to the same hooks next.
 - Persistence of UI state is browser-local (`localStorage`), with cross-window sync via `storage` events (`useUserPref`).
 - `WorkspaceContext` was consolidated into `ScopeContext` (2026-07-06); `ScopeContext` is the single source of workspace scope.
@@ -139,4 +159,5 @@ The prototype now exercises the production API contracts over real HTTP, but is 
 - MSW answers `/api/v1` from static mock datasets; swap to Spring Boot via `VITE_API_MODE=real` + `VITE_API_BASE_URL` — no component changes.
 - No Zustand store is active yet (contexts migrate when auth lands, per ARCHITECTURE.md §State Management).
 - No auth: requests carry no JWT; the G01 token flows are design-only (ADR-005).
+- `PermissionContext` is a demo-only `ad.manage`/`ad.view` switch. Production grant sourcing and server-side enforcement remain unresolved with G04.
 - No G31 real-time event stream yet (ADR-010) — cache invalidation is timer/navigation-driven, not push-driven.

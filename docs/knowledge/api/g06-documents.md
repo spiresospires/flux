@@ -3,7 +3,7 @@ type: API Group
 title: G06 - Documents
 description: Document listing, metadata, filtering, cursor pagination, and document relationships.
 tags: [api, documents, pagination, phase-1]
-timestamp: 2026-07-13T00:00:00Z
+timestamp: 2026-07-15T00:00:00Z
 api_group: G06
 base_path: /workspaces/{wsId}/documents
 contract_status: Proposed
@@ -68,16 +68,18 @@ The frontend is wired through MSW with server-side folder/status/type filters, s
 * Decide the `totalApprox` source.
 * Decide whether placeholders are a G06 document state or a separate resource.
 * Confirm ETag and `If-Match` handling for metadata updates.
+* Confirm `discipline` as a production document metadata field for Automatic Distribution.
+* Decide whether conditionable fields and stable values are supplied by G16 metadata schemas rather than a hardcoded client registry.
 
 # Related Concepts
 
 * [G05 - Folder Management](g05-folders.md)
 * [G07 - Document Content](g07-document-content.md)
 * [G31 - Real-time Events](g31-events.md)
+* [Automatic Distribution API](automatic-distribution.md)
 * [ADR-010 - Real-time Sync and Multi-Window Architecture](../architecture/adr-010-realtime-sync.md)
 * [ADR-011 - Cursor Pagination](../architecture/adr-011-cursor-pagination.md)
 
 # Source
 
 Status is tracked in [api-status.md](../../api-status.md). Contract detail remains in [ARCHITECTURE.md](../../../ARCHITECTURE.md).
-

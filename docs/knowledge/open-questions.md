@@ -3,7 +3,7 @@ type: Open Question
 title: Engineering Open Questions
 description: Cross-linked open engineering questions that affect ADRs, API groups, and Phase 1 delivery.
 tags: [open-questions, api, architecture, phase-1]
-timestamp: 2026-07-13T00:00:00Z
+timestamp: 2026-07-15T00:00:00Z
 status: open
 source: ../api-status.md
 ---
@@ -38,6 +38,13 @@ The canonical status tracker remains [api-status.md](../api-status.md). This fil
 | 19 | Decide whether placeholders are a G06 document state or separate resource. | [G06](api/g06-documents.md) | API | Open |
 | 20 | Confirm service home for feedback widget endpoint. | [G02](api/g02-users-profiles.md) | API | Open |
 | 21 | Publish OpenAPI specs per group for generated SPA types. | [API index](api/) | API | Open |
+| 22 | Assign Automatic Distribution to an API group and owner, and decide its FLUX delivery phase; AD 1–4 are feature-local stages only. | [Automatic Distribution API](api/automatic-distribution.md), [Automatic Distribution feature](features/automatic-distribution.md) | Product / API | Open |
+| 23 | Define production enforcement and grant source for `ad.view` and `ad.manage` across read, edit, publish, restore, settings, tester, log, and re-run operations. | [Automatic Distribution API](api/automatic-distribution.md), [G01](api/g01-auth.md), [ADR-005](architecture/adr-005-two-token-jwt.md) | API / Security | Open |
+| 24 | Decide Workgroups ownership and whether recipient lookup must use workspace-filtered membership instead of global `GET /users`. | [Workgroups API](api/workgroups.md), [G02](api/g02-users-profiles.md), [Automatic Distribution API](api/automatic-distribution.md) | API / Security | Open |
+| 25 | Define ETag/`If-Match`, draft `baseVersion` conflict behavior, and idempotency for distribution create, publish, restore, and re-run writes. | [Automatic Distribution API](api/automatic-distribution.md) | API | Open |
+| 26 | Define transaction, retry, dedupe, compensation, and async-job boundaries when distribution starts downstream activities. | [Automatic Distribution API](api/automatic-distribution.md), [G13](api/g13-messages-notifications.md), [G25](api/g25-jobs.md) | API / MSG | Open |
+| 27 | Confirm `discipline` in G06 and whether condition fields and stable values come from metadata schemas. | [G06](api/g06-documents.md), [Automatic Distribution API](api/automatic-distribution.md) | API / DB | Open |
+| 28 | Replace mock project IDs with UUID wire IDs and decide how distribution history integrates with audit and real-time invalidation. | [Automatic Distribution API](api/automatic-distribution.md), [G31](api/g31-events.md), [ADR-009](architecture/adr-009-uuid-integer-bridge.md) | API / DB / MSG | Open |
 
 # Resolved Questions
 
@@ -53,8 +60,8 @@ The canonical status tracker remains [api-status.md](../api-status.md). This fil
 | Live data and list correctness | Real-time updates, cursor pagination, and large lists must behave together. | [G06](api/g06-documents.md), [G19](api/g19-search.md), [G31](api/g31-events.md), [ADR-010](architecture/adr-010-realtime-sync.md), [ADR-011](architecture/adr-011-cursor-pagination.md) |
 | Content storage migration | G07 must hide NFS-to-S3 migration details from the SPA. | [G07](api/g07-document-content.md), [User Briefcase](api/user-briefcase.md) |
 | AI gateway streaming | Chat UX depends on true streaming behavior and recovery states. | [G29](api/g29-assistant.md) |
+| Distribution governance and execution | Publishing rules can initiate several downstream domains; permissions, concurrency, retries, audit, and dedupe must agree before AD 3/4 production work. | [Automatic Distribution feature](features/automatic-distribution.md), [Automatic Distribution API](api/automatic-distribution.md), [Workgroups API](api/workgroups.md) |
 
 # Source
 
 Canonical question status remains in [api-status.md](../api-status.md).
-

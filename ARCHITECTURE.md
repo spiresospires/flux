@@ -14,7 +14,7 @@ Every file in the prototype that touches data or auth must use the following inl
 | Marker | Meaning |
 |---|---|
 | `// [MOCK]` | Hardcoded data or stub — replace with real API call |
-| `// [API] GROUP:METHOD /path` | Where the real API call goes (group from G01–G30) |
+| `// [API] GROUP:METHOD /path` | Where the real API call goes (allocated group from G01–G31) |
 | `// [AUTH]` | Requires a valid workspace-scoped JWT; attach via `Authorization: Bearer <token>` |
 | `// [PHASE-1]` | Must ship in Phase 1 (Search, Chat, Document Browsing, Dashboard) |
 | `// [PHASE-2]` | Defer to Phase 2 (flux-2 release) |
@@ -338,6 +338,30 @@ A private, **user-scoped, cross-workspace** collection of document references (s
 // [PHASE-1]
 ```
 
+### Automatic Distribution and Workgroups (`pages/admin/`, `useDistribution.ts`)
+
+Automatic Distribution is an implemented design prototype whose formal delivery has not started; its FLUX delivery phase and backend API-group ownership are not yet allocated. Its local roadmap labels (`AD 1`–`AD 4`) describe prototype stages and are not FLUX phase markers. AD 1 (rules authoring) and AD 2 (governance) are wired through React Query and MSW; AD 3 (diagnostics) and AD 4 (runtime execution) remain pending. The canonical design and implementation source is [AUTO_DISTRIBUTION_PLAN.md](AUTO_DISTRIBUTION_PLAN.md).
+
+The production matching engine belongs on the server. The browser owns authoring, diagnostics presentation, and governance UI; it must not become the production evaluator.
+
+| Prototype | Provisional API | Notes |
+|---|---|---|
+| Rule set and history | `GET /workspaces/{wsId}/distribution/ruleset` | One workspace-scoped draft, published version, and history; group allocation pending |
+| Draft rule changes | `POST/PATCH/DELETE /workspaces/{wsId}/distribution/rules[/{ruleId}]` | Server assigns IDs and audit fields; requires optimistic concurrency |
+| Publish / restore | `POST /workspaces/{wsId}/distribution/publish`, `/restore` | Idempotency and stale-base behavior must be agreed |
+| Workspace settings | `GET/PATCH /workspaces/{wsId}/distribution/settings` | Action precedence, reason vocabularies, and alert recipients |
+| Workgroups | `GET /workspaces/{wsId}/workgroups` | Reusable workspace-admin concept; ownership is not necessarily AD-specific |
+| Recipient directory | Currently `GET /users` | Production contract should be workspace-filtered unless broader visibility is explicitly authorised |
+| Diagnostics and runtime | Future tester, log, unmatched, and re-run operations | AD 3/4; orchestration boundary is unresolved |
+
+Production dependencies cross G02 users/membership, G04 permissions, G06 document metadata, G09 transmittals, G10 reviews/approvals, G12 RFIs, G13 messages, G14 audit, G16 metadata schemas, G25 jobs, and G31 events. Those groups remain authoritative for their domains; Automatic Distribution coordinates them rather than redefining their resources.
+
+```ts
+// [API] /workspaces/{wsId}/distribution/* — src/api/distribution.ts
+// [TODO-ENG] API group, owner, FLUX delivery phase, concurrency, and orchestration are unallocated.
+// [AUTH] Workspace token; server must enforce ad.view/ad.manage (UI checks are not a security boundary).
+```
+
 ### Async Operations
 
 Large uploads, bulk operations, and any G05/G06 write that may take >2 s return `202 Accepted` with a job reference. Poll using G25:
@@ -363,6 +387,7 @@ src/
     content.ts         ← G07: download, upload, thumbnail
     search.ts          ← G19: full-text search, facets
     briefcase.ts       ← /user/briefcase: user-scoped briefcase ([TODO-ENG] group)
+    distribution.ts    ← /workspaces/{wsId}/distribution: rules + governance ([TODO-ENG] group)
     messages.ts        ← G13: notifications, mark-read
     jobs.ts            ← G25: job polling helper
     errors.ts          ← RFC 7807 ProblemDetails error type + handler
@@ -372,6 +397,7 @@ src/
     useDocuments.ts    ← React Query wrapper → documents.ts
     useDocument.ts     ← React Query wrapper → documents.ts (single)
     useSearch.ts       ← React Query wrapper → search.ts
+    useDistribution.ts ← React Query wrappers → distribution.ts + workgroups/users
     useMessages.ts     ← React Query wrapper → messages.ts
     useJob.ts          ← React Query polling wrapper → jobs.ts
   types/
@@ -472,6 +498,8 @@ Phase 1 ships: **Search, Chat, Document Browsing, Dashboard**
 | Real-time events / live updates | (global — ADR-010) | G31 | not started |
 | Multi-window sync (leader election, BroadcastChannel) | (global — ADR-010) | G31 | prefs sync done (`useUserPref`) |
 
+Automatic Distribution is implemented in the prototype but is **outside this settled Phase 1 baseline until engineering assigns its FLUX delivery phase**. Existing `[PHASE-1]` markers in AD-specific files are provisional and must be reconciled when that decision is made.
+
 ---
 
 ## Environment Variables
@@ -567,6 +595,13 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 | G18 | BPM | — | **Deprecated (410)** |
 | G22 | Programme Mgmt | — | **Deprecated (410)** |
 
+### Unallocated Prototype Contracts
+
+| Contract | Base path | Prototype status | Allocation needed |
+|---|---|---|---|
+| Automatic Distribution | `/workspaces/{wsId}/distribution` | AD 1/2 wired through MSW; AD 3/4 pending | API group, team owner, delivery phase |
+| Workgroups | `/workspaces/{wsId}/workgroups` | Read-only UI wired through MSW | G02/G04 extension or separate group |
+
 ---
 
 ## Open Questions for Engineering
@@ -583,7 +618,14 @@ The React SPA writes via the new REST API only. Both systems share the same Orac
 10. **`[TODO-ENG]` `totalApprox` source (ADR-011)** — exact `COUNT(*)` per list request is off the table; decide between folder rollup counters, cached counts with TTL, or sampled estimates.
 11. **`[TODO-ENG]` Event → permission edge case (ADR-010)** — when a user *loses* access to a document, the invalidate→refetch model handles it (refetch 403s / omits the row), but confirm the event stream itself is filtered to entities the subscriber can see, or accept that entity IDs alone may leak existence.
 12. **`[TODO-ENG]` Briefcase API group** — `/user/briefcase` is user-scoped (platform token) and not in the G01–G30 set; suggested home is G02 alongside `/user/preferences`. Also decide how the freshness states (`newer-available` / `checked-out` / `unavailable`) are computed server-side.
+22. **`[TODO-ENG]` Automatic Distribution allocation** — assign the `/workspaces/{wsId}/distribution/*` contract to an API group and owner, and decide its FLUX delivery phase. AD 1–4 are feature-local stages, not phase allocation.
+23. **`[TODO-ENG]` Distribution authorisation** — decide whether `ad.view` and `ad.manage` are workspace-token claims, G04 grants, or membership-derived capabilities; define server enforcement for view, edit, publish, restore, settings, tester, log, and re-run operations.
+24. **`[TODO-ENG]` Workgroups ownership and directory scope** — decide whether workgroups extend G02/G04 or form a separate contract, and replace the prototype-wide `GET /users` recipient directory with an explicitly authorised workspace-membership query if appropriate.
+25. **`[TODO-ENG]` Distribution concurrency and idempotency** — define ETag/`If-Match`, draft `baseVersion` conflict behavior, and idempotency keys for create, publish, restore, and re-run operations.
+26. **`[TODO-ENG]` Distribution orchestration** — define transaction, retry, dedupe, compensation, and async-job boundaries when one evaluation starts reviews, approvals, messages, transmittals, technical queries, or RFIs.
+27. **`[TODO-ENG]` Distribution metadata contract** — confirm `discipline` in G06 and whether conditionable fields and stable values come from G16 metadata schemas rather than a hardcoded client registry.
+28. **`[TODO-ENG]` Distribution identifiers and audit** — use UUID wire identifiers per ADR-009 and define whether publish history is the complete audit record or also emits G14 entries and G31 invalidations.
 
 ---
 
-*Last updated: 2026-07-07 — briefcase wired to `/user/briefcase` (MSW + React Query, optimistic mutations); prototype `src/api/` layer now real for G03/G05/G06/G19 + briefcase. Prior: 2026-07-06 — ADR-010 (real-time sync & multi-window), ADR-011 (cursor pagination), G29 streaming spec, G31 events group.*
+*Last updated: 2026-07-15 — documented the Automatic Distribution and Workgroups prototype boundary, provisional contracts, cross-group dependencies, and unresolved phase/API allocation. Prior: 2026-07-07 — briefcase wired to `/user/briefcase` (MSW + React Query, optimistic mutations).*

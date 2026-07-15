@@ -3,7 +3,7 @@ type: Project Plan
 title: OKF Adoption Plan
 description: Step-by-step plan and progress record for introducing the OKF-style knowledge layer.
 tags: [okf, documentation, planning]
-timestamp: 2026-07-13T00:00:00Z
+timestamp: 2026-07-15T00:00:00Z
 ---
 
 # Purpose
@@ -34,6 +34,8 @@ This plan is the running progress record for the work. Update it whenever a step
 # Current Boundary
 
 Steps 1 through 5 establish the bundle structure, ADR concepts, Phase 1 API group concepts, cross-linked indexes, open-question navigation, and transition boundaries. Existing project documentation remains canonical during the transition.
+
+Ongoing expansion has added the first implemented feature concept, [Automatic Distribution](features/automatic-distribution.md), plus provisional unallocated [Automatic Distribution](api/automatic-distribution.md) and [Workgroups](api/workgroups.md) API concepts. This does not change the status of optional validator tooling in step 6.
 
 # Pause Point
 

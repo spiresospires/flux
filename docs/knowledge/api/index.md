@@ -17,18 +17,23 @@ API group concepts will live here as OKF concept documents.
 * [G31 - Real-time Events](g31-events.md) - Real-time event stream and cache invalidation.
 * [User Briefcase](user-briefcase.md) - User-scoped cross-workspace briefcase contract.
 
+# Unallocated Prototype Contracts
+
+* [Automatic Distribution API](automatic-distribution.md) - AD 1/2 rule authoring and governance are wired through MSW; group, owner, and FLUX phase remain unallocated.
+* [Workgroups API](workgroups.md) - Read-only workspace groups are wired through MSW; ownership between G02, G04, or a separate contract remains open.
+
 # Status Views
 
 | Contract status | Concepts |
 |---|---|
 | Proposed | [G01](g01-auth.md), [G03](g03-workspaces.md), [G05](g05-folders.md), [G06](g06-documents.md), [G19](g19-search.md), [G25](g25-jobs.md), [G31](g31-events.md), [User Briefcase](user-briefcase.md) |
-| Draft | [G02](g02-users-profiles.md), [G07](g07-document-content.md), [G13](g13-messages-notifications.md), [G29](g29-assistant.md) |
+| Draft | [G02](g02-users-profiles.md), [G07](g07-document-content.md), [G13](g13-messages-notifications.md), [G29](g29-assistant.md), [Automatic Distribution](automatic-distribution.md), [Workgroups](workgroups.md) |
 
 | Frontend status | Concepts |
 |---|---|
-| Wired through MSW | [G03](g03-workspaces.md), [G05](g05-folders.md), [G06](g06-documents.md), [G19](g19-search.md), [User Briefcase](user-briefcase.md) |
+| Wired through MSW | [G02](g02-users-profiles.md) (directory only), [G03](g03-workspaces.md), [G05](g05-folders.md), [G06](g06-documents.md), [G19](g19-search.md), [User Briefcase](user-briefcase.md), [Automatic Distribution](automatic-distribution.md), [Workgroups](workgroups.md) |
 | Mock or stubbed | [G07](g07-document-content.md), [G13](g13-messages-notifications.md), [G29](g29-assistant.md) |
-| Not started | [G01](g01-auth.md), [G02](g02-users-profiles.md), [G25](g25-jobs.md), [G31](g31-events.md) |
+| Not started | [G01](g01-auth.md), [G25](g25-jobs.md), [G31](g31-events.md) |
 
 # Cross-Cutting Contracts
 
@@ -39,6 +44,7 @@ API group concepts will live here as OKF concept documents.
 | Cursor pagination | [G06](g06-documents.md), [G19](g19-search.md), [G29](g29-assistant.md), [ADR-011](../architecture/adr-011-cursor-pagination.md) |
 | Real-time invalidation | [G13](g13-messages-notifications.md), [G25](g25-jobs.md), [G31](g31-events.md), [ADR-010](../architecture/adr-010-realtime-sync.md) |
 | Content and async work | [G06](g06-documents.md), [G07](g07-document-content.md), [G25](g25-jobs.md), [User Briefcase](user-briefcase.md) |
+| Distribution governance | [Automatic Distribution](automatic-distribution.md), [Workgroups](workgroups.md), [G02](g02-users-profiles.md), [G06](g06-documents.md), [G13](g13-messages-notifications.md), [G25](g25-jobs.md), [G31](g31-events.md) |
 
 # Open Questions
 
