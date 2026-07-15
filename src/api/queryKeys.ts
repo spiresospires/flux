@@ -15,4 +15,9 @@ export const queryKeys = {
   search: (wsId: string, request: SearchRequest) => ['search', wsId, request] as const,
   /** User-scoped (no wsId) — the briefcase spans every workspace the user can access. */
   briefcase: ['user', 'briefcase'] as const,
+  /** Automatic Distribution (AUTO_DISTRIBUTION_PLAN.md) — invalidate adRuleSet on any rule mutation. */
+  adRuleSet: (wsId: string) => ['distribution', 'ruleset', wsId] as const,
+  adSettings: (wsId: string) => ['distribution', 'settings', wsId] as const,
+  workgroups: (wsId: string) => ['workgroups', wsId] as const,
+  adUsers: ['users', 'directory'] as const,
 };

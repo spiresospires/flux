@@ -9,12 +9,15 @@ import {
   PackageIcon,
   FolderIcon,
   BriefcaseIcon,
+  Share2Icon,
+  UsersIcon,
 } from 'lucide-react';
 import { ColorCustomizer } from './ColorCustomizer';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useSearch } from '../contexts/SearchContext';
 import { useBriefcase } from '../contexts/BriefcaseContext';
+import { usePermissions } from '../contexts/PermissionContext';
 interface LeftRailProps {
   activeItem: string;
   onItemClick: (item: string) => void;
@@ -36,6 +39,7 @@ export function LeftRail({
   const { scope } = useScope();
   const { lastQuery } = useSearch();
   const { count: briefcaseCount } = useBriefcase();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -64,6 +68,8 @@ export function LeftRail({
     location.pathname.startsWith('/search') ? 'search' :
     location.pathname.startsWith('/packages') ? 'packages' :
     location.pathname.startsWith('/chat') ? 'chat' :
+    location.pathname.startsWith('/admin/distribution') ? 'distribution' :
+    location.pathname.startsWith('/admin/workgroups') ? 'workgroups' :
     activeItem;
 
   const navItems: NavItem[] = [
@@ -102,6 +108,27 @@ export function LeftRail({
       : []),
   ];
 
+  // Admin section — workspace governance (AUTO_DISTRIBUTION_PLAN.md). Only for
+  // users holding an AD grant, and only in project scope: rule sets and
+  // workgroups are workspace-scoped, so enterprise scope has nothing to show.
+  const adminItems: NavItem[] =
+    scope.kind === 'project' && hasPermission('ad.view')
+      ? [
+          {
+            id: 'distribution',
+            icon: Share2Icon,
+            label: t('navigation.distribution'),
+            onClick: () => navigate('/admin/distribution'),
+          },
+          {
+            id: 'workgroups',
+            icon: UsersIcon,
+            label: t('navigation.workgroups'),
+            onClick: () => navigate('/admin/workgroups'),
+          },
+        ]
+      : [];
+
   const bottomItems: NavItem[] = [
     {
       id: 'settings',
@@ -110,7 +137,7 @@ export function LeftRail({
     },
   ];
 
-  const allItems = [...navItems, ...bottomItems];
+  const allItems = [...navItems, ...adminItems, ...bottomItems];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -229,10 +256,22 @@ export function LeftRail({
           </AnimatePresence>
         </div>
 
+        {/* Admin section — permission-gated workspace governance */}
+        {adminItems.length > 0 && (
+          <div className="px-1 space-y-1">
+            <div className="mx-2 mt-1 border-t border-neutral-200 pt-1.5">
+              <p className="text-center text-[9px] font-semibold uppercase tracking-wider text-neutral-400">
+                {t('navigation.admin')}
+              </p>
+            </div>
+            {adminItems.map((item, index) => renderNavItem(item, navItems.length + index))}
+          </div>
+        )}
+
         {/* Bottom Items */}
         <div className="px-1 mt-auto space-y-1">
           {bottomItems.map((item, index) =>
-          renderNavItem(item, navItems.length + index)
+          renderNavItem(item, navItems.length + adminItems.length + index)
           )}
         </div>
       </nav>

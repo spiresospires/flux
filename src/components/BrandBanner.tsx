@@ -26,6 +26,9 @@ const LOGOS = Object.entries(_logoModules)
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
+// [MOCK] Demo switcher for the Automatic Distribution grant — replace with real
+// role management once G01 auth lands (AUTO_DISTRIBUTION_PLAN.md §1).
+import { usePermissions, type AdPermissionLevel } from '../contexts/PermissionContext';
 // [MOCK] Notification feed — replace with useMessages(wsId).
 // [API] G13:GET /workspaces/{wsId}/messages
 // [AUTH]
@@ -38,9 +41,16 @@ import profilePhoto from '../assets/profile-user.png';
 // [PHASE-1]
 import { PROJECTS } from '../data/projects';
 
+const AD_LEVEL_OPTIONS: { level: AdPermissionLevel; label: string; hint: string }[] = [
+  { level: 'manage', label: 'Manage', hint: 'Author and publish rules' },
+  { level: 'view', label: 'Read-only', hint: 'View rules and matrix' },
+  { level: 'none', label: 'None', hint: 'Admin area hidden' },
+];
+
 export function BrandBanner() {
   const { t } = useLocalization();
   const { scope, setScope } = useScope();
+  const { adLevel, setAdLevel } = usePermissions();
   const LEFT_RAIL_WIDTH = 88;
   const [selectedLogoId, setSelectedLogoId] = useState(DEFAULT_LOGO_ID);
   const [logoMenuOpen, setLogoMenuOpen] = useState(false);
@@ -454,6 +464,31 @@ export function BrandBanner() {
                 <Settings2Icon size={14} />
                 Profile Settings
               </button>
+              {/* [MOCK] AD permission demo switcher — flips the Admin rail section
+                  between manage / read-only / hidden without real auth. */}
+              <div className="border-t border-neutral-100 pt-1.5 pb-1">
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+                  Distribution access (demo)
+                </p>
+                {AD_LEVEL_OPTIONS.map(({ level, label, hint }) => {
+                  const active = adLevel === level;
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => setAdLevel(level)}
+                      className={`w-full px-3 py-1.5 flex items-center gap-2 text-left transition-colors hover:bg-[#F0F4F8] ${active ? 'bg-[#E8F1FB]' : ''}`}
+                      role="menuitemradio"
+                      aria-checked={active}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs ${active ? 'font-semibold text-[#0461BA]' : 'font-medium text-neutral-700'}`}>{label}</div>
+                        <div className="text-[10px] text-neutral-400">{hint}</div>
+                      </div>
+                      {active && <CheckIcon size={13} className="text-[#0461BA] shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>,
             document.body
           )}

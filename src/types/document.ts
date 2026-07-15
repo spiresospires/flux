@@ -27,6 +27,10 @@ export interface DocumentMetadata {
   description: string;
   thumbnail: string;
   folderId?: string; // Added for folder organization
+  /** Engineering discipline — primary condition field for Automatic Distribution
+   *  (AUTO_DISTRIBUTION_PLAN.md §1). Populated by mockDocuments from the inferred
+   *  category; optional because legacy items (e.g. old briefcase snapshots) predate it. */
+  discipline?: string;
 }
 export interface DocumentRelationship {
   type: 'parent' | 'child' | 'reference' | 'referenced-by' | 'grouped-with';
