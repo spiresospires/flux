@@ -6,21 +6,22 @@
 // state, and users without ad.view get the no-access state (rail hides the
 // entry, but the route must still guard against direct URLs).
 // [PHASE-1]
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   FlaskConicalIcon,
   Grid3x3Icon,
-  HistoryIcon,
   InboxIcon,
   ListChecksIcon,
   LockIcon,
   ScrollTextIcon,
-  Settings2Icon,
   Share2Icon,
 } from 'lucide-react';
 import { LeftRail } from '../../components/LeftRail';
 import { RulesTab } from '../../components/distribution/RulesTab';
+import { HistoryTab } from '../../components/distribution/HistoryTab';
+import { SettingsTab } from '../../components/distribution/SettingsTab';
+import { PublishDialog } from '../../components/distribution/PublishDialog';
 import { useScope } from '../../contexts/ScopeContext';
 import { usePermissions } from '../../contexts/PermissionContext';
 import { useAdRuleSet } from '../../hooks/useDistribution';
@@ -38,14 +39,14 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'settings', label: 'Settings' },
 ];
 
+type PlaceholderTabId = Exclude<TabId, 'rules' | 'history' | 'settings'>;
+
 /** Which build stage delivers each placeholder tab (plan §4). */
-const PLACEHOLDER_STAGE: Record<Exclude<TabId, 'rules'>, { stage: string; blurb: string; icon: React.ElementType }> = {
+const PLACEHOLDER_STAGE: Record<PlaceholderTabId, { stage: string; blurb: string; icon: React.ElementType }> = {
   matrix: { stage: 'AD 3 — Diagnostics', blurb: 'Read-only coverage pivot derived from the rules: value combinations × recipients, with click-through to the owning rule.', icon: Grid3x3Icon },
   tester: { stage: 'AD 3 — Diagnostics', blurb: 'Pick a document or enter metadata to see which rules fire, how workgroups expand, and the dedupe trace — against draft or published.', icon: FlaskConicalIcon },
   unmatched: { stage: 'AD 4 — Runtime loop', blurb: 'Documents that matched no rule land here with alerting, open-in-tester and deduped re-run — no more silent non-distribution.', icon: InboxIcon },
   log: { stage: 'AD 4 — Runtime loop', blurb: 'Every distribution event: matched rules, recipients, actions started, and skipped deactivated recipients.', icon: ScrollTextIcon },
-  history: { stage: 'AD 2 — Governance', blurb: 'Published versions with who/when/summary, rule-level diff, and restore-as-draft.', icon: HistoryIcon },
-  settings: { stage: 'AD 2 — Governance', blurb: 'Action precedence order, reason vocabularies per action, and alert recipients.', icon: Settings2Icon },
 };
 
 export function AutomaticDistribution() {
@@ -62,6 +63,7 @@ export function AutomaticDistribution() {
 
   const { data: ruleSet } = useAdRuleSet(canView ? wsId : null);
   const diff = useMemo(() => (ruleSet ? diffRuleSet(ruleSet) : null), [ruleSet]);
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const setTab = (tab: TabId) => setSearchParams(tab === 'rules' ? {} : { tab }, { replace: true });
 
@@ -101,9 +103,10 @@ export function AutomaticDistribution() {
                   )}
                   {canManage && (
                     <button
-                      disabled
-                      title="Publishing arrives in AD 2 — Governance"
-                      className="cursor-not-allowed rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-400"
+                      onClick={() => setPublishOpen(true)}
+                      disabled={diff.total === 0}
+                      title={diff.total === 0 ? 'No draft changes to publish' : undefined}
+                      className="rounded-md bg-[#0461BA] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0355a4] disabled:cursor-not-allowed disabled:bg-transparent disabled:border disabled:border-neutral-200 disabled:text-neutral-400"
                     >
                       Publish…
                     </button>
@@ -154,6 +157,10 @@ export function AutomaticDistribution() {
               <div className="min-h-0 flex-1 overflow-hidden">
                 {activeTab === 'rules' ? (
                   <RulesTab wsId={wsId} canManage={canManage} />
+                ) : activeTab === 'history' ? (
+                  <HistoryTab wsId={wsId} canManage={canManage} />
+                ) : activeTab === 'settings' ? (
+                  <SettingsTab wsId={wsId} canManage={canManage} />
                 ) : (
                   <PlaceholderTab tab={activeTab} />
                 )}
@@ -162,6 +169,10 @@ export function AutomaticDistribution() {
           )}
         </div>
       </main>
+
+      {publishOpen && wsId && ruleSet && (
+        <PublishDialog wsId={wsId} ruleSet={ruleSet} onClose={() => setPublishOpen(false)} />
+      )}
     </div>
   );
 }
@@ -180,7 +191,7 @@ function GuardCard({ icon: Icon, title, body }: { icon: React.ElementType; title
   );
 }
 
-function PlaceholderTab({ tab }: { tab: Exclude<TabId, 'rules'> }) {
+function PlaceholderTab({ tab }: { tab: PlaceholderTabId }) {
   const { stage, blurb, icon: Icon } = PLACEHOLDER_STAGE[tab];
   return (
     <div className="flex h-full items-center justify-center p-8 text-center">

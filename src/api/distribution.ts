@@ -37,6 +37,22 @@ export function deleteAdRule(wsId: string, ruleId: string): Promise<void> {
   );
 }
 
+/** Publish the draft: snapshot → new version, appended to history. Summary is
+ *  mandatory — it becomes the History entry (server 400s without it). */
+export function publishAdRuleSet(wsId: string, summary: string): Promise<AdRuleSet> {
+  return apiClient.post<AdRuleSet>(`/workspaces/${encodeURIComponent(wsId)}/distribution/publish`, { summary });
+}
+
+/** Replace the draft with a historical version's rules ("restore as draft").
+ *  Re-enters the normal publish flow — nothing goes live until published. */
+export function restoreAdVersion(wsId: string, version: number): Promise<AdRuleSet> {
+  return apiClient.post<AdRuleSet>(`/workspaces/${encodeURIComponent(wsId)}/distribution/restore`, { version });
+}
+
+export function updateAdSettings(wsId: string, settings: AdSettings): Promise<AdSettings> {
+  return apiClient.patch<AdSettings>(`/workspaces/${encodeURIComponent(wsId)}/distribution/settings`, settings);
+}
+
 export function getWorkgroups(wsId: string): Promise<Workgroup[]> {
   return apiClient.get<Workgroup[]>(`/workspaces/${encodeURIComponent(wsId)}/workgroups`);
 }

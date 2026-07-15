@@ -394,6 +394,9 @@ const goldfieldsRules: AdRule[] = [
   },
 ];
 
+/** Days to subtract per step back through the synthetic history. */
+const HISTORY_STEP_DAYS = 18;
+
 function buildRuleSet(
   workspaceId: ProjectId,
   rules: AdRule[],
@@ -405,14 +408,31 @@ function buildRuleSet(
     rules,
     publishedAt,
     publishedBy: 'u-pbrown',
-    summary: 'Initial rule set migrated from the legacy distribution matrix.',
+    summary: 'Reordered review routing and added the manual TQ/RFI rules.',
   };
+  // Synthetic earlier versions (each drops the newest rules) so the History
+  // tab has believable diffs to show. Capped at two steps back or version 1.
+  const history = [published];
+  const steps = Math.min(2, version - 1, rules.length - 1);
+  for (let step = 1; step <= steps; step++) {
+    const at = new Date(new Date(publishedAt).getTime() - step * HISTORY_STEP_DAYS * 86_400_000).toISOString();
+    history.push({
+      version: version - step,
+      rules: rules.slice(0, rules.length - step),
+      publishedAt: at,
+      publishedBy: step === 1 ? CURRENT_USER_ID : 'u-pbrown',
+      summary:
+        step === steps
+          ? 'Initial rule set migrated from the legacy distribution matrix.'
+          : 'Added discipline review coverage after the workshop with the leads.',
+    });
+  }
   return {
     workspaceId,
     // Draft starts in sync with the published version; edits diverge it.
     draft: { rules, baseVersion: version },
     published,
-    history: [published],
+    history,
   };
 }
 

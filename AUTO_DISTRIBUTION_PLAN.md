@@ -1,7 +1,7 @@
 # Automatic Distribution — Implementation Plan
 
-> Status: **AD 1 built & verified in browser (2026-07-13)** — see DEVELOPMENT_LOG.md §23.
-> AD 2 (governance), AD 3 (diagnostics), AD 4 (runtime loop) pending.
+> Status: **AD 1 + AD 2 built & verified in browser (2026-07-13)** — see DEVELOPMENT_LOG.md §23–24.
+> AD 3 (diagnostics) and AD 4 (runtime loop) pending.
 > Requirements locked with Oliver 2026-07-13.
 > Source material: `Automatic_Distribution_SKILL.md` (legacy FusionLive AD module reference)
 > and a customer ideas list (reviewed and bucketed 2026-07-13 — see §7).
@@ -204,7 +204,7 @@ nearest-miss explanation → edit rule → re-test → publish → Re-run from q
 - Rules tab: virtualised grouped list, filters, expand/collapse; slide-over editor
   creating/editing **draft** rules; localization keys
 
-### AD 2 — Governance
+### AD 2 — Governance ✅ DONE (2026-07-13)
 - Draft banner + change tracking ("Edited" badges, changes-since-vX count)
 - Publish dialog (changed-rules list + required summary) → version bump
 - History tab: timeline, rule-level diff, Restore as draft

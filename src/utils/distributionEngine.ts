@@ -11,6 +11,7 @@ import type {
   AdActionType,
   AdCondition,
   AdOperator,
+  AdRecipientRef,
   AdRule,
   AdRuleSet,
   AdTrigger,
@@ -175,6 +176,91 @@ export function diffRuleSet(ruleSet: AdRuleSet): RuleSetDiff {
   const draftIds = new Set(ruleSet.draft.rules.map((r) => r.id));
   const removed = (ruleSet.published?.rules ?? []).filter((r) => !draftIds.has(r.id)).length;
   return { byRule, added, edited, removed, total: added + edited + removed };
+}
+
+// ── Version diff (publish dialog + History tab) ──────────────────────────────
+
+export interface RuleRef {
+  id: string;
+  name: string;
+}
+
+export interface VersionDiff {
+  added: RuleRef[];
+  edited: RuleRef[];
+  removed: RuleRef[];
+  total: number;
+}
+
+/** Named rule-level diff between two rule lists (older → newer). */
+export function diffRuleLists(from: AdRule[], to: AdRule[]): VersionDiff {
+  const fromById = new Map(from.map((r) => [r.id, comparableRule(r)]));
+  const toIds = new Set(to.map((r) => r.id));
+  const added: RuleRef[] = [];
+  const edited: RuleRef[] = [];
+  for (const rule of to) {
+    const previous = fromById.get(rule.id);
+    if (previous === undefined) added.push({ id: rule.id, name: rule.name });
+    else if (previous !== comparableRule(rule)) edited.push({ id: rule.id, name: rule.name });
+  }
+  const removed = from.filter((r) => !toIds.has(r.id)).map((r) => ({ id: r.id, name: r.name }));
+  return { added, edited, removed, total: added.length + edited.length + removed.length };
+}
+
+// ── Publish-time checks (plan §3: warn, never block) ─────────────────────────
+
+/** Two enabled rules give the same recipient the same action with different
+ *  parameters at EQUAL priority — dedupe's "higher rule priority wins" rule
+ *  can't break the tie, so publishing should prompt the author to order them.
+ *  Differing priorities are NOT a conflict: lower number wins by definition. */
+export interface PriorityConflict {
+  recipient: AdRecipientRef;
+  action: AdActionType;
+  rules: RuleRef[];
+}
+
+export function findPriorityConflicts(rules: AdRule[]): PriorityConflict[] {
+  const groups = new Map<
+    string,
+    { recipient: AdRecipientRef; action: AdActionType; entries: { rule: RuleRef; reasonId: string; priority: number }[] }
+  >();
+  for (const rule of rules) {
+    if (!rule.enabled) continue;
+    for (const assignment of rule.assignments) {
+      const key = `${JSON.stringify(assignment.recipient)}|${assignment.action}`;
+      if (!groups.has(key)) {
+        groups.set(key, { recipient: assignment.recipient, action: assignment.action, entries: [] });
+      }
+      groups.get(key)!.entries.push({
+        rule: { id: rule.id, name: rule.name },
+        reasonId: assignment.reasonId,
+        priority: rule.priority,
+      });
+    }
+  }
+  const conflicts: PriorityConflict[] = [];
+  for (const group of groups.values()) {
+    const byPriority = new Map<number, typeof group.entries>();
+    for (const entry of group.entries) {
+      if (!byPriority.has(entry.priority)) byPriority.set(entry.priority, []);
+      byPriority.get(entry.priority)!.push(entry);
+    }
+    for (const tied of byPriority.values()) {
+      const distinctRules = new Set(tied.map((e) => e.rule.id));
+      const distinctReasons = new Set(tied.map((e) => e.reasonId));
+      if (distinctRules.size > 1 && distinctReasons.size > 1) {
+        const seen = new Set<string>();
+        const rulesInConflict: RuleRef[] = [];
+        for (const entry of tied) {
+          if (seen.has(entry.rule.id)) continue;
+          seen.add(entry.rule.id);
+          rulesInConflict.push(entry.rule);
+        }
+        conflicts.push({ recipient: group.recipient, action: group.action, rules: rulesInConflict });
+      }
+    }
+  }
+  return conflicts;
 }
 
 /** Non-blocking validation — the editor shows these as warnings and always

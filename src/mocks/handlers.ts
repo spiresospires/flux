@@ -123,20 +123,31 @@ function writeBriefcase(items: BriefcaseItem[]): void {
 // workspace under flux.ad.<wsId> (AUTO_DISTRIBUTION_PLAN.md). Rule mutations
 // touch the DRAFT only; publish (AD 2) will snapshot draft → published/history.
 interface AdStore {
+  /** Bumped when the seed shape changes materially (e.g. synthetic history
+   *  added in AD 2) — stale stores re-seed, discarding prototype draft edits. */
+  seedVersion?: number;
   ruleSet: AdRuleSet;
   settings: AdSettings;
 }
 
 const AD_STORAGE_PREFIX = 'flux.ad.';
+const AD_SEED_VERSION = 2;
 
 function readAdStore(wsId: ProjectId): AdStore {
   try {
     const saved = localStorage.getItem(AD_STORAGE_PREFIX + wsId);
-    if (saved) return JSON.parse(saved) as AdStore;
+    if (saved) {
+      const parsed = JSON.parse(saved) as AdStore;
+      if (parsed.seedVersion === AD_SEED_VERSION) return parsed;
+    }
   } catch {
     /* fall through to seed */
   }
-  return { ruleSet: adRuleSetSeedByProject[wsId], settings: defaultAdSettings };
+  return {
+    seedVersion: AD_SEED_VERSION,
+    ruleSet: adRuleSetSeedByProject[wsId],
+    settings: defaultAdSettings,
+  };
 }
 
 function writeAdStore(wsId: ProjectId, store: AdStore): void {
@@ -384,6 +395,64 @@ export const handlers = [
     store.ruleSet.draft.rules = store.ruleSet.draft.rules.filter((r) => r.id !== ruleId);
     writeAdStore(wsId, store);
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Publish: snapshot draft → new published version + history entry. The
+  // summary is mandatory — it IS the audit record (plan §3).
+  http.post(`${API_BASE}/workspaces/:wsId/distribution/publish`, async ({ params, request }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    const body = (await request.json()) as { summary?: string };
+    if (!body?.summary?.trim()) return problem(400, 'Summary required', 'A publish summary is required — it becomes the history entry');
+    const store = readAdStore(wsId);
+    const ruleSet = store.ruleSet;
+    const version = (ruleSet.published?.version ?? 0) + 1;
+    const snapshot = {
+      version,
+      // Deep-copy so later draft edits can't mutate the published snapshot.
+      rules: JSON.parse(JSON.stringify(ruleSet.draft.rules)) as AdRule[],
+      publishedAt: new Date().toISOString(),
+      publishedBy: CURRENT_USER_ID,
+      summary: body.summary.trim(),
+    };
+    ruleSet.published = snapshot;
+    ruleSet.history = [snapshot, ...ruleSet.history];
+    ruleSet.draft = { rules: ruleSet.draft.rules, baseVersion: version };
+    writeAdStore(wsId, store);
+    return HttpResponse.json(ruleSet);
+  }),
+
+  // Restore a historical version as the draft — overwrites current draft
+  // edits; nothing goes live until the draft is published again.
+  http.post(`${API_BASE}/workspaces/:wsId/distribution/restore`, async ({ params, request }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    const body = (await request.json()) as { version?: number };
+    const store = readAdStore(wsId);
+    const target = store.ruleSet.history.find((v) => v.version === body?.version);
+    if (!target) return problem(404, 'Version not found', `No published version '${String(body?.version)}'`);
+    store.ruleSet.draft = {
+      rules: JSON.parse(JSON.stringify(target.rules)) as AdRule[],
+      baseVersion: store.ruleSet.published?.version ?? 0,
+    };
+    writeAdStore(wsId, store);
+    return HttpResponse.json(store.ruleSet);
+  }),
+
+  http.patch(`${API_BASE}/workspaces/:wsId/distribution/settings`, async ({ params, request }) => {
+    await delay(LATENCY_MS);
+    const wsId = params.wsId as string;
+    if (!isProjectId(wsId)) return problem(404, 'Workspace not found', `No workspace '${wsId}'`);
+    const body = (await request.json()) as AdSettings;
+    if (!Array.isArray(body?.actionPrecedence) || body.actionPrecedence.length === 0) {
+      return problem(400, 'Invalid settings', 'actionPrecedence must be a non-empty ordered list');
+    }
+    const store = readAdStore(wsId);
+    store.settings = body;
+    writeAdStore(wsId, store);
+    return HttpResponse.json(body);
   }),
 
   // Workgroups are read-only in this phase — served straight from the seed.
