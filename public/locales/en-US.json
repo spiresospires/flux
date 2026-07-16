@@ -41,6 +41,8 @@
     "documentsCount_other": "{{count}} documents saved"
   },
   "statuses": {
+    "new": "New",
+    "underReview": "Under Review",
     "draft": "Draft",
     "inReview": "In Review",
     "approved": "Approved",
@@ -617,9 +619,10 @@
     "saveFilter": "Save Filter",
     "clearAll": "Clear All",
     "statusOptions": {
-      "draft": "Draft",
-      "inReview": "In Review",
+      "new": "New",
+      "underReview": "Under Review",
       "approved": "Approved",
+      "issued": "Issued",
       "superseded": "Superseded",
       "archived": "Archived"
     },

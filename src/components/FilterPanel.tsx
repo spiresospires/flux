@@ -32,7 +32,7 @@ export function FilterPanel({
   const [dateTo, setDateTo] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
-  const statuses = ['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'];
+  const statuses = ['New', 'Under Review', 'Approved', 'Issued', 'Superseded', 'Archived'];
   const docTypes = [
   'Drawing',
   'Specification',
@@ -122,9 +122,10 @@ export function FilterPanel({
     }
   };
   const statusLabelKeys: Record<string, string> = {
-    Draft: 'filters.statusOptions.draft',
-    'In Review': 'filters.statusOptions.inReview',
+    New: 'filters.statusOptions.new',
+    'Under Review': 'filters.statusOptions.underReview',
     Approved: 'filters.statusOptions.approved',
+    Issued: 'filters.statusOptions.issued',
     Superseded: 'filters.statusOptions.superseded',
     Archived: 'filters.statusOptions.archived'
   };

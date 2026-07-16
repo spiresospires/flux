@@ -52,8 +52,8 @@ const hedlandRules: AdRule[] = [
     triggers: [{ kind: 'upload' }],
     conditions: [
       { field: 'discipline', operator: 'is', values: ['Civil'] },
-      { field: 'documentType', operator: 'is', values: ['Drawing'] },
-      { field: 'status', operator: 'is', values: ['Draft'] },
+      { field: 'category', operator: 'is', values: ['DRAWING'] },
+      { field: 'status', operator: 'is', values: ['New'] },
     ],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-hed-civil' }, action: 'formal-review', reasonId: 'lead' },
@@ -70,7 +70,7 @@ const hedlandRules: AdRule[] = [
     triggers: [{ kind: 'upload' }],
     conditions: [
       { field: 'discipline', operator: 'is', values: ['Structural'] },
-      { field: 'documentType', operator: 'is', values: ['Drawing'] },
+      { field: 'category', operator: 'is', values: ['DRAWING'] },
     ],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-hed-structural' }, action: 'formal-review', reasonId: 'lead' },
@@ -86,7 +86,7 @@ const hedlandRules: AdRule[] = [
     triggers: [{ kind: 'upload' }],
     conditions: [
       { field: 'discipline', operator: 'is', values: ['Electrical'] },
-      { field: 'documentType', operator: 'in', values: ['Drawing', 'Specification'] },
+      { field: 'category', operator: 'in', values: ['DRAWING', 'SPECIFICATION'] },
     ],
     assignments: [
       { recipient: { kind: 'user', userId: 'u-mchen' }, action: 'formal-review', reasonId: 'lead' },
@@ -101,7 +101,7 @@ const hedlandRules: AdRule[] = [
     description: 'Marine-tagged specifications need formal approval by the marine engineering group.',
     triggers: [{ kind: 'upload' }],
     conditions: [
-      { field: 'documentType', operator: 'is', values: ['Specification'] },
+      { field: 'category', operator: 'is', values: ['SPECIFICATION'] },
       { field: 'tags', operator: 'contains', values: ['marine'] },
     ],
     assignments: [
@@ -114,10 +114,10 @@ const hedlandRules: AdRule[] = [
   },
   {
     id: 'r-hed-approved-transmittal',
-    name: 'Approved documents — transmittal to client',
-    description: 'Everything reaching Approved is transmitted to the client review panel.',
-    triggers: [{ kind: 'status-change', toStatus: 'Approved' }],
-    conditions: [{ field: 'status', operator: 'is', values: ['Approved'] }],
+    name: 'Issued documents — transmittal to client',
+    description: 'Everything reaching Issued is transmitted to the client review panel.',
+    triggers: [{ kind: 'status-change', toStatus: 'Issued' }],
+    conditions: [{ field: 'status', operator: 'is', values: ['Issued'] }],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-hed-client' }, action: 'transmittal', reasonId: 'to' },
       { recipient: { kind: 'workgroup', workgroupId: 'wg-hed-dc' }, action: 'message', reasonId: 'cc' },
@@ -156,7 +156,7 @@ const hedlandRules: AdRule[] = [
     name: 'Vendor data — technical query routing',
     description: 'Manually-triggered TQ routing for vendor data packages.',
     triggers: [{ kind: 'manual' }],
-    conditions: [{ field: 'tags', operator: 'contains', values: ['vendor'] }],
+    conditions: [{ field: 'category', operator: 'is', values: ['VENDOR - SUPPLIER'] }],
     assignments: [
       { recipient: { kind: 'user', userId: 'u-dkumar' }, action: 'technical-query', reasonId: 'assigned' },
     ],
@@ -198,7 +198,7 @@ const marraRidgeRules: AdRule[] = [
     id: 'r-mr-drawings-review',
     name: 'Engineering drawings for formal review',
     triggers: [{ kind: 'upload' }],
-    conditions: [{ field: 'documentType', operator: 'is', values: ['Drawing'] }],
+    conditions: [{ field: 'category', operator: 'is', values: ['DRAWING'] }],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-mr-eng' }, action: 'formal-review', reasonId: 'lead' },
       { recipient: { kind: 'workgroup', workgroupId: 'wg-mr-dc' }, action: 'message', reasonId: 'cc' },
@@ -211,7 +211,7 @@ const marraRidgeRules: AdRule[] = [
     id: 'r-mr-specs-approval',
     name: 'Specifications for approval',
     triggers: [{ kind: 'upload' }],
-    conditions: [{ field: 'documentType', operator: 'is', values: ['Specification'] }],
+    conditions: [{ field: 'category', operator: 'is', values: ['SPECIFICATION'] }],
     assignments: [
       { recipient: { kind: 'user', userId: 'u-jsmith' }, action: 'formal-approval', reasonId: 'assigned' },
     ],
@@ -233,9 +233,9 @@ const marraRidgeRules: AdRule[] = [
   },
   {
     id: 'r-mr-approved-client',
-    name: 'Approved documents — transmittal to owner',
-    triggers: [{ kind: 'status-change', toStatus: 'Approved' }],
-    conditions: [{ field: 'status', operator: 'is', values: ['Approved'] }],
+    name: 'Issued documents — transmittal to owner',
+    triggers: [{ kind: 'status-change', toStatus: 'Issued' }],
+    conditions: [{ field: 'status', operator: 'is', values: ['Issued'] }],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-mr-client' }, action: 'transmittal', reasonId: 'to' },
     ],
@@ -276,7 +276,7 @@ const kwinanaRules: AdRule[] = [
     name: 'Process drawings for formal review',
     triggers: [{ kind: 'upload' }],
     conditions: [
-      { field: 'documentType', operator: 'is', values: ['Drawing'] },
+      { field: 'category', operator: 'is', values: ['DRAWING'] },
       { field: 'tags', operator: 'contains', values: ['process'] },
     ],
     assignments: [
@@ -315,7 +315,7 @@ const kwinanaRules: AdRule[] = [
   {
     id: 'r-kw-handover',
     name: 'Systems completion dossiers to client',
-    triggers: [{ kind: 'status-change', toStatus: 'Approved' }],
+    triggers: [{ kind: 'status-change', toStatus: 'Issued' }],
     conditions: [{ field: 'tags', operator: 'contains', values: ['systems completion'] }],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-kw-client' }, action: 'transmittal', reasonId: 'to' },
@@ -329,7 +329,7 @@ const kwinanaRules: AdRule[] = [
     id: 'r-kw-vendor-rfi',
     name: 'Vendor data RFI routing',
     triggers: [{ kind: 'manual' }],
-    conditions: [{ field: 'tags', operator: 'contains', values: ['vendor'] }],
+    conditions: [{ field: 'category', operator: 'is', values: ['VENDOR - SUPPLIER'] }],
     assignments: [
       { recipient: { kind: 'user', userId: 'u-rlee' }, action: 'rfi', reasonId: 'assigned' },
     ],
@@ -345,7 +345,7 @@ const goldfieldsRules: AdRule[] = [
     name: 'Track drawings for formal review',
     triggers: [{ kind: 'upload' }],
     conditions: [
-      { field: 'documentType', operator: 'is', values: ['Drawing'] },
+      { field: 'category', operator: 'is', values: ['DRAWING'] },
       { field: 'tags', operator: 'contains', values: ['track'] },
     ],
     assignments: [

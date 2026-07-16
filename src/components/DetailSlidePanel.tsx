@@ -63,8 +63,8 @@ const typeConfig: Record<DetailPanelObjectType, { icon: React.ElementType; label
 };
 
 const statusColors: Record<string, string> = {
-  Draft: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'In Review': 'bg-warning-50 text-warning-700 border-warning-200',
+  New: 'bg-secondary-50 text-secondary-700 border-secondary-200',
+  'Under Review': 'bg-warning-50 text-warning-700 border-warning-200',
   Approved: 'bg-success-50 text-success-700 border-success-200',
   Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
   Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
@@ -72,14 +72,14 @@ const statusColors: Record<string, string> = {
   'Due Today': 'bg-amber-50 text-amber-700 border-amber-200',
   'Due Soon': 'bg-yellow-50 text-yellow-700 border-yellow-200',
   Pending: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-  Issued: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Issued: 'bg-sky-50 text-sky-700 border-sky-200',
   Returned: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 function translateStatusLabel(t: (key: string, variables?: Record<string, string | number>) => string, status: string) {
   const key = ({
-    Draft: 'statuses.draft',
-    'In Review': 'statuses.inReview',
+    New: 'statuses.new',
+    'Under Review': 'statuses.underReview',
     Approved: 'statuses.approved',
     Superseded: 'statuses.superseded',
     Archived: 'statuses.archived',

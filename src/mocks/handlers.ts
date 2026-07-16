@@ -131,7 +131,53 @@ interface AdStore {
 }
 
 const AD_STORAGE_PREFIX = 'flux.ad.';
-const AD_SEED_VERSION = 2;
+// v3: Document Category conditions + FusionLive PM-status vocabulary (2026-07-13).
+const AD_SEED_VERSION = 3;
+
+// Value migrations applied to SALVAGED user-created rules when the seed shape
+// changes — user-built rules survive a re-seed instead of being wiped.
+const STATUS_VALUE_MIGRATION: Record<string, string> = {
+  Draft: 'New',
+  'In Review': 'Under Review',
+};
+const DOC_TYPE_TO_CATEGORY: Record<string, string> = {
+  Drawing: 'DRAWING',
+  Specification: 'SPECIFICATION',
+  'Technical Report': 'CONSTRUCTION RECORDS',
+  Manual: 'HANDOVER & O&M',
+  Procedure: 'CONSTRUCTION RECORDS',
+};
+
+function migrateUserRule(rule: AdRule): AdRule {
+  return {
+    ...rule,
+    triggers: rule.triggers.map((t) =>
+      t.kind === 'status-change'
+        ? { ...t, toStatus: (STATUS_VALUE_MIGRATION[t.toStatus] ?? t.toStatus) as typeof t.toStatus }
+        : t
+    ),
+    conditions: rule.conditions.map((c) => {
+      if (c.field === 'status') {
+        return { ...c, values: c.values.map((v) => STATUS_VALUE_MIGRATION[v] ?? v) };
+      }
+      if (c.field === 'documentType') {
+        return { ...c, field: 'category', values: c.values.map((v) => DOC_TYPE_TO_CATEGORY[v] ?? v) };
+      }
+      return c;
+    }),
+  };
+}
+
+function freshAdStore(wsId: ProjectId): AdStore {
+  // Deep copy so handler mutations never corrupt the module-level seed.
+  return JSON.parse(
+    JSON.stringify({
+      seedVersion: AD_SEED_VERSION,
+      ruleSet: adRuleSetSeedByProject[wsId],
+      settings: defaultAdSettings,
+    })
+  ) as AdStore;
+}
 
 function readAdStore(wsId: ProjectId): AdStore {
   try {
@@ -139,15 +185,23 @@ function readAdStore(wsId: ProjectId): AdStore {
     if (saved) {
       const parsed = JSON.parse(saved) as AdStore;
       if (parsed.seedVersion === AD_SEED_VERSION) return parsed;
+      // Stale seed: re-seed, but salvage rules the user created (ids not in
+      // any seed version) after passing them through the value migrations.
+      const fresh = freshAdStore(wsId);
+      const seedIds = new Set<string>();
+      fresh.ruleSet.draft.rules.forEach((r) => seedIds.add(r.id));
+      fresh.ruleSet.history.forEach((v) => v.rules.forEach((r) => seedIds.add(r.id)));
+      const userRules = (parsed.ruleSet?.draft?.rules ?? [])
+        .filter((r) => !seedIds.has(r.id))
+        .map(migrateUserRule);
+      fresh.ruleSet.draft.rules = [...userRules, ...fresh.ruleSet.draft.rules];
+      writeAdStore(wsId, fresh);
+      return fresh;
     }
   } catch {
     /* fall through to seed */
   }
-  return {
-    seedVersion: AD_SEED_VERSION,
-    ruleSet: adRuleSetSeedByProject[wsId],
-    settings: defaultAdSettings,
-  };
+  return freshAdStore(wsId);
 }
 
 function writeAdStore(wsId: ProjectId, store: AdStore): void {

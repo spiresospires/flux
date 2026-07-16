@@ -11,7 +11,7 @@
 // (mine / port / process plant / rail). Per-project totals: Marra Ridge 1140,
 // Port Hedland 920, Kwinana 1060, Goldfields 840 — 3960 documents overall.
 // Folder counts in mockFolders.ts are computed from this data — never hand-edit them.
-import { Document, DocumentType } from '../types/document';
+import { Document, DocumentCategory, DocumentType } from '../types/document';
 import { PROJECTS, ProjectId } from './projects';
 
 const authors = [
@@ -37,8 +37,8 @@ const authors = [
   'Margaret Robinson'];
 
 const statuses: Array<
-  'Draft' | 'In Review' | 'Approved' | 'Superseded' | 'Archived'> =
-  ['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'];
+  'New' | 'Under Review' | 'Approved' | 'Issued' | 'Superseded' | 'Archived'> =
+  ['New', 'Under Review', 'Approved', 'Issued', 'Superseded', 'Archived'];
 
 const thumbnails = [
   '/eng_drawing_1_1779057915112.png',
@@ -156,6 +156,25 @@ const withCategoryAttributes = (doc: Document, index: number): Document => {
     tags: doc.tags.includes(normalizedCategory) ? doc.tags : [...doc.tags, normalizedCategory],
     ...buildCategoryFields(category, index),
   };
+};
+
+// FusionLive Document Category per spec — derived from the spec's tags and
+// format rather than annotated on all ~74 spec entries. Order matters: the
+// first matching bucket wins (vendor data is Specification-format, so it must
+// be classified before the generic SPECIFICATION bucket).
+const inferDocCategory = (spec: DocCategorySpec): DocumentCategory => {
+  const tags = new Set(spec.tags);
+  const has = (...names: string[]) => names.some((n) => tags.has(n));
+  if (has('vendor', 'datasheet')) return 'VENDOR - SUPPLIER';
+  if (has('project management', 'reporting')) return 'PROJECT CONTROLS';
+  if (has('contracts', 'commercial')) return 'CONTRACTS';
+  if (has('safety', 'HSE', 'environmental', 'heritage', 'compliance', 'process safety', 'rail safety')) return 'HSE & ENVIRONMENT';
+  if (has('quality', 'ITP', 'NCR', 'welding', 'inspection')) return 'QUALITY';
+  if (has('commissioning', 'pre-commissioning', 'systems completion', 'performance', 'testing', 'load trials', 'ramp-up', 'dry', 'cold')) return 'COMMISSIONING';
+  if (has('operations', 'manual', 'as-built', 'handover')) return 'HANDOVER & O&M';
+  if (spec.documentType === 'Drawing') return 'DRAWING';
+  if (spec.documentType === 'Specification') return 'SPECIFICATION';
+  return 'CONSTRUCTION RECORDS';
 };
 
 // ── Per-project category specs ──────────────────────────────────────────────
@@ -278,7 +297,8 @@ function generateProjectDocuments(projectId: ProjectId): Document[] {
         id: `${spec.idPrefix}-${String(i + 1).padStart(3, '0')}-R${(i % 3) + 1}`,
         title: `${spec.titlePrefix} - ${spec.variants[i % spec.variants.length]} ${Math.floor(i / spec.variants.length) + 1}`,
         revisionNumber: `R${(i % 3) + 1}`,
-        status: statuses[i % 5],
+        status: statuses[i % statuses.length],
+        category: inferDocCategory(spec),
         author: authors[i % authors.length],
         dateCreated: getRandomDate(new Date('2024-06-01'), new Date('2025-09-01')),
         dateModified: getRandomDate(new Date('2025-09-01'), new Date('2026-06-01')),

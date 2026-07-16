@@ -266,6 +266,26 @@ configurable action precedence · matrix view = coverage pivot, clarity over spr
 parity. Defaults taken without explicit sign-off (revisit if needed): switchable group-by
 on the rules list; priority surfaced contextually instead of a raw per-rule number.
 
+## 6a. Amendments (locked 2026-07-16)
+
+- **Document Category is the primary condition field.** Documents gained a real
+  `category` field with FusionLive-style values (DRAWING, SPECIFICATION,
+  VENDOR - SUPPLIER, PROJECT CONTROLS, CONTRACTS, HSE & ENVIRONMENT, QUALITY,
+  COMMISSIONING, CONSTRUCTION RECORDS, HANDOVER & O&M), derived per document
+  family in the seed. `documentType` remains the format field elsewhere in FLUX.
+- **PM statuses renamed app-wide** to the FusionLive-style ladder: New →
+  Under Review → Approved → Issued → Superseded → Archived. 'Issued' is the
+  default status-change trigger (the classic distribution trigger). Packages
+  keeps its separate PackageStatus vocabulary.
+- **Category-scoped metadata conditions.** Once a rule names a Document
+  Category, that category's metadata fields (e.g. VENDOR - SUPPLIER →
+  Manufacturer, Equipment Tag, Power Rating, Service Medium) join the condition
+  field list under a "Category metadata" group — the legacy matrix's "only list
+  fields distribution depends on", minus the spreadsheet.
+- **User rules survive re-seeds.** The mock store's seed-version bump now
+  salvages user-created rules (ids not in any seed version) and migrates their
+  values (old statuses, documentType→category) instead of wiping them.
+
 ## 7. Customer ideas — bucketed (reviewed 2026-07-13)
 
 - **In first cut:** multi-match; multi-value field evaluation; duplicate combinations

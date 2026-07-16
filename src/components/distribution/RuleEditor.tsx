@@ -20,13 +20,14 @@ import {
   ACTION_LABELS,
   ACTION_TYPES,
   AD_CONDITION_FIELDS,
+  PM_STATUSES,
   conditionFieldDef,
+  conditionFieldsForRule,
   operatorsForKind,
   ruleWarnings,
+  type AdConditionFieldDef,
 } from '../../utils/distributionEngine';
 import { useCreateAdRule, useDeleteAdRule, useUpdateAdRule } from '../../hooks/useDistribution';
-
-const PM_STATUSES: DocumentStatus[] = ['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'];
 
 const OPERATOR_LABELS: Record<AdOperator, string> = {
   is: 'is',
@@ -88,7 +89,7 @@ export function RuleEditor({ wsId, rule, isNew, users, workgroups, settings, onC
     if (hasTrigger(kind)) {
       patch({ triggers: draft.triggers.filter((t) => t.kind !== kind) });
     } else {
-      const added: AdTrigger = kind === 'status-change' ? { kind, toStatus: 'Approved' } : { kind };
+      const added: AdTrigger = kind === 'status-change' ? { kind, toStatus: 'Issued' } : { kind };
       patch({ triggers: [...draft.triggers, added] });
     }
   };
@@ -103,7 +104,7 @@ export function RuleEditor({ wsId, rule, isNew, users, workgroups, settings, onC
     patch({ conditions: draft.conditions.map((c, i) => (i === index ? condition : c)) });
 
   const addCondition = () =>
-    patch({ conditions: [...draft.conditions, { field: 'discipline', operator: 'is', values: [] }] });
+    patch({ conditions: [...draft.conditions, { field: 'category', operator: 'is', values: [] }] });
 
   const removeCondition = (index: number) =>
     patch({ conditions: draft.conditions.filter((_, i) => i !== index) });
@@ -213,7 +214,7 @@ export function RuleEditor({ wsId, rule, isNew, users, workgroups, settings, onC
                   </label>
                   {kind === 'status-change' && statusTrigger && (
                     <select
-                      value={statusTrigger.kind === 'status-change' ? statusTrigger.toStatus : 'Approved'}
+                      value={statusTrigger.kind === 'status-change' ? statusTrigger.toStatus : 'Issued'}
                       onChange={(e) => setTriggerStatus(e.target.value as DocumentStatus)}
                       className={selectClass}
                       aria-label="Trigger status"
@@ -247,11 +248,18 @@ export function RuleEditor({ wsId, rule, isNew, users, workgroups, settings, onC
                 <ConditionRow
                   key={index}
                   condition={condition}
+                  availableFields={conditionFieldsForRule(draft.conditions)}
                   onChange={(c) => setCondition(index, c)}
                   onRemove={() => removeCondition(index)}
                 />
               ))}
             </div>
+            {draft.conditions.some((c) => c.field === 'category' && c.values.length > 0) &&
+              conditionFieldsForRule(draft.conditions).length > AD_CONDITION_FIELDS.length && (
+                <p className="mt-1.5 text-[11px] text-neutral-400">
+                  This category's metadata fields are now available in the field list.
+                </p>
+              )}
           </div>
 
           {/* Recipients & actions */}
@@ -374,15 +382,26 @@ export function RuleEditor({ wsId, rule, isNew, users, workgroups, settings, onC
 
 function ConditionRow({
   condition,
+  availableFields,
   onChange,
   onRemove,
 }: {
   condition: AdCondition;
+  availableFields: AdConditionFieldDef[];
   onChange: (condition: AdCondition) => void;
   onRemove: () => void;
 }) {
   const def = conditionFieldDef(condition.field);
   const operators = def ? operatorsForKind(def.kind) : (['is'] as AdOperator[]);
+
+  // Split the dropdown into base document fields and the metadata fields
+  // unlocked by the rule's Document Category condition. A field referenced by
+  // this condition but no longer offered (category changed) stays listed so
+  // the row keeps rendering.
+  const baseKeys = new Set(AD_CONDITION_FIELDS.map((f) => f.key));
+  const baseFields = availableFields.filter((f) => baseKeys.has(f.key));
+  const metadataFields = availableFields.filter((f) => !baseKeys.has(f.key));
+  if (def && !availableFields.some((f) => f.key === def.key)) metadataFields.push(def);
 
   const changeField = (field: string) => {
     const nextDef = conditionFieldDef(field);
@@ -408,9 +427,18 @@ function ConditionRow({
     <div className="rounded-lg border border-neutral-100 bg-[#FAFBFC] px-2.5 py-2">
       <div className="flex items-center gap-2">
         <select value={condition.field} onChange={(e) => changeField(e.target.value)} className={selectClass} aria-label="Condition field">
-          {AD_CONDITION_FIELDS.map((f) => (
-            <option key={f.key} value={f.key}>{f.label}</option>
-          ))}
+          <optgroup label="Document fields">
+            {baseFields.map((f) => (
+              <option key={f.key} value={f.key}>{f.label}</option>
+            ))}
+          </optgroup>
+          {metadataFields.length > 0 && (
+            <optgroup label="Category metadata">
+              {metadataFields.map((f) => (
+                <option key={f.key} value={f.key}>{f.label}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
         <select
           value={condition.operator}

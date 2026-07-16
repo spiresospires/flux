@@ -97,7 +97,7 @@ function statsFor(projectId: (typeof PROJECTS)[number]['id'], projectName: strin
   const docs = mockDocumentsByProject[projectId];
   return {
     documents: docs.length,
-    inReview: docs.filter((d) => d.status === 'In Review').length,
+    inReview: docs.filter((d) => d.status === 'Under Review').length,
     overdue: mockTodos.filter((t) => t.project === projectName && t.status === 'Overdue').length,
     unread: mockNotifications.filter((n) => n.project === projectName && !n.isRead).length,
   };

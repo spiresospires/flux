@@ -150,7 +150,7 @@ export function RulesTab({ wsId, canManage }: RulesTabProps) {
           aria-label="Group rules by"
         >
           <option value="discipline">Group: Discipline</option>
-          <option value="category">Group: Document type</option>
+          <option value="category">Group: Document Category</option>
           <option value="trigger">Group: Trigger</option>
           <option value="none">Group: None</option>
         </select>

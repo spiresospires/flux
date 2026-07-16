@@ -365,7 +365,7 @@ export const mockFavourites: FavouriteItem[] = [
     addedAt: '2026-05-01',
     description: 'Master P&ID sheet for east processing unit.',
     objectId: 'doc-pid-master',
-    status: 'In Review',
+    status: 'Under Review',
   },
   {
     id: 'fav-2',
@@ -384,7 +384,7 @@ export const mockFavourites: FavouriteItem[] = [
     addedAt: '2026-04-25',
     description: 'IFC Package for Block 12.',
     objectId: 'pkg-ifc-b12',
-    status: 'Draft',
+    status: 'New',
   },
   {
     id: 'fav-4',

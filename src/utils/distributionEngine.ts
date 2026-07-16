@@ -16,6 +16,7 @@ import type {
   AdRuleSet,
   AdTrigger,
 } from '../types/distribution';
+import { DOCUMENT_CATEGORIES } from '../types/document';
 
 // ── Condition field registry ─────────────────────────────────────────────────
 // Adding a conditionable document field is a registry entry, not a schema
@@ -39,19 +40,74 @@ export const DISCIPLINES = [
   'HVAC',
 ] as const;
 
-const DOCUMENT_TYPES = ['Drawing', 'Specification', 'Technical Report', 'Manual', 'Procedure'] as const;
-const PM_STATUSES = ['Draft', 'In Review', 'Approved', 'Superseded', 'Archived'] as const;
+/** FusionLive-style PM status ladder — single source for AD dropdowns. */
+export const PM_STATUSES = ['New', 'Under Review', 'Approved', 'Issued', 'Superseded', 'Archived'] as const;
 
 export const AD_CONDITION_FIELDS: readonly AdConditionFieldDef[] = [
+  { key: 'category', label: 'Document Category', kind: 'enum', values: DOCUMENT_CATEGORIES },
   { key: 'discipline', label: 'Discipline', kind: 'enum', values: DISCIPLINES },
-  { key: 'documentType', label: 'Document type', kind: 'enum', values: DOCUMENT_TYPES },
   { key: 'status', label: 'PM status', kind: 'enum', values: PM_STATUSES },
   { key: 'tags', label: 'Tags', kind: 'tags' },
   { key: 'asset', label: 'Asset', kind: 'text' },
 ];
 
+// ── Category-scoped metadata fields ──────────────────────────────────────────
+// FusionLive Document Categories carry their own metadata schema; once a rule
+// names a category, that category's fields become conditionable too — the
+// "only list fields distribution depends on" idea from the legacy matrix.
+// Field keys map straight onto the generated document properties
+// (mockDocuments buildCategoryFields).
+export const AD_CATEGORY_METADATA_FIELDS: Record<string, AdConditionFieldDef[]> = {
+  'VENDOR - SUPPLIER': [
+    { key: 'manufacturer', label: 'Manufacturer', kind: 'text' },
+    { key: 'equipmentTag', label: 'Equipment Tag', kind: 'text' },
+    { key: 'powerRating', label: 'Power Rating', kind: 'text' },
+    { key: 'serviceMedium', label: 'Service Medium', kind: 'text' },
+  ],
+  DRAWING: [
+    { key: 'materialGrade', label: 'Material Grade', kind: 'text' },
+    { key: 'beamSize', label: 'Beam Size', kind: 'text' },
+    { key: 'voltage', label: 'Voltage', kind: 'text' },
+    { key: 'concreteType', label: 'Concrete Type', kind: 'text' },
+  ],
+  QUALITY: [
+    { key: 'connectionType', label: 'Connection Type', kind: 'text' },
+  ],
+  'HANDOVER & O&M': [
+    { key: 'equipmentTag', label: 'Equipment Tag', kind: 'text' },
+  ],
+};
+
+/** Fields available to a rule's condition builder: the base registry plus the
+ *  metadata fields of any Document Category the rule already names. */
+export function conditionFieldsForRule(conditions: AdCondition[]): AdConditionFieldDef[] {
+  const fields = [...AD_CONDITION_FIELDS];
+  const categoryCondition = conditions.find(
+    (c) => c.field === 'category' && (c.operator === 'is' || c.operator === 'in')
+  );
+  if (categoryCondition) {
+    const seen = new Set(fields.map((f) => f.key));
+    for (const value of categoryCondition.values) {
+      for (const field of AD_CATEGORY_METADATA_FIELDS[value] ?? []) {
+        if (seen.has(field.key)) continue;
+        seen.add(field.key);
+        fields.push(field);
+      }
+    }
+  }
+  return fields;
+}
+
+/** Global lookup across the base registry AND all category metadata fields, so
+ *  existing conditions always render even when their category clause changes. */
 export function conditionFieldDef(key: string): AdConditionFieldDef | undefined {
-  return AD_CONDITION_FIELDS.find((f) => f.key === key);
+  const base = AD_CONDITION_FIELDS.find((f) => f.key === key);
+  if (base) return base;
+  for (const fields of Object.values(AD_CATEGORY_METADATA_FIELDS)) {
+    const hit = fields.find((f) => f.key === key);
+    if (hit) return hit;
+  }
+  return undefined;
 }
 
 /** Operators offered per field kind ('between' is reserved for future
@@ -125,10 +181,10 @@ export function ruleGroupKey(rule: AdRule, groupBy: 'discipline' | 'category' | 
   if (groupBy === 'trigger') {
     return rule.triggers.length === 0 ? 'No trigger' : rule.triggers.map(describeTrigger).join(' · ');
   }
-  const field = groupBy === 'discipline' ? 'discipline' : 'documentType';
+  const field = groupBy === 'discipline' ? 'discipline' : 'category';
   const condition = rule.conditions.find((c) => c.field === field);
   if (!condition || condition.values.length === 0) {
-    return groupBy === 'discipline' ? 'All disciplines' : 'All document types';
+    return groupBy === 'discipline' ? 'All disciplines' : 'All categories';
   }
   if (condition.operator === 'is-not') return `Not ${condition.values.join(', ')}`;
   return condition.values.join(', ');

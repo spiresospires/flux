@@ -41,6 +41,8 @@
     "documentsCount_other": "{{count}} documents enregistrés"
   },
   "statuses": {
+    "new": "Nouveau",
+    "underReview": "En cours de révision",
     "draft": "Brouillon",
     "inReview": "En révision",
     "approved": "Approuvé",
@@ -617,9 +619,10 @@
     "saveFilter": "Enregistrer le filtre",
     "clearAll": "Tout effacer",
     "statusOptions": {
-      "draft": "Brouillon",
-      "inReview": "En révision",
+      "new": "Nouveau",
+      "underReview": "En cours de révision",
       "approved": "Approuvé",
+      "issued": "Émis",
       "superseded": "Remplacé",
       "archived": "Archivé"
     },
