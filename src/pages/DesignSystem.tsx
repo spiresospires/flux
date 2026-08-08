@@ -1,4 +1,3 @@
-import React from 'react';
 import { ColorSwatch } from '../components/design-system/ColorSwatch';
 import { ContrastChecker } from '../components/design-system/ContrastChecker';
 import { ArrowLeftIcon } from 'lucide-react';

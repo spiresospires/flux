@@ -14,6 +14,20 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    // Honour the leading-underscore convention for deliberately unused bindings.
+    // The codebase uses destructure-to-omit in several places, e.g.
+    //   const { updatedAt: _at, updatedBy: _by, ...rest } = rule
+    // where the discarded names are the POINT — deleting them changes behaviour.
+    // Without this, ESLint flags the idiom and the only "fixes" are wrong ones.
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      },
+    ],
   },
   overrides: [
     {

@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   BriefcaseIcon,
   Building2Icon,
@@ -69,7 +68,6 @@ function EmptyState() {
 }
 
 export function MyBriefcase() {
-  const navigate = useNavigate();
   const { items, count, remove, removeMany, clear } = useBriefcase();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -89,7 +87,7 @@ export function MyBriefcase() {
   const toggle = (docId: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(docId) ? next.delete(docId) : next.add(docId);
+      if (next.has(docId)) next.delete(docId); else next.add(docId);
       return next;
     });
 

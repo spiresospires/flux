@@ -1,4 +1,3 @@
-import React from 'react';
 interface ContrastCheckerProps {
   backgrounds: Array<{
     name: string;

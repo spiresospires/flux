@@ -1,4 +1,3 @@
-import React from 'react';
 import { Document } from '../types/document';
 import { useLocalization } from '../contexts/LocalizationContext';
 interface MetadataPanelProps {

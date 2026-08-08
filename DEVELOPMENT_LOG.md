@@ -190,6 +190,66 @@ Uses `useLayoutEffect` + `ResizeObserver` to compute width dynamically:
 | 13 | DocumentBrowser: reads `location.state` and switches scope on search-card navigation | `DocumentBrowser.tsx` |
 | 14 | Search persistence: `SearchContext` + LeftRail Search button uses `lastQuery` | `SearchContext.tsx` (new), `App.tsx`, `LeftRail.tsx`, `SearchResults.tsx` |
 | 15 | FilterBar consolidation: removed duplicate stats row, unified dynamic filter pills | `SearchResults.tsx` |
+| 16 | Flint icon rebuilt: 3D hover-spin network in a static gradient hexagon | `FlintIcon.tsx`, `flintGeometry.ts` (new) |
+| 17 | Repo hygiene baseline: `npm run typecheck` added, all type + lint errors cleared | `package.json`, `.eslintrc.cjs`, 15 source files |
+| 18 | First test suite: Vitest + 108 tests over AD rules, search and icon geometry | `vitest.config.ts` (new), 3 `*.test.ts` (new), `package.json` |
+
+---
+
+### 16. Flint icon — 3D hover-spin (2026-08)
+
+Replaced the Framer Motion bloom mark with a node network that spins in **3D on hover** and is
+static otherwise, inside a static gradient hexagon frame.
+
+- **Geometry split out** to `flintGeometry.ts` so the renderer and the containment check share one
+  copy of the numbers. The previous validator restated the node table, which would drift and then
+  pass while checking geometry that was no longer rendered.
+- **Hover-gated, not perpetual.** Constant motion in persistent nav is distracting and a
+  vestibular-accessibility problem. Spin ramps up on hover and freezes at its current angle on
+  leave; the rAF loop exits when stopped, so an idle rail costs zero frames.
+- **Linear ramps, not exponential easing.** An exponential only approaches zero — measured, the
+  icon crept imperceptibly for ~2.5 s after the pointer left. Constant deceleration stops dead
+  in ~0.36 s.
+- **Spokes share the central node's colour.** Front-node spokes are drawn *after* the centre by
+  the depth sort, so a contrasting colour painted a visible stripe across its face.
+- **Containment is checked, not eyeballed** — `flintGeometry.test.ts`, six tier × state
+  combinations over 360°. Perspective makes nodes swell toward the camera, so peak reach sits
+  past the horizontal extreme, and small tiers squeeze from both ends at once.
+
+### 17. Repo hygiene baseline (2026-08)
+
+Groundwork so the prototype stays handover-ready rather than being cleaned up at handover time.
+
+- `npm run typecheck` added. **`npm run build` never typechecked** — Vite strips types without
+  checking them, so a green build said nothing about type safety.
+- 19 `TS6133` errors cleared → typecheck clean. Mostly unused `React` imports (the React 17+ JSX
+  transform makes them unnecessary). `ColorCustomizer`'s unwired `StandardPicker` was **exported
+  rather than deleted** — it is a complete parked feature, not dead code to bin.
+- 10 lint errors cleared → **0 errors** (6 known warnings remain). Six were the
+  destructure-to-omit idiom (`const { updatedAt: _at, ...rest } = rule`) where the discarded
+  bindings are the point; fixed by teaching ESLint the `^_` convention, not by deleting them.
+- Rationale for zero: a permanently-failing lint is indistinguishable from a newly-broken one.
+
+---
+
+### 18. First test suite — Vitest (2026-08)
+
+Vitest installed and configured; **108 tests** across three files. `npm test` / `npm run test:watch`.
+
+- **Vitest, not Jest** — this is a Vite project, so Vitest reuses the existing transform
+  pipeline and TS setup. Jest would mean maintaining a second, parallel build config.
+- **Scope chosen for value, not count.** `distributionEngine` and `search` are pure functions
+  (no DOM, no async, no mocking) that encode rules a new team cannot recover from the UI.
+- **`jsdom` and `@testing-library/react` deliberately not installed.** Nothing in the current
+  suite needs them; they go in when hook/context tests do.
+- **The PowerShell containment validator was deleted**, superseded by `flintGeometry.test.ts`.
+  It imports the geometry instead of regex-parsing the source, asserts invariants instead of
+  reporting numbers, and — decisively — **can run in CI**, which a PowerShell script never
+  could on Linux runners.
+
+⚠️ **Still no CI.** Nothing runs on push. That is now the largest remaining gap: a clean-machine
+run is the only thing that catches an uncommitted file that everything imports. See "Testing
+status" in `CLAUDE.md`.
 
 ---
 

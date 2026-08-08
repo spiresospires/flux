@@ -6,7 +6,6 @@ import {
   LayoutDashboardIcon,
   SettingsIcon,
   SearchIcon,
-  PackageIcon,
   FolderIcon,
   BriefcaseIcon,
   Share2Icon,

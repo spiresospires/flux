@@ -32,7 +32,10 @@ function loadPersistedScope(): ChatScope {
         if (project) return { kind: 'project', id: project.id, name: project.name };
       }
     }
-  } catch {}
+  } catch {
+    // Malformed or unreadable localStorage — fall through to the enterprise
+    // default rather than breaking app start.
+  }
   return { kind: 'enterprise' };
 }
 

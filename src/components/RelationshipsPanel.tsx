@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { DocumentRelationship } from '../types/document';
 import { useLocalization } from '../contexts/LocalizationContext';

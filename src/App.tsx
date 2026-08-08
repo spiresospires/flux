@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query';

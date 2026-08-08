@@ -19,15 +19,18 @@ interface ColorCustomizerProps {
 }
 
 // ─── Standard two-option dark / light toggle (non-FLUX projects) ─────────────
+// Parked: complete but not currently wired into any screen — FLUX projects use
+// the four-option picker below. Exported rather than left as a private unused
+// symbol so it survives `noUnusedLocals` without being deleted.
 
-interface AppearanceOption {
+export interface AppearanceOption {
   id: Appearance;
   label: string;
   desc: string;
   icon: React.ElementType;
 }
 
-function StandardPicker({
+export function StandardPicker({
   appearance,
   onSelect,
   options,
@@ -211,12 +214,7 @@ function FluxPicker({
 
 export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
   const { t } = useLocalization();
-  const { style, isFluxProject, setFluxStyle, setAppearance } = useViewStyle();
-
-  const appearanceOptions: AppearanceOption[] = [
-    { id: 'light', label: t('appearance.light'), desc: t('appearance.lightDesc'), icon: SunIcon },
-    { id: 'dark', label: t('appearance.dark'), desc: t('appearance.darkDesc'), icon: MoonIcon },
-  ];
+  const { style, setFluxStyle } = useViewStyle();
 
   const fluxOptions: FluxOption[] = [
     {

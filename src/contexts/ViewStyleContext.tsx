@@ -33,7 +33,6 @@ interface ViewStyleContextType {
 }
 
 const FLUX_STYLE_KEY = 'flux-view-style';
-const GLOBAL_APPEARANCE_KEY = 'theme';
 
 /** Default style — floating layout, light appearance — for all users on all projects. */
 export const DEFAULT_VIEW_STYLE: ViewStyle = { appearance: 'light', layout: 'floating' };
@@ -49,7 +48,10 @@ function loadFluxStyle(): ViewStyle | null {
     ) {
       return parsed as ViewStyle;
     }
-  } catch {}
+  } catch {
+    // Malformed or unreadable localStorage — fall back to the default view
+    // style rather than breaking app start.
+  }
   return null;
 }
 

@@ -12,14 +12,33 @@ Flux is a React 18 + TypeScript front-end prototype for a FusionLive EDMS (Engin
 
 ```
 src/
+  api/            API client wrapper
   components/     UI components (BrandBanner, LeftRail, FlintIcon, ColorCustomizer, etc.)
   contexts/       React context providers
   data/           Mock data (mockDashboard, mockDocuments, mockFolders, projects, etc.)
   hooks/          Custom React hooks (useUserPref)
+  mocks/          MSW handlers + browser worker
   pages/          Route-level pages (Dashboard, DocumentBrowser, Chat, SearchResults, etc.)
   types/          Shared TypeScript types
-  utils/          Utility functions (search, etc.)
+  utils/          Utility functions (search, distributionEngine)
 ```
+
+Tests live beside the code they cover, as `*.test.ts`.
+
+### Commands
+
+| command | what it does |
+|---------|--------------|
+| `npm run dev` | Vite dev server on :5173 |
+| `npm run build` | Production build (does **not** typecheck — Vite strips types without checking) |
+| `npm run typecheck` | `tsc --noEmit`. Currently clean; keep it that way |
+| `npm run lint` | ESLint. **0 errors**, 6 known warnings — keep errors at zero |
+| `npm test` | Vitest, single run. 108 tests over business rules + icon geometry |
+| `npm run test:watch` | Vitest in watch mode |
+
+⚠️ `npm run build` succeeding does **not** mean the code typechecks — Vite strips types without checking them. That is what the separate `typecheck` script is for. Run `typecheck`, `lint` and `test`; the build alone proves very little.
+
+⚠️ **There is still no CI.** Nothing runs automatically on push. See "Testing status" at the end of this file.
 
 ### Key context providers
 
@@ -107,28 +126,82 @@ Nav order (top → bottom): **Dashboard → Flint (Chat) → Search → Document
 
 ## Flint AI Icon (`src/components/FlintIcon.tsx`)
 
-Shared animated SVG component used in LeftRail nav and Chat empty state.
+Shared animated SVG component used in LeftRail nav, Chat empty state and the Dashboard project map.
 
-**Structure:** 1 centre node + 8 outer nodes connected by spokes. ViewBox `0 0 24 24`, radius 8.2, centre at (12, 12).
+**Two files.** `flintGeometry.ts` holds the node table, size tiers and projection maths; `FlintIcon.tsx` is only the renderer. The split is not cosmetic — `flintGeometry.test.ts` imports the same module, so the geometry has exactly one definition. An earlier PowerShell validator kept its own copy of the node table, which would drift the moment anyone edited the component and leave a check that passed while validating geometry that was no longer rendered.
 
-**Node colours:** `['#F472B6','#34D399','#FBBF24','#A78BFA', '#F472B6','#34D399','#FBBF24','#A78BFA']`
+**Structure:** A static rounded point-top hexagon frame (circumradius 52, centre (60, 60), viewBox `0 0 120 120`) with a gradient stroke, enclosing a node network that **spins in 3D on hover** and is static otherwise. Corners are built into the path (each vertex cut back and rejoined with a quadratic), not just `stroke-linejoin`. Nine peripheral nodes, all wired **directly** to the centre — no branches off other spokes.
 
-**Centre node:** `#0461BA`, r=2.1 (inactive), r=2.3 (active).
+**Frame gradient:** `#3B2FC9` → `#2E6AD6` → `#52C4F2`, bottom-left to top-right. The frame is a **sibling** of the network group, never a parent, so it cannot move.
 
-**Idle animation:** Each outer node drifts independently (`motion.g` + `FLINT_DRIFT_ANIMS` / `FLINT_DRIFT_TRANS` — **module-level constants** so Framer Motion never restarts the loop on parent re-render).
+**No framer-motion.** Animation is a `requestAnimationFrame` loop writing SVG attributes directly through refs, so it never re-renders the React tree at 60 fps.
 
-**Hover animation sequence (~1.1 s total):**
-1. 8 spokes draw outward (`pathLength [0→1]`), staggered 38 ms each
-2. Outer nodes radius-pulse
-3. Centre node pulses
-4. White corona ring expands and fades (`r → centreR+7`, opacity `[0, 0.9, 0]`, delay 0.5 s)
-5. 4 white sparkle dots flash at cardinal midpoints (delay 0.52 s + stagger)
+### The 3D rotation
 
-**Props:** `isHovered: boolean`, `isActive?: boolean`, `size?: number` (default 20).
+Nodes hold 3D positions (`phi` azimuth, `psi` elevation, `d` distance) and orbit the **vertical axis** like a turning globe. Rotation about Y is cheap because elevation never changes:
+
+```
+rho = d·cos(psi)            horizontal orbit radius
+y   = d·sin(psi)            constant — Y rotation cannot alter height
+x   = rho·cos(phi + theta)
+z   = rho·sin(phi + theta)
+scale = CAM / (CAM - z)     CAM = 170
+```
+
+⚠️ A CSS `transform: rotateY()` does **not** work here. SVG children get no per-element 3D perspective, so it just squashes the network horizontally like a flipping card.
+
+⚠️ SVG has no `z-index` — **depth order is document order**. The draw loop sorts by `z` and re-appends the groups far-to-near each time the order changes.
+
+⚠️ Spokes are the **same colour as the central node** (`SPOKE = CENTRE`). A node in front of the centre has its spoke drawn *after* the central node, so a contrasting spoke colour paints a visible stripe across its face and the centre looks transparent.
+
+### Hover behaviour
+
+Spin ramps up on hover and ramps down on leave, **freezing at whatever angle it reached** rather than snapping back to zero (`thetaRef` survives re-renders). Once fully stopped the rAF loop returns without rescheduling, so an idle rail costs zero frames.
+
+⚠️ Ramps are **linear** (`ACCEL 140`, `DECEL 110` deg/s²), deliberately not an exponential ease. An exponential only *approaches* zero — measured, the icon kept creeping imperceptibly for ~2.5 s after the pointer left. Constant deceleration reaches a true dead stop in ~0.36 s.
+
+Perpetual motion in persistent nav is distracting and a vestibular-accessibility problem; hover-gating is what makes this mark acceptable in the rail at all. `prefers-reduced-motion: reduce` disables the spin entirely and renders a static pose.
+
+**Colours:** Fully blue — violet `#3B2FC9`, navy `#1E3A8A`, brand `#0461BA`, mid `#2F6FD0`, sky `#5BA0E8`, light `#7FC4EE`. Centre and spokes are brand.
+
+⚠️ The icon does **not** use `currentColor`, so it does not grey out in the rail's idle state. This is deliberate. The active signal still reads because `LeftRail` supplies it independently via the `bg-[#E8F1FB]` pill, the blue left bar and the blue label — not via the icon.
+
+**Optical sizing (`flintTier`):** Flint ships at 14 px (ProjectMapView, inline), 20 px (LeftRail) and 88 px (Chat hero). Nine nodes rasterise to an indistinct smudge below ~24 px, so small sizes draw a subset — larger, on thicker spokes, pulled inward:
+
+| size | frame | spoke | node scale | spread | centre | corner | nodes |
+|------|-------|-------|-----------|--------|--------|--------|-------|
+| ≤15 | 11.0 | 5.5 | 1.30 | 0.86 | 7.9 | 6.5 | 3 — `[0,3,7]` |
+| ≤24 | 9.25 | 4.5 | 1.18 | 0.92 | 7.3 | 8.0 | 5 — `[0,2,3,6,7]` |
+| >24 | 6.75 | 3.0 | 1.00 | 1.00 | 6.25 | 9.5 | 9 — all |
+
+`isActive` multiplies frame ×1.12 and centre ×1.06.
+
+⚠️ `spread` is not decoration. Small sizes squeeze containment from **both** ends at once: a thicker frame stroke pulls the inner edge inward while larger nodes push reach outward. Without it the 14 px tier overflows the frame by 1.45. `spread` pulls node distances in to pay for both.
+
+### Containment — do not eyeball this
+
+Perspective makes nodes **swell** as they swing toward the camera, so peak reach sits just *past* the horizontal extreme (where `z=0`, `scale=1`), not at it. At the hero tier the worst case is 235°, nowhere near the widest point.
+
+All six tier × state combinations are checked over a full 360°; worst clearance is 2.39. The `isActive` state is the tighter case, since the thicker stroke moves the inner edge inward.
+
+This is asserted by `flintGeometry.test.ts`, so it re-checks automatically after any change to `CAM`, `spread`, `scale`, `stroke`, or any node's `d`/`psi`/`r`:
+
+```bash
+npm test
+```
+
+The test imports `flintGeometry.ts` directly, so there is no second copy of the numbers to keep in sync. It asserts both that clearance stays positive *and* that it stays above 1.5 — a mark grazing the frame reads as a bug even when it technically fits.
+
+The same file also pins the rotation itself: it inverts the projection and asserts each node's recovered orbit radius and elevation are invariant across a full turn. Note it deliberately does **not** assert that screen `cy` holds still — it must not, because perspective scales height as well as width. A node whose `cy` never moved would mean the projection was ignoring depth.
+
+⚠️ The mark is **completely flat** — no `drop-shadow`, glow, `filter` or gradient on the nodes anywhere. Depth reads from size alone.
+
+**Props:** `isHovered: boolean`, `isActive?: boolean`, `size?: number` (default 20). Unchanged from the previous implementation, so no call site needed editing.
 
 **Used in:**
 - `LeftRail`: size=20, `isActive` tied to route, `isHovered` tied to `hoveredId === 'chat'`
 - `Chat` empty state: size=88, auto-plays once on mount via `useEffect` on `activeId`
+- `ProjectMapView`: size=14, inline beside 11 px "Flint" label on project cards, `isHovered={false}`
 
 ---
 
@@ -289,3 +362,83 @@ These are known, non-blocking, and pre-date recent sessions:
 - PNG type declarations missing for `BrandBanner.tsx` asset imports
 - Several `React` unused import warnings across files
 - ~~`Dashboard.tsx` callable expression errors~~ — FIXED 2026-06-10: these were real runtime crashes (`.map((t) =>` shadowed the `t()` translation function; clicking the To Do section white-screened the app). Never name a callback param `t` in this codebase.
+
+---
+
+## Testing status
+
+**Vitest is installed and 108 tests pass.** Coverage is deliberately narrow: the business
+rules that a new team cannot re-derive from the UI, plus the icon geometry. Everything else
+is still unverified, and there is **no CI** — nothing runs automatically on push.
+
+| check | scope | gated? |
+|-------|-------|--------|
+| `npm run typecheck` | whole project, **clean** | no |
+| `npm run lint` | whole project, **0 errors**, 6 known warnings | no |
+| `npm test` | **108 tests**, 3 files (see below) | no |
+
+| test file | covers |
+|-----------|--------|
+| `src/utils/distributionEngine.test.ts` | AD rules: priority conflicts, rule warnings, draft/published and version diffs, condition and trigger rendering, category-scoped field widening |
+| `src/utils/search.test.ts` | query normalisation, what drives a match, `matchedFields`, snippet fallbacks, facet counts |
+| `src/components/flintGeometry.test.ts` | icon containment at every tier × state over 360°, rotation rigidity, tier boundaries, spoke/centre colour invariant |
+
+**Why these two engines first:** `distributionEngine` and `search` are pure functions with no
+DOM, no async and no mocking required — the cheapest possible coverage — and they encode
+decisions that are invisible from the UI. Some pinned behaviours are genuinely non-obvious:
+search filters on `searchableText` alone while the snippet is built from a *different* list of
+labelled fields, so the two can legitimately disagree; and a priority conflict requires equal
+priority **and** differing reasons, because unequal priorities are resolved by definition.
+
+**Keep lint errors at zero.** This matters more than the errors themselves did: a
+permanently-failing lint is indistinguishable from a newly-broken one, so if `npm run lint`
+always exits non-zero, running it regularly carries no signal. At zero, any new error is
+unambiguously something just introduced.
+
+The 6 remaining warnings are a known baseline, not blockers: 4 × `react-hooks/exhaustive-deps`
+and 2 × `react-refresh/only-export-components`. Three of the four dep warnings involve
+`useUserPref` setters, which are `useCallback(…, [])` and therefore referentially stable —
+adding them to the dep arrays is safe. The fourth (`handleClose`) is a locally-defined function
+and would re-subscribe every render, so it needs a `useCallback` rather than a blind dep add.
+
+⚠️ Nothing runs automatically. All three must be invoked by hand.
+
+### Highest-value gaps, in order
+
+1. **CI** — still none, and now the biggest gap. A clean-machine run is the only thing that
+   catches the class of bug local checks structurally cannot: an uncommitted file that
+   everything imports. `flintGeometry.ts` was untracked for a while and every local check
+   passed, because the file was on disk. A fresh clone would have failed instantly.
+   The remote is currently GitHub and the move to GitLab happens at handover, so a GitLab
+   pipeline should not be written until the repo actually moves; if a gate is wanted before
+   then it should be GitHub Actions, running `npm ci → typecheck → lint → test → build`.
+2. **Contexts and `useUserPref`** — persistence, the localStorage parse-failure fallbacks, and
+   the cross-window `storage` event sync. All have real edge cases and are currently only
+   verifiable by clicking through the app. Needs `jsdom` and `@testing-library/react`, which
+   are deliberately **not** installed yet — the current suite is pure functions and needs
+   neither, so the install was kept minimal.
+3. **The 6 lint warnings** — a burn-down, not a blocker. See the note above.
+
+### Deliberately not tested
+
+Animation timing and hover-state DOM behaviour. Those assertions are timing-dependent and
+flaky, and a suite people learn to ignore is worse than no suite. The Flint spin is covered by
+its geometry invariants instead, which is both stronger and stable. Visual regression testing
+needs infrastructure that is not worth it at this stage.
+
+### A caution for whoever adds the first tests
+
+The Flint containment check earned its place by catching real bugs (a 14 px tier overflowing
+the frame, two overlapping nodes, a network escaping under rotation). But an earlier version of
+it was itself broken in a way that still *looked* correct: a PowerShell `$DEG` constant collided
+with the `$deg` loop counter — variable names are case-insensitive — so the angle sweep was
+garbage, yet it sampled enough of the circle that the reported maximum was accidentally right.
+
+Prefer checks that assert an **invariant** with a known expected value over checks that merely
+report a number that looks plausible.
+
+That validator has since been deleted. It was replaced by `flintGeometry.test.ts`, which is
+strictly better on three counts: it imports the geometry rather than re-parsing the source with
+regexes, it asserts invariants instead of reporting numbers, and — the decisive one — **it can
+actually run in CI.** The PowerShell script never could: GitHub and GitLab runners are Linux.
+A check that cannot run on the build machine is not a gate, however good its logic.

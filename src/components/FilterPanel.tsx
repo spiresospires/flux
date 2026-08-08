@@ -5,7 +5,7 @@
 // [MOCK] Filter option lists below are hardcoded — in production these become query
 // params on G06:GET /workspaces/{wsId}/documents, with facet values from G19 search
 // aggregations. [PHASE-1]
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChevronDownIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 interface FilterPanelProps {

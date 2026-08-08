@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, SearchIcon, Settings2Icon } from 'lucide-react';
 // Display-name overrides — add an entry here when the filename alone isn't
