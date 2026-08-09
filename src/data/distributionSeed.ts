@@ -177,11 +177,15 @@ const hedlandRules: AdRule[] = [
     ...stamp,
   },
   {
-    id: 'r-hed-superseded-notice',
-    name: 'Superseded notice to DC',
+    // Kept as the seed's time-boxed example (effectiveFrom/effectiveUntil).
+    // Retargeted 2026-08-09: it used to fire on a 'Superseded' status change,
+    // but that is not a FusionLive status — superseding is a relationship
+    // between revisions, not a state. Re-issue is the equivalent real event.
+    id: 'r-hed-reissue-notice',
+    name: 'Re-issue notice to DC',
     description: 'Time-boxed during the berth cutover window.',
-    triggers: [{ kind: 'status-change', toStatus: 'Superseded' }],
-    conditions: [{ field: 'status', operator: 'is', values: ['Superseded'] }],
+    triggers: [{ kind: 'status-change', toStatus: 'Issued' }],
+    conditions: [{ field: 'status', operator: 'is', values: ['Issued'] }],
     assignments: [
       { recipient: { kind: 'workgroup', workgroupId: 'wg-hed-dc' }, action: 'message', reasonId: 'to' },
     ],

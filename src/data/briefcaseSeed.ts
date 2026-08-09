@@ -109,7 +109,7 @@ export const briefcaseSeed: BriefcaseItem[] = [
     title: 'As-Built - E&I As-Built 2',
     reference: 'MR-AB-006-R3',
     pinnedRevision: 'R3',
-    status: 'Archived',
+    status: 'Issued',
     fileType: 'PDF',
     fileSize: '4.2 MB',
     author: 'Maria Garcia',

@@ -18,9 +18,9 @@ import React, {
   useRef
 } from
   'react';
-import { DocumentCard, getFileTypeIcon } from '../components/DocumentCard';
+import { DocumentCard, getFileTypeIcon, PlaceholderFileIcon } from '../components/DocumentCard';
 import { statusColors } from '../components/documentStatusColors';
-import { FilterPanel } from '../components/FilterPanel';
+import { FilterPanel, type ContentStateFilter } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
 import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
@@ -37,6 +37,8 @@ import { useWorkspaces } from '../hooks/useWorkspaces';
 import { getDocument } from '../api/documents';
 import { queryKeys } from '../api/queryKeys';
 import type { ProjectId } from '../data/projects';
+// [MOCK] Journey/version-stack derivation — deleted with the rest of src/data.
+import { buildJourney, buildVersionStack } from '../data/mockJourneys';
 import {
   LayoutGridIcon,
   ListIcon,
@@ -68,9 +70,13 @@ import {
   MessageSquareIcon,
   BriefcaseIcon,
   AlertTriangleIcon,
-  RefreshCwIcon
+  RefreshCwIcon,
+  UploadIcon,
+  ClockIcon
 } from
   'lucide-react';
+import { useViewer } from '../contexts/ViewerContext';
+import type { ViewerTarget } from '../types/viewer';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useBriefcase } from '../contexts/BriefcaseContext';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -80,6 +86,7 @@ import type { Density } from '../contexts/DensityContext';
 import { useUserPref } from '../hooks/useUserPref';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isPlaceholder, isOverdue } from '../types/document';
 import type { Document, DocumentStatus, DocumentType, Folder } from '../types/document';
 type SortDirection = 'asc' | 'desc' | null;
 type ColumnKey = string;
@@ -92,10 +99,12 @@ interface ColumnFilter {
 
 function GridWithStickyScrollbar({
   documents,
-  highlightedDocId
+  highlightedDocId,
+  onOpenDocument
 }: {
   documents: Document[];
   highlightedDocId: string | null;
+  onOpenDocument: (doc: Document) => void;
 }) {
   const gridRef = useRef<HTMLDivElement | null>(null);
   const syncRef = useRef<HTMLDivElement | null>(null);
@@ -186,7 +195,7 @@ function GridWithStickyScrollbar({
         <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
           {documents.map((doc) => (
             <div key={doc.id}>
-              <DocumentCard document={doc} isHighlighted={highlightedDocId === doc.id} />
+              <DocumentCard document={doc} isHighlighted={highlightedDocId === doc.id} onOpen={onOpenDocument} />
             </div>
           ))}
         </div>
@@ -215,6 +224,8 @@ type ViewMode = 'grid' | 'list' | 'table';
 const TABLE_PREFERENCES_STORAGE_KEY = 'flux.documentBrowser.tablePreferences';
 const COLUMN_PREFERENCES_STORAGE_KEY = 'flux.documentBrowser.columnPrefs';
 const NON_GROUPABLE_COLUMN_KEYS = new Set<ColumnKey>(['id', 'title']);
+/** Available in the column chooser but off until the user asks for them. */
+const DEFAULT_HIDDEN_COLUMN_KEYS = new Set<ColumnKey>(['responsibleParty']);
 
 interface TableViewPreferences {
   groupByColumn: ColumnKey | null;
@@ -290,6 +301,15 @@ function getDocumentColumnText(document: Document, columnKey: ColumnKey) {
 
   return '';
 }
+
+// Placeholder rows keep the same height and rhythm as content rows — the cues are
+// the dashed icon, the chip and the em-dashes (all shared with the card view via
+// DocumentCard). Row background is deliberately untouched so the selection /
+// active-row / panel-open states in renderDocumentRow keep winning.
+
+/** Column keys whose value comes from the file itself — meaningless until content
+ *  is uploaded, so placeholders render an em-dash rather than a blank cell. */
+const CONTENT_DERIVED_COLUMN_KEYS = new Set<ColumnKey>(['fileType', 'fileSize']);
 
 function getGroupLabel(value: string, unassignedLabel: string) {
   const trimmed = value.trim();
@@ -701,6 +721,7 @@ export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
   const { add: addToBriefcase, remove: removeFromBriefcase, isInBriefcase } = useBriefcase();
+  const { openViewer } = useViewer();
   const { scope, setScope } = useScope();
   // The browser is only reachable in project scope (LeftRail hides Documents in
   // enterprise mode); fall back to the first project if scope is mid-transition.
@@ -708,6 +729,9 @@ export function DocumentBrowser() {
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  // Content axis (placeholder vs has-a-file). '' = both, which is the default:
+  // outstanding deliverables are the point, so they are visible without opting in.
+  const [contentState, setContentState] = useState<ContentStateFilter>('');
   // 'table' is the only table mode now — density (Compact/Comfortable) replaced
   // the separate compact-table view. Sorting stays server-side (no sortBy state).
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -859,6 +883,7 @@ export function DocumentBrowser() {
   const {
     documents: projectDocuments,
     totalApprox,
+    placeholderApprox,
     isLoading: isDocsLoading,
     isError: isDocsError,
     refetch: refetchDocuments,
@@ -870,6 +895,7 @@ export function DocumentBrowser() {
     recursive: true,
     status: selectedStatus as DocumentStatus[],
     documentType: selectedDocType as DocumentType[],
+    contentState: contentState || undefined,
     sort: serverSort.sort,
     order: serverSort.order,
     // Grouping needs the full result set for correct group subtotals, so it
@@ -1105,9 +1131,15 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   // Header count: the server's totalApprox (ADR-011) unless a client-side filter
   // (tags / column text) is narrowing the loaded pages, in which case only the
   // locally visible count is truthful.
-  const documentCount = (selectedCategories.length > 0 || hasActiveColumnFilters)
+  // Two numbers, matching the folder tree: "documents" means records with content,
+  // placeholders are reported alongside so neither figure overstates the other.
+  const isClientFiltered = selectedCategories.length > 0 || hasActiveColumnFilters;
+  const placeholderCount = isClientFiltered
+    ? filteredDocuments.filter(isPlaceholder).length
+    : (placeholderApprox ?? filteredDocuments.filter(isPlaceholder).length);
+  const documentCount = (isClientFiltered
     ? filteredDocuments.length
-    : (totalApprox ?? filteredDocuments.length);
+    : (totalApprox ?? filteredDocuments.length)) - placeholderCount;
   const allDisplayedSelected =
     displayedDocuments.length > 0 &&
     displayedDocuments.every((doc) => selectedDocumentIds.has(doc.id));
@@ -1232,21 +1264,46 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     }
   };
 
-  const toDocumentDetail = (doc: Document): DetailPanelData => ({
-    objectType: 'document',
-    objectId: doc.id,
+  /** Everything the framed viewer needs. The page raster stands in for the
+   *  rendered PDF the real Apryse viewer would load over G07. */
+  const toViewerTarget = (doc: Document): ViewerTarget => ({
     docId: doc.id,
     title: doc.title,
+    revision: doc.revisionNumber,
     project: doc.project,
-    status: doc.status,
-    revision: String(doc.revisionNumber),
-    author: doc.author,
-    dateModified: doc.dateModified,
-    dateCreated: doc.dateCreated,
-    fileType: 'PDF',
-    fileSize: doc.fileSize || '2.4 MB',
-    description: doc.description,
+    fileType: doc.fileType,
+    pageImage: doc.thumbnail || undefined,
   });
+
+  const toDocumentDetail = (doc: Document): DetailPanelData => {
+    const placeholder = isPlaceholder(doc);
+    return {
+      objectType: 'document',
+      objectId: doc.id,
+      docId: doc.id,
+      title: doc.title,
+      project: doc.project,
+      status: doc.status,
+      revision: String(doc.revisionNumber),
+      author: doc.author,
+      dateModified: doc.dateModified,
+      dateCreated: doc.dateCreated,
+      // A placeholder has no file, so no filetype/size is asserted — the demo
+      // fallbacks below would otherwise claim a 2.4 MB PDF that doesn't exist.
+      fileType: placeholder ? '' : 'PDF',
+      fileSize: placeholder ? '' : (doc.fileSize || '2.4 MB'),
+      contentState: doc.contentState,
+      dateExpected: doc.dateExpected,
+      responsibleParty: doc.responsibleParty,
+      pageImage: doc.thumbnail || undefined,
+      // [MOCK] Journey + version stack are derived client-side from the document.
+      // [TODO-ENG] Both come from the server in production — the history/audit
+      // trail and G06 revisions. See src/data/mockJourneys.ts.
+      journey: buildJourney(doc),
+      versions: buildVersionStack(doc),
+      description: doc.description,
+    };
+  };
 
   // Opening a document writes ?doc= so the selection is shareable and survives
   // refresh; closing removes it. The panel itself is fed by the single-document
@@ -1274,10 +1331,18 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   // row may not be in the loaded pages. Row highlight stays best-effort.
   // [TODO-ENG] If "scroll to the deep-linked row" becomes a requirement, G06 needs
   // a seek/around parameter — decide with engineering.
+  // A cross-workspace deep link carries ?ws=, but ScopeContext only catches up on
+  // the effect above — so between first paint and that effect, activeProjectId is
+  // still the *persisted* workspace. Firing then asks the wrong workspace for the
+  // document and logs a 404 before self-correcting. Compare against
+  // activeProjectId, not scope.id, so an enterprise-scope load (which falls back to
+  // 'marra-ridge') waits too.
+  const wsParam = searchParams.get('ws');
+  const scopeMatchesUrl = !wsParam || wsParam === activeProjectId;
   const { data: deepLinkedDoc } = useQuery({
     queryKey: queryKeys.document(activeProjectId, highlightedDocId ?? ''),
     queryFn: () => getDocument(activeProjectId, highlightedDocId!),
-    enabled: !!highlightedDocId,
+    enabled: !!highlightedDocId && scopeMatchesUrl,
   });
   useEffect(() => {
     if (deepLinkedDoc) setPanelData(toDocumentDetail(deepLinkedDoc));
@@ -1326,6 +1391,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   const renderDocumentRow = (doc: Document) => {
     const isSelected = selectedDocumentIds.has(doc.id);
     const isActive = activeDocId === doc.id;
+    const placeholder = isPlaceholder(doc);
+    const overdue = isOverdue(doc);
 
     return (
       <tr
@@ -1366,8 +1433,11 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 <React.Fragment key={doc.id + '-cells'}>
                   <td key={col.key} style={tdStyle}>
                     <span className="inline-flex items-center gap-1.5">
-                      {/* Filetype icon — same mapping as the grid cards, for a consistent cue. */}
-                      {getFileTypeIcon(doc.fileType)({ size: 16, className: 'shrink-0' })}
+                      {/* Filetype icon — same mapping as the grid cards, for a consistent cue.
+                          Placeholders have no file, so the slot shows a dashed outline instead. */}
+                      {placeholder
+                        ? <PlaceholderFileIcon size={16} className="shrink-0 text-neutral-400" />
+                        : getFileTypeIcon(doc.fileType)({ size: 16, className: 'shrink-0' })}
                       <button
                         onClick={(e) => {
                           // Reference link opens the properties panel — never toggles the row.
@@ -1444,9 +1514,29 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           className="absolute left-0 top-full mt-2 w-64 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-visible"
                         >
                           <div className="py-2 flex flex-col overflow-visible">
-                            {/* View Item */}
+                            {/* Upload content — the only action that makes sense first
+                                on a placeholder, so it leads the menu for those rows.
+                                [TODO-ENG] wire to the upload flow (G07 PUT content) — not
+                                built in this prototype. */}
+                            {placeholder && (
+                              <>
+                                <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
+                                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[#E8F1FB]">
+                                    <div className="text-[#0461BA] mt-0.5"><UploadIcon size={16} /></div>
+                                    <div className="flex-1 min-w-0 flex flex-col">
+                                      <span className="text-sm font-medium text-[#0461BA]">Upload content</span>
+                                      <span className="text-[11px] text-neutral-500">Attach the file this record is waiting for</span>
+                                    </div>
+                                  </button>
+                                </div>
+                                <div className="h-px bg-neutral-100 my-1 mx-2" />
+                              </>
+                            )}
+                            {/* View Item — needs a file in the content store.
+                                Opens the viewer framed inside FLUX rather than
+                                launching a new browser tab. */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content [AUTH] [PHASE-1] */ setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button disabled={placeholder} onClick={(e) => { e.preventDefault(); e.stopPropagation(); openViewer(toViewerTarget(doc)); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed">
                                 <div className="text-neutral-500 mt-0.5"><EyeIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">View</span>
@@ -1503,9 +1593,9 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                               )}
                             </div>
 
-                            {/* Rendition Submenu Item */}
-                            <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey('rendition')}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenActionSubmenuKey(openActionSubmenuKey === 'rendition' ? null : 'rendition'); }} className={`w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors ${openActionSubmenuKey === 'rendition' ? 'bg-neutral-100' : 'hover:bg-neutral-100'}`}>
+                            {/* Rendition Submenu Item — a rendition is derived from content. */}
+                            <div className="relative px-1" onMouseEnter={() => { if (!placeholder) setOpenActionSubmenuKey('rendition'); }}>
+                              <button disabled={placeholder} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenActionSubmenuKey(openActionSubmenuKey === 'rendition' ? null : 'rendition'); }} className={`w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed ${openActionSubmenuKey === 'rendition' ? 'bg-neutral-100' : 'hover:bg-neutral-100'}`}>
                                 <div className="text-neutral-500 mt-0.5"><FilesIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Rendition</span>
@@ -1532,9 +1622,10 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                               </button>
                             </div>
 
-                            {/* Add to / Remove from Briefcase Item */}
+                            {/* Add to / Remove from Briefcase — the briefcase holds files
+                                for offline work, so there is nothing to take yet. */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => {
+                              <button disabled={placeholder} onClick={(e) => {
                                 e.preventDefault(); e.stopPropagation();
                                 if (isInBriefcase(doc.id)) {
                                   removeFromBriefcase(doc.id);
@@ -1542,7 +1633,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                   addToBriefcase({ docId: doc.id, title: doc.title, reference: doc.id, revision: doc.revisionNumber, status: doc.status, fileType: doc.fileType, fileSize: doc.fileSize, author: doc.author, projectName: doc.project, folderId: doc.folderId });
                                 }
                                 setOpenActionMenuId(null);
-                              }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed">
                                 <div className={isInBriefcase(doc.id) ? 'text-[#0461BA] mt-0.5' : 'text-neutral-500 mt-0.5'}><BriefcaseIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">{isInBriefcase(doc.id) ? 'Remove from Briefcase' : 'Add to Briefcase'}</span>
@@ -1574,11 +1665,24 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 </td>
               );
             case 'status':
+              // One chip. 'Placeholder' is the 0% rung of the status ladder, not
+              // a second axis — a record is never both 'Placeholder' and 'New'.
               return (
                 <td key={col.key} style={tdStyle}>
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${statusColors[doc.status]}`}>
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border whitespace-nowrap ${statusColors[doc.status]}`}>
                     {doc.status}
                   </span>
+                </td>
+              );
+            case 'dateExpected':
+              return (
+                <td key={col.key} style={tdStyle} className={overdue ? 'text-rose-600 font-medium' : 'text-neutral-600'}>
+                  {doc.dateExpected
+                    ? <span className="inline-flex items-center gap-1">
+                        {overdue && <ClockIcon size={12} className="shrink-0" />}
+                        {doc.dateExpected}
+                      </span>
+                    : <span className="text-neutral-400">--</span>}
                 </td>
               );
             case 'documentType':
@@ -1599,12 +1703,17 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   {doc.dateModified}
                 </td>
               );
-            default:
+            default: {
+              // File-derived values (type, size) don't exist until content is
+              // uploaded — show a muted em-dash rather than an empty-looking cell.
+              const text = getDocumentColumnText(doc, col.key);
+              const blankForPlaceholder = placeholder && CONTENT_DERIVED_COLUMN_KEYS.has(col.key);
               return (
-                <td key={col.key} className="text-neutral-500">
-                  {getDocumentColumnText(doc, col.key) || '--'}
+                <td key={col.key} className={blankForPlaceholder || !text ? 'text-neutral-400' : 'text-neutral-500'}>
+                  {text || '--'}
                 </td>
               );
+            }
           }
         })}
 
@@ -1674,6 +1783,11 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
         { key: 'documentType', label: t('documentBrowser.columns.type') },
         { key: 'author', label: t('documentBrowser.columns.author') },
         { key: 'dateModified', label: t('documentBrowser.columns.dateModified') },
+        // Placeholder schedule. Date Expected is on by default — it is the field
+        // document controllers chase; Responsible is opt-in via the column chooser
+        // so the default table doesn't grow two columns wider.
+        { key: 'dateExpected', label: t('documentBrowser.columns.dateExpected') },
+        { key: 'responsibleParty', label: t('documentBrowser.columns.responsibleParty') },
         ...customColumns
       ];
     },
@@ -1690,7 +1804,9 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   const initialColumnPrefs = useMemo(() => loadColumnPreferences(), []);
   const [columnOrder, setColumnOrder] = useState<string[]>(() => initialColumnPrefs.order ?? allColumns.map(c => c.key));
   // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(c => c.key));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    allColumns.map(c => c.key).filter((key) => !DEFAULT_HIDDEN_COLUMN_KEYS.has(key))
+  );
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => initialColumnPrefs.widths || {});
   // Update order/visibility if columns change (e.g., category changes)
   useEffect(() => {
@@ -1702,7 +1818,10 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     setVisibleColumns((prev) => {
       const newKeys = allColumns.map(c => c.key);
       const retainedKeys = prev.filter((key) => newKeys.includes(key));
-      return [...retainedKeys, ...newKeys.filter((key) => !retainedKeys.includes(key))];
+      // Columns the user has to opt into stay out of the auto-append, otherwise
+      // every category change would silently switch them back on.
+      const added = newKeys.filter((key) => !retainedKeys.includes(key) && !DEFAULT_HIDDEN_COLUMN_KEYS.has(key));
+      return [...retainedKeys, ...added];
     });
   }, [allColumns]);
 
@@ -1975,6 +2094,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 <FilterPanel
                   selectedStatus={selectedStatus}
                   onStatusChange={setSelectedStatus}
+                  contentState={contentState}
+                  onContentStateChange={setContentState}
                   selectedDocType={selectedDocType}
                   onDocTypeChange={setSelectedDocType}
                   selectedCategories={selectedCategories}
@@ -2037,7 +2158,15 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         </React.Fragment>
                       ))}
                     </div>
-                    <p className="text-[11px] text-neutral-500 mt-1">{documentCount} documents</p>
+                    <p className="text-[11px] text-neutral-500 mt-1">
+                      {documentCount} documents
+                      {placeholderCount > 0 && (
+                        <>
+                          <span className="text-neutral-300 mx-1.5">·</span>
+                          {placeholderCount} placeholder{placeholderCount === 1 ? '' : 's'}
+                        </>
+                      )}
+                    </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedStatus.map((s) => (
                         <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
@@ -2063,9 +2192,17 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0) && (
+                      {contentState && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+                          Content: <span className="font-semibold">{contentState === 'placeholder' ? 'Placeholders only' : 'With content only'}</span>
+                          <button onClick={() => setContentState('')} className="ml-1 hover:text-red-500 transition-colors" aria-label="Remove content filter">
+                            <XIcon size={12} />
+                          </button>
+                        </span>
+                      )}
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0 || contentState) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedCategories([]); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedCategories([]); setContentState(''); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -2100,7 +2237,15 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         </button>
                       )}
                     </div>
-                    <p className="text-[11px] text-neutral-500 mt-1">{documentCount} documents</p>
+                    <p className="text-[11px] text-neutral-500 mt-1">
+                      {documentCount} documents
+                      {placeholderCount > 0 && (
+                        <>
+                          <span className="text-neutral-300 mx-1.5">·</span>
+                          {placeholderCount} placeholder{placeholderCount === 1 ? '' : 's'}
+                        </>
+                      )}
+                    </p>
                     {/* Folder scope is now removable via the chip's X button; no extra links needed */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedStatus.map((s) => (
@@ -2127,9 +2272,17 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </button>
                         </span>
                       ))}
-                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0) && (
+                      {contentState && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F1FB] text-[#0461BA] text-xs font-medium">
+                          Content: <span className="font-semibold">{contentState === 'placeholder' ? 'Placeholders only' : 'With content only'}</span>
+                          <button onClick={() => setContentState('')} className="ml-1 hover:text-red-500 transition-colors" aria-label="Remove content filter">
+                            <XIcon size={12} />
+                          </button>
+                        </span>
+                      )}
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0 || contentState) && (
                         <button
-                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedCategories([]); }}
+                          onClick={() => { setSelectedStatus([]); setSelectedDocType([]); setSelectedCategories([]); setContentState(''); }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors">
                           Clear all
                           <XIcon size={12} />
@@ -2276,7 +2429,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                       {/* Wrap grid in a horizontally-scrollable container and
                         add a sticky synced scrollbar so the horizontal
                         scrollbar remains visible at the bottom of the grid */}
-                      <GridWithStickyScrollbar documents={displayedDocuments} highlightedDocId={highlightedDocId} />
+                      <GridWithStickyScrollbar documents={displayedDocuments} highlightedDocId={highlightedDocId} onOpenDocument={openDocumentPanel} />
                       {hasMore && !groupByColumn &&
                         <div
                           ref={loadMoreRef}
@@ -2304,13 +2457,21 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                               className={`w-full text-left block border p-3 hover:shadow-sm transition-all bg-white rounded-md group ${highlightedDocId === doc.id ? 'border-[#0461BA] ring-2 ring-[#0461BA]/20 shadow-md' : 'border-neutral-200 hover:border-neutral-300'}`}>
 
                               <div className="flex gap-3">
-                                <div className="w-24 h-16 bg-neutral-100 flex-shrink-0 rounded-md overflow-hidden border border-neutral-100">
-                                  <img
-                                    src={doc.thumbnail}
-                                    alt={doc.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                {/* Placeholders have no content, so nothing to preview —
+                                    a dashed empty tile instead of a broken thumbnail. */}
+                                {isPlaceholder(doc) ? (
+                                  <div className="w-24 h-16 bg-neutral-50 flex-shrink-0 rounded-md border border-dashed border-neutral-300 flex items-center justify-center">
+                                    <PlaceholderFileIcon size={20} className="text-neutral-400" />
+                                  </div>
+                                ) : (
+                                  <div className="w-24 h-16 bg-neutral-100 flex-shrink-0 rounded-md overflow-hidden border border-neutral-100">
+                                    <img
+                                      src={doc.thumbnail}
+                                      alt={doc.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
 
-                                </div>
+                                  </div>
+                                )}
                                 <div className="flex-1 flex flex-col justify-center min-w-0">
                                   <div className="flex items-start justify-between mb-1 gap-3">
                                     <h3 className="font-semibold text-neutral-900 text-sm group-hover:text-[#0461BA] transition-colors truncate">
@@ -2357,6 +2518,14 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                     {doc.id}{' '}
                                     <span className="text-neutral-300 mx-1">•</span>{' '}
                                     Rev {doc.revisionNumber}
+                                    {doc.dateExpected && (
+                                      <>
+                                        <span className="text-neutral-300 mx-1">•</span>{' '}
+                                        <span className={isOverdue(doc) ? 'text-rose-600' : 'text-neutral-500'}>
+                                          Expected {doc.dateExpected}
+                                        </span>
+                                      </>
+                                    )}
                                   </p>
                                   <div className="flex gap-5 text-xs text-neutral-500">
                                     <span className="flex items-center gap-1.5">

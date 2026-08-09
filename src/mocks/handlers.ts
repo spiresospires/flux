@@ -8,6 +8,7 @@
 import { http, HttpResponse, delay } from 'msw';
 import { API_BASE } from '../api/client';
 import type { DocumentListResponse, SearchResponse, Workspace } from '../api/types';
+import { isPlaceholder } from '../types/document';
 import type { Document, Folder } from '../types/document';
 import type { BriefcaseItem } from '../types/briefcase';
 import type { AdRule, AdRuleSet, AdSettings } from '../types/distribution';
@@ -259,6 +260,7 @@ export const handlers = [
     const recursive = url.searchParams.get('recursive') === 'true';
     const status = url.searchParams.getAll('status');
     const documentType = url.searchParams.getAll('documentType');
+    const contentState = url.searchParams.get('contentState');
     const sort = url.searchParams.get('sort') ?? 'dateModified';
     const order = url.searchParams.get('order') ?? (sort === 'dateModified' ? 'desc' : 'asc');
     const limit = Math.min(
@@ -274,6 +276,10 @@ export const handlers = [
     }
     if (status.length > 0) docs = docs.filter((d) => status.includes(d.status));
     if (documentType.length > 0) docs = docs.filter((d) => documentType.includes(d.documentType));
+    // Content axis — placeholders are ordinary documents on this endpoint,
+    // separated only by contentState. Omitting the param returns both kinds.
+    if (contentState === 'placeholder') docs = docs.filter(isPlaceholder);
+    if (contentState === 'content') docs = docs.filter((d) => !isPlaceholder(d));
 
     const sorted = [...docs].sort((a, b) => {
       const cmp = compareDocuments(a, b, sort);
@@ -285,6 +291,7 @@ export const handlers = [
       items,
       nextCursor,
       totalApprox: sorted.length,
+      placeholderApprox: sorted.filter(isPlaceholder).length,
     };
     return HttpResponse.json(body);
   }),

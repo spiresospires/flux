@@ -1,0 +1,26 @@
+# Runs the same gate as `npm run check` locally: typecheck → lint → tests.
+# Until this existed nothing ran automatically on push, so a broken typecheck or
+# a failing test could sit in a branch unnoticed.
+name: check
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` requires package-lock.json to be in sync with package.json.
+      - run: npm ci
+
+      # typecheck → lint → test, sequential, fails fast.
+      - run: npm run check

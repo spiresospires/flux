@@ -40,8 +40,14 @@ export const DISCIPLINES = [
   'HVAC',
 ] as const;
 
-/** FusionLive-style PM status ladder — single source for AD dropdowns. */
-export const PM_STATUSES = ['New', 'Under Review', 'Approved', 'Issued', 'Superseded', 'Archived'] as const;
+/** FusionLive-style PM status ladder — single source for AD dropdowns.
+ *  Deliberately excludes 'Placeholder' (DocumentStatus's 0% rung): a record with
+ *  no content has nothing to distribute, and distribution is triggered by content
+ *  arriving, i.e. the Placeholder → New transition. See MDR_AND_PROGRESS.md. */
+// 'Placeholder' is excluded — a record with no content has nothing to
+// distribute, and AD fires on the Placeholder → New transition when content
+// arrives. 'Superseded' and 'Archived' are not FusionLive statuses at all.
+export const PM_STATUSES = ['New', 'Under Review', 'Approved', 'Issued'] as const;
 
 export const AD_CONDITION_FIELDS: readonly AdConditionFieldDef[] = [
   { key: 'category', label: 'Document Category', kind: 'enum', values: DOCUMENT_CATEGORIES },

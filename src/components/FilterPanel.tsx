@@ -8,6 +8,16 @@
 import { useState } from 'react';
 import { ChevronDownIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
+/** Content axis: '' = both kinds (default), 'content' = has a file in the store,
+ *  'placeholder' = pre-registered records still awaiting an upload. */
+export type ContentStateFilter = '' | 'content' | 'placeholder';
+
+const contentStateOptions: Array<{ value: ContentStateFilter; labelKey: string }> = [
+  { value: '', labelKey: 'filters.contentOptions.all' },
+  { value: 'content', labelKey: 'filters.contentOptions.withContent' },
+  { value: 'placeholder', labelKey: 'filters.contentOptions.placeholdersOnly' }
+];
+
 interface FilterPanelProps {
   selectedStatus: string[];
   onStatusChange: (status: string[]) => void;
@@ -15,6 +25,8 @@ interface FilterPanelProps {
   onDocTypeChange: (types: string[]) => void;
   selectedCategories: string[];
   onCategoryChange: (categories: string[]) => void;
+  contentState: ContentStateFilter;
+  onContentStateChange: (state: ContentStateFilter) => void;
 }
 export function FilterPanel({
   selectedStatus,
@@ -22,17 +34,21 @@ export function FilterPanel({
   selectedDocType,
   onDocTypeChange,
   selectedCategories,
-  onCategoryChange
+  onCategoryChange,
+  contentState,
+  onContentStateChange
 }: FilterPanelProps) {
   const { t } = useLocalization();
-  const [includePlaceholders, setIncludePlaceholders] = useState(false);
   const [selectedFileType, setSelectedFileType] = useState('');
   const [currentVersionOnly, setCurrentVersionOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
-  const statuses = ['New', 'Under Review', 'Approved', 'Issued', 'Superseded', 'Archived'];
+  // The full FusionLive ladder minus 'Placeholder', which has its own dedicated
+  // Content filter below. See types/document.ts for why there is no 'Superseded'
+  // or 'Archived'.
+  const statuses = ['New', 'Under Review', 'Approved', 'Issued'];
   const docTypes = [
   'Drawing',
   'Specification',
@@ -102,7 +118,7 @@ export function FilterPanel({
     onStatusChange([]);
     onDocTypeChange([]);
     onCategoryChange([]);
-    setIncludePlaceholders(false);
+    onContentStateChange('');
     setSelectedFileType('');
     setCurrentVersionOnly(false);
     setDateFrom('');
@@ -126,8 +142,6 @@ export function FilterPanel({
     'Under Review': 'filters.statusOptions.underReview',
     Approved: 'filters.statusOptions.approved',
     Issued: 'filters.statusOptions.issued',
-    Superseded: 'filters.statusOptions.superseded',
-    Archived: 'filters.statusOptions.archived'
   };
   const docTypeLabelKeys: Record<string, string> = {
     Drawing: 'filters.documentTypeOptions.drawing',
@@ -251,42 +265,35 @@ export function FilterPanel({
         </div>
       </div>
 
-      {/* Placeholders */}
+      {/* Content — the placeholder axis. Mutually exclusive, so radios rather than
+          the checkbox lists above: a record either has a file in the store or it
+          doesn't. Default 'All' keeps placeholders mixed into the grid. */}
       <div className="mb-4 pb-4 border-b border-neutral-200">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-          {t('filters.placeholders')}
+          {t('filters.content')}
         </h3>
-        <label className="flex items-center gap-3 text-sm cursor-pointer group">
-          <div className="relative flex items-center">
-            <input
-              type="checkbox"
-              checked={includePlaceholders}
-              onChange={(e) => setIncludePlaceholders(e.target.checked)}
+        <div className="space-y-1.5">
+          {contentStateOptions.map((option) =>
+          <label
+            key={option.value || 'all'}
+            className="flex items-center gap-3 text-sm cursor-pointer group">
+
+              <input
+              type="radio"
+              name="flux-content-state"
+              checked={contentState === option.value}
+              onChange={() => onContentStateChange(option.value)}
               className="
-                peer w-4 h-4 appearance-none
-                border border-neutral-300 rounded
-                bg-white
-                checked:bg-[#0461BA] checked:border-[#0461BA]
-                focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30
-                transition-all cursor-pointer
-              " />
+                  w-4 h-4 accent-[#0461BA] cursor-pointer
+                  focus:outline-none focus:ring-2 focus:ring-[#0461BA]/30
+                " />
 
-            <svg
-              className="absolute w-4 h-4 p-0.5 pointer-events-none opacity-0 peer-checked:opacity-100 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round">
-
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
-            {t('filters.includeDocumentPlaceholders')}
-          </span>
-        </label>
+              <span className="text-neutral-700 group-hover:text-neutral-900 transition-colors">
+                {t(option.labelKey)}
+              </span>
+            </label>
+          )}
+        </div>
       </div>
 
       {/* File Type */}

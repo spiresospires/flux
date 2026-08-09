@@ -1,0 +1,17 @@
+#!/bin/sh
+# Pre-commit gate: typecheck → lint → tests.
+#
+# Zero-dependency by design (no husky). `npm run prepare` points git at this
+# directory via core.hooksPath, and npm runs `prepare` automatically after
+# `npm install`, so a fresh clone is covered without anyone remembering a step.
+#
+# Bypass with `git commit --no-verify` when you genuinely need to — e.g.
+# committing a work-in-progress spike. Don't make a habit of it: there is a CI
+# workflow running the same command, so a bypass only defers the failure.
+echo "pre-commit: npm run check"
+npm run check || {
+  echo ""
+  echo "pre-commit: FAILED — commit aborted."
+  echo "Fix the errors above, or re-run with --no-verify to bypass deliberately."
+  exit 1
+}

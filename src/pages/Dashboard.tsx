@@ -32,6 +32,7 @@ import {
   Minimize2Icon,
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
+import { statusChipClass } from '../components/documentStatusColors';
 import { DetailSlidePanel, type DetailPanelData, type DetailPanelObjectType } from '../components/DetailSlidePanel';
 import { ProjectMapView } from '../components/ProjectMapView';
 import type { ProjectId } from '../data/projects';
@@ -126,14 +127,6 @@ const activityTypeConfig: Record<string, { icon: React.ElementType; color: strin
   package: { icon: PackageIcon, color: 'text-rose-700 bg-rose-50' },
 };
 
-const docStatusColors: Record<string, string> = {
-  New: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'Under Review': 'bg-warning-50 text-warning-700 border-warning-200',
-  Approved: 'bg-success-50 text-success-700 border-success-200',
-  Issued: 'bg-sky-50 text-sky-700 border-sky-200',
-  Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
-  Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-};
 
 function FilterChip({
   label,
@@ -640,7 +633,7 @@ function DashboardContent({
                     {f.status && (
                       <>
                         <span className="text-xs text-neutral-400">·</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${docStatusColors[f.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${statusChipClass(f.status)}`}>
                           {f.status}
                         </span>
                       </>

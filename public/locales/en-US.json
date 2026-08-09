@@ -46,8 +46,7 @@
     "draft": "Draft",
     "inReview": "In Review",
     "approved": "Approved",
-    "superseded": "Superseded",
-    "archived": "Archived",
+    "placeholder": "Placeholder",
     "overdue": "Overdue",
     "dueToday": "Due Today",
     "dueSoon": "Due Soon",
@@ -143,6 +142,18 @@
       "search": "Saved Search",
       "report": "Report"
     },
+    "tabs": {
+      "properties": "Properties",
+      "versions": "Version Stack"
+    },
+    "placeholderNoContent": "No content uploaded yet",
+    "placeholderExpected": "Expected {{date}}",
+    "placeholderOverdue": "Overdue — expected {{date}}",
+    "placeholderFrom": " from {{party}}",
+    "placeholderNoDate": "No delivery date set",
+    "uploadContent": "Upload content",
+    "dateExpected": "Date Expected",
+    "responsible": "Responsible",
     "documentId": "Document ID",
     "revision": "Revision",
     "author": "Author",
@@ -592,6 +603,26 @@
       "plum": "Plum"
     }
   },
+  "journey": {
+    "title": "Journey",
+    "earned": "{{percent}}% earned",
+    "currentStatus": "Current Status",
+    "ariaLabel": "Document journey"
+  },
+  "versionStack": {
+    "title": "Version Stack",
+    "ariaLabel": "Version stack",
+    "count": "{{count}} versions",
+    "countOne": "1 version",
+    "empty": "No revision history for this document.",
+    "rev": "Rev",
+    "status": "Status",
+    "date": "Date",
+    "current": "Current",
+    "noContent": "No content",
+    "viewRevision": "View revision {{revision}}",
+    "downloadRevision": "Download revision {{revision}}"
+  },
   "filters": {
     "searchPlaceholder": "Search documents...",
     "status": "Status",
@@ -599,6 +630,12 @@
     "project": "Project",
     "placeholders": "Placeholders",
     "includeDocumentPlaceholders": "Include Document Placeholders",
+    "content": "Content",
+    "contentOptions": {
+      "all": "All items",
+      "withContent": "With content only",
+      "placeholdersOnly": "Placeholders only"
+    },
     "fileType": "File Type",
     "allFileTypes": "All file types",
     "versionControl": "Version Control",
@@ -622,9 +659,7 @@
       "new": "New",
       "underReview": "Under Review",
       "approved": "Approved",
-      "issued": "Issued",
-      "superseded": "Superseded",
-      "archived": "Archived"
+      "issued": "Issued"
     },
     "documentTypeOptions": {
       "drawing": "Drawing",
@@ -680,6 +715,8 @@
       "type": "Type",
       "author": "Author",
       "dateModified": "Date Modified",
+      "dateExpected": "Date Expected",
+      "responsibleParty": "Responsible",
       "beamSize": "Beam Size",
       "materialGrade": "Material Grade",
       "loadRating": "Load Rating",

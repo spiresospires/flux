@@ -9,7 +9,7 @@
 // Management … 08 Handover & Operations); subfolders are themed per asset type
 // (mine / port / process plant / rail). documentCount is computed from
 // mockDocuments at the bottom of this file — never hand-edit counts.
-import { Folder } from '../types/document';
+import { Folder, isPlaceholder } from '../types/document';
 import { mockDocuments } from './mockDocuments';
 import { PROJECTS, ProjectId } from './projects';
 
@@ -207,8 +207,12 @@ function buildProjectTree(projectId: ProjectId): Folder[] {
 // ── Computed counts ──
 // documentCount = documents whose folderId matches this folder, plus the
 // totals of all child folders (parents aggregate their subtree).
+// Placeholders are EXCLUDED — the tree counts records that actually have content
+// in the store, so a folder badge of 42 never overstates what is really there.
+// Pending placeholders are reported separately in the grid header.
 const docsPerFolder = new Map<string, number>();
 for (const doc of mockDocuments) {
+  if (isPlaceholder(doc)) continue;
   if (doc.folderId) {
     docsPerFolder.set(doc.folderId, (docsPerFolder.get(doc.folderId) ?? 0) + 1);
   }

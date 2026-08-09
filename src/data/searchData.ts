@@ -1,13 +1,14 @@
-// [MOCK] Search corpus built at module load from mockDocuments + mockFolders + mockPlaceholders.
+// [MOCK] Search corpus built at module load from mockDocuments + mockFolders.
+// mockDocuments carries placeholders too (see mockPlaceholders.ts) — they map to
+// resultType 'placeholder' / hasUploadedContent false through the same mapping.
 // Consumed ONLY by the MSW mock backend (src/mocks/handlers.ts, G19 handler) — pages
 // go through useSearch → POST /workspaces/{wsId}/search. This file (and utils/search.ts)
 // is deleted with the rest of src/mocks when the real Spring Boot G19 exists.
 // [PHASE-1]
 import { mockDocuments } from './mockDocuments';
 import { mockFolders } from './mockFolders';
-import { mockPlaceholders } from './mockPlaceholders';
 import { PROJECTS } from './projects';
-import type { Folder } from '../types/document';
+import { isPlaceholder, type Folder } from '../types/document';
 import type { SearchableRecord } from '../types/search';
 
 const disciplineLabels = [
@@ -44,13 +45,16 @@ function inferDiscipline(tags: string[]) {
   return disciplineLabels.find((label) => lowerTags.includes(label.toLowerCase()));
 }
 
+// mockDocuments now contains both kinds of record; the only differences in the
+// search corpus are resultType and hasUploadedContent, so one mapping covers both.
 const documentSearchRecords: SearchableRecord[] = mockDocuments.map((document) => {
   const location = document.folderId ? folderPaths.get(document.folderId) ?? document.project : document.project;
-  const discipline = inferDiscipline(document.tags);
+  const discipline = document.discipline ?? inferDiscipline(document.tags);
+  const placeholder = isPlaceholder(document);
 
   return {
     id: document.id,
-    resultType: 'document',
+    resultType: placeholder ? 'placeholder' : 'document',
     reference: document.id,
     title: document.title,
     status: document.status,
@@ -65,7 +69,7 @@ const documentSearchRecords: SearchableRecord[] = mockDocuments.map((document) =
     revision: document.revisionNumber,
     discipline,
     description: document.description,
-    hasUploadedContent: true,
+    hasUploadedContent: !placeholder,
     searchableText: [
       document.id,
       document.title,
@@ -83,36 +87,4 @@ const documentSearchRecords: SearchableRecord[] = mockDocuments.map((document) =
   };
 });
 
-const placeholderSearchRecords: SearchableRecord[] = mockPlaceholders.map((placeholder) => ({
-  id: placeholder.id,
-  resultType: 'placeholder',
-  reference: placeholder.reference,
-  title: placeholder.title,
-  status: placeholder.status,
-  objectType: placeholder.type,
-  location: placeholder.location,
-  project: undefined, // placeholders do not carry a project field in the current mock schema
-  author: placeholder.author,
-  dateCreated: placeholder.dateCreated,
-  dateModified: placeholder.dateModified,
-  revision: placeholder.revision,
-  discipline: placeholder.discipline,
-  description: placeholder.description,
-  hasUploadedContent: false,
-  searchableText: [
-    placeholder.reference,
-    placeholder.title,
-    placeholder.status,
-    placeholder.type,
-    placeholder.author,
-    placeholder.location,
-    placeholder.revision,
-    placeholder.discipline,
-    placeholder.description
-  ]
-}));
-
-export const searchRecords: SearchableRecord[] = [
-  ...documentSearchRecords,
-  ...placeholderSearchRecords
-];
+export const searchRecords: SearchableRecord[] = documentSearchRecords;

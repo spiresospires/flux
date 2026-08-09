@@ -14,6 +14,7 @@ import {
   XIcon
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
+import { statusChipClass } from '../components/documentStatusColors';
 import { useBriefcase } from '../contexts/BriefcaseContext';
 // [API] G19:POST /workspaces/{wsId}/search — served over HTTP (MSW in the prototype).
 // [AUTH]
@@ -95,15 +96,6 @@ function FilterBar({
   );
 }
 
-const statusStyles: Record<string, string> = {
-  New: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'Under Review': 'bg-warning-50 text-warning-700 border-warning-200',
-  Approved: 'bg-success-50 text-success-700 border-success-200',
-  Issued: 'bg-sky-50 text-sky-700 border-sky-200',
-  Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
-  Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-  'Pending Upload': 'bg-amber-50 text-amber-800 border-amber-200'
-};
 
 function formatDate(value?: string) {
   if (!value) {
@@ -165,9 +157,14 @@ function SearchResultCard({ result }: { result: SearchResult }) {
       {/* Top row: badges + date */}
       <div className="flex items-center gap-2 flex-wrap">
         <ResultTypeBadge result={result} />
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border ${statusStyles[result.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
-          {result.status}
-        </span>
+        {/* A placeholder's status IS 'Placeholder', which the type badge already
+            says — so show the status chip only for records with content, and let
+            the amber pill carry the meaning the badge doesn't. */}
+        {!isPlaceholder && (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border ${statusChipClass(result.status)}`}>
+            {result.status}
+          </span>
+        )}
         {isPlaceholder && (
           <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
             No content uploaded

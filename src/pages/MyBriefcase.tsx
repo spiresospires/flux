@@ -12,17 +12,10 @@ import {
   CircleSlashIcon,
 } from 'lucide-react';
 import { LeftRail } from '../components/LeftRail';
+import { statusChipClass } from '../components/documentStatusColors';
 import { useBriefcase } from '../contexts/BriefcaseContext';
 import { BriefcaseItem, BriefcaseState } from '../types/briefcase';
 
-const statusStyles: Record<string, string> = {
-  New: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'Under Review': 'bg-warning-50 text-warning-700 border-warning-200',
-  Approved: 'bg-success-50 text-success-700 border-success-200',
-  Issued: 'bg-sky-50 text-sky-700 border-sky-200',
-  Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
-  Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-};
 
 const stateConfig: Record<
   BriefcaseState,
@@ -223,7 +216,7 @@ export function MyBriefcase() {
                           <p className="truncate text-sm font-medium text-neutral-900">{item.title}</p>
                         </div>
 
-                        <span className={`hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-full text-[11px] border ${statusStyles[item.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
+                        <span className={`hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-full text-[11px] border ${statusChipClass(item.status)}`}>
                           {item.status}
                         </span>
                         <div className="shrink-0"><StateBadge item={item} /></div>

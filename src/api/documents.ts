@@ -14,6 +14,7 @@ export function getDocuments(
   if (params.recursive) qs.set('recursive', 'true');
   params.status?.forEach((s) => qs.append('status', s));
   params.documentType?.forEach((t) => qs.append('documentType', t));
+  if (params.contentState) qs.set('contentState', params.contentState);
   if (params.sort) qs.set('sort', params.sort);
   if (params.order) qs.set('order', params.order);
   if (params.limit) qs.set('limit', String(params.limit));

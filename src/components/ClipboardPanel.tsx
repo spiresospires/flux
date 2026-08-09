@@ -11,14 +11,7 @@ interface ClipboardPanelProps {
   onSelect: (docs: Document[]) => void;
 }
 
-const docStatusColors: Record<string, string> = {
-  New: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'Under Review': 'bg-warning-50 text-warning-700 border-warning-200',
-  Approved: 'bg-success-50 text-success-700 border-success-200',
-  Issued: 'bg-sky-50 text-sky-700 border-sky-200',
-  Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
-  Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-};
+import { statusChipClass } from './documentStatusColors';
 
 export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProps) {
   const { t } = useLocalization();
@@ -149,10 +142,7 @@ export function ClipboardPanel({ isOpen, onClose, onSelect }: ClipboardPanelProp
                             <span className="text-xs text-neutral-500">{doc.id}</span>
                             <span className="text-xs text-neutral-400">·</span>
                             <span
-                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
-                                docStatusColors[doc.status] ??
-                                'bg-neutral-100 text-neutral-600 border-neutral-200'
-                              }`}
+                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${statusChipClass(doc.status)}`}
                             >
                               {doc.status}
                             </span>

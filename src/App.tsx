@@ -22,6 +22,8 @@ import { SearchProvider } from './contexts/SearchContext';
 import { ViewStyleProvider } from './contexts/ViewStyleContext';
 import { DensityProvider } from './contexts/DensityContext';
 import { PermissionProvider } from './contexts/PermissionContext';
+import { ViewerProvider } from './contexts/ViewerContext';
+import { DocumentViewer } from './components/DocumentViewer';
 
 export function App() {
   return (
@@ -35,6 +37,7 @@ export function App() {
             <SearchProvider>
               <PermissionProvider>
               <ShellLayoutProvider>
+              <ViewerProvider>
                 {/* reducedMotion="user" disables all Framer Motion transforms when the OS
                     prefers-reduced-motion setting is on (WCAG 2.3.3). CSS keyframes are
                     handled separately in index.css. */}
@@ -53,8 +56,12 @@ export function App() {
                     <Route path="/design-system" element={<DesignSystem />} />
                     <Route path="/packages" element={<Packages />} />
                   </Routes>
+                  {/* Mounted once, above the routes: the viewer is opened from
+                      the grid, the properties panel and the version stack. */}
+                  <DocumentViewer />
                 </BrowserRouter>
                 </MotionConfig>
+              </ViewerProvider>
               </ShellLayoutProvider>
               </PermissionProvider>
             </SearchProvider>

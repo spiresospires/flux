@@ -1,4 +1,4 @@
-import { Document } from '../types/document';
+import { Document, isPlaceholder } from '../types/document';
 import { useLocalization } from '../contexts/LocalizationContext';
 interface MetadataPanelProps {
   document: Document;
@@ -46,14 +46,22 @@ export function MetadataPanel({ document }: MetadataPanelProps) {
     label: t('metadata.asset'),
     value: document.asset || t('metadata.notAvailable')
   },
+  // Placeholders have no file, so filetype/size read as '--' and the delivery
+  // schedule takes their place. See mockPlaceholders.ts / ARCHITECTURE.md.
   {
     label: t('metadata.fileType'),
-    value: document.fileType
+    value: document.fileType || t('metadata.notAvailable')
   },
   {
     label: t('metadata.fileSize'),
-    value: document.fileSize
-  }];
+    value: document.fileSize || t('metadata.notAvailable')
+  },
+  ...(isPlaceholder(document)
+    ? [
+        { label: 'Date Expected', value: document.dateExpected || t('metadata.notAvailable') },
+        { label: 'Responsible', value: document.responsibleParty || t('metadata.notAvailable') }
+      ]
+    : [])];
 
   return (
     <div className="border border-neutral-200 bg-white rounded-lg shadow-sm overflow-hidden">

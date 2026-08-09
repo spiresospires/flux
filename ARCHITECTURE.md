@@ -255,7 +255,68 @@ The legacy Struts application and the new REST API will write to the same Oracle
 // [API] G06:GET /workspaces/{wsId}/documents
 // [AUTH]
 // [PHASE-1]
-// Query params: folderId, status, documentType, limit, cursor, sort, order (ADR-011)
+// Query params: folderId, status, documentType, contentState, limit, cursor, sort, order (ADR-011)
+```
+
+#### Document Placeholders
+
+A FusionLive document record lives in Oracle; its file lives in the content store
+(NFS today, S3 per region — see §System Architecture). A **placeholder** is a
+pre-registered Oracle record with metadata and *no* file: document controllers
+create them singly or in bulk, usually against a delivery schedule, so suppliers,
+contractors and vendors have a target to upload their EPC deliverables into. They
+sit in the folder they were targeted at and appear in the grid alongside records
+that do have content.
+
+Placeholders are the foundation of progress measurement — the MDR/DDR is a register
+of them, and each one earns a percentage of its budgeted weighting as it climbs the
+status ladder (Rules of Credit / EVM). **See MDR_AND_PROGRESS.md** for the domain
+model, the version-stack case, and what the prototype does and doesn't cover.
+
+| Prototype | API | Notes |
+|---|---|---|
+| `DocumentStatus` value `'Placeholder'` | `DocumentResponse.status` (G06) | The 0% rung; mutually exclusive with `New` |
+| `DocumentMetadata.contentState?: 'content' \| 'placeholder'` | `DocumentResponse` field (G06) | Drives affordances; `undefined` reads as `'content'` |
+| `DocumentMetadata.dateExpected?` / `responsibleParty?` | G06 | Delivery schedule — due date and who owes the file |
+| `src/data/mockPlaceholders.ts`, merged into `mockDocumentsByProject` | Same G06 list endpoint | Placeholders are **not** a separate resource |
+| Content filter (FilterPanel → `ContentStateFilter`) | `?contentState=content\|placeholder` | Omitted = both kinds, which is the grid default |
+| Header "N documents · M placeholders" | `{ totalApprox, placeholderApprox }` | `placeholderApprox` added to the G06 list envelope |
+| Folder tree `documentCount` | G05 | Counts records **with content** only — placeholders reported separately |
+
+Design decisions worth keeping:
+
+- **`Placeholder` is a `DocumentStatus` value — the 0% rung — not a second axis.**
+  A record is never both `Placeholder` and `New`; it becomes `New` the moment
+  content lands on it. The grid therefore renders **one** status chip.
+- **`contentState` still exists alongside it, and is what behaviour keys off.**
+  Two reasons it is not redundant: (1) customers rename their status ladder
+  (IFR/IFA/IFC/As Built and many variants), so upload-vs-download affordances must
+  never depend on a customisable string; (2) a placeholder can sit on top of a
+  version stack, where the current version has no content but earlier revisions do
+  — "has content" is a property of a version, not of the document.
+- Typed as a **string union** so it satisfies the `Document` index signature
+  (`[key: string]: string | string[] | DocumentRelationship[] | undefined`) — a
+  boolean `isPlaceholder` field will not compile.
+- Content-dependent actions (View, Download, Rendition, Print, Add to Briefcase)
+  are disabled wherever a placeholder is shown — grid row menu, slide panel and
+  detail page — and an **Upload content** action leads instead.
+  [TODO-ENG] wire to G07 `POST .../content`.
+- `PM_STATUSES` in `distributionEngine.ts` deliberately **excludes** `Placeholder`:
+  a record with no content has nothing to distribute, and AD fires on the
+  `Placeholder → New` transition.
+- **The grid lists current versions only**, so `Superseded` can never appear on a
+  row and is absent from the generated data and the status filter. It survives in
+  `DocumentStatus` purely for the Version Stack and the AD "superseded notice"
+  trigger. `Archived` does not exist in FusionLive and has been removed outright.
+- Adding a status value means touching **six** near-duplicate `statusColors` maps
+  (`documentStatusColors.ts` plus ClipboardPanel, DetailSlidePanel, Dashboard,
+  MyBriefcase, SearchResults). [TODO-ENG] consolidate onto the shared map.
+
+```ts
+// [MOCK] src/data/mockPlaceholders.ts
+// [API] G06:GET /workspaces/{wsId}/documents?contentState=placeholder
+// [TODO-ENG] confirm the field/param names against the G06 Swagger — the
+// prototype invents `contentState`, `dateExpected` and `responsibleParty`.
 ```
 
 ### Document Detail / Metadata Panel (`DocumentDetail.tsx`, `MetadataPanel.tsx`)
@@ -263,6 +324,10 @@ The legacy Struts application and the new REST API will write to the same Oracle
 | Prototype | API | Notes |
 |---|---|---|
 | Single document object from mock | `GET /workspaces/{wsId}/documents/{docId}` (G06) | |
+| Journey timeline (`DocumentJourney`) | [TBD] document history / audit trail | Bottom of the Properties tab; stage vocabulary + Rules of Credit percentages are workspace config, never hardcoded — see MDR_AND_PROGRESS.md §5a |
+| Version Stack tab (`VersionStack`) | `GET /workspaces/{wsId}/documents/{docId}/revisions` (G06) | Top of the stack may be a placeholder with content revisions beneath it |
+| In-app viewer (`DocumentViewer`, `ViewerContext`) | Apryse/PDFTron — today `OpenPdfTronViewerServlet?…&objectType=DOCUMENT`, content via G07 | Framed inside FLUX instead of a new tab; opened from every eye icon. [TODO-ENG] servlet in an `<iframe>` vs the WebViewer SDK mounted in the SPA — the SDK is what makes markup state shareable with the rest of the UI |
+| Viewer markups / comments | [TBD] Apryse annotation store, keyed by document + revision | Not on the document record. `src/data/mockMarkups.ts` stands in |
 | Metadata edit | `PATCH /workspaces/{wsId}/documents/{docId}` (G06) | ETag/If-Match |
 | Revision history | `GET /workspaces/{wsId}/documents/{docId}/revisions` (G06) | |
 | Relationships | `GET /workspaces/{wsId}/documents/{docId}/relationships` (G06) | |

@@ -24,6 +24,7 @@ export function useDocuments(wsId: string, params: Omit<DocumentListParams, 'cur
     [query.data]
   );
   const totalApprox = query.data?.pages[0]?.totalApprox;
+  const placeholderApprox = query.data?.pages[0]?.placeholderApprox;
 
-  return { ...query, documents, totalApprox };
+  return { ...query, documents, totalApprox, placeholderApprox };
 }

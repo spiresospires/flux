@@ -12,6 +12,7 @@
 // Port Hedland 920, Kwinana 1060, Goldfields 840 — 3960 documents overall.
 // Folder counts in mockFolders.ts are computed from this data — never hand-edit them.
 import { Document, DocumentCategory, DocumentType } from '../types/document';
+import { mockPlaceholdersByProject } from './mockPlaceholders';
 import { PROJECTS, ProjectId } from './projects';
 
 const authors = [
@@ -36,9 +37,12 @@ const authors = [
   'Christopher Davis',
   'Margaret Robinson'];
 
+// The full FusionLive ladder. No 'Superseded' (being replaced is a relationship
+// between revisions, shown by position in the version stack) and no 'Archived'
+// (documents are never archived). See types/document.ts.
 const statuses: Array<
-  'New' | 'Under Review' | 'Approved' | 'Issued' | 'Superseded' | 'Archived'> =
-  ['New', 'Under Review', 'Approved', 'Issued', 'Superseded', 'Archived'];
+  'New' | 'Under Review' | 'Approved' | 'Issued'> =
+  ['New', 'Under Review', 'Approved', 'Issued'];
 
 const thumbnails = [
   '/eng_drawing_1_1779057915112.png',
@@ -317,12 +321,15 @@ function generateProjectDocuments(projectId: ProjectId): Document[] {
     .map(withCategoryAttributes);
 }
 
-/** Documents keyed by project — DocumentBrowser selects the active project's set via scope.id. */
+/** Documents keyed by project — DocumentBrowser selects the active project's set via scope.id.
+ *  Placeholders (pre-registered records with no content) are part of this list: G06 returns
+ *  both kinds from one endpoint, discriminated by `contentState`. Ordering is irrelevant —
+ *  the mock handler sorts by dateModified desc by default. */
 export const mockDocumentsByProject: Record<ProjectId, Document[]> = {
-  'marra-ridge': generateProjectDocuments('marra-ridge'),
-  hedland: generateProjectDocuments('hedland'),
-  kwinana: generateProjectDocuments('kwinana'),
-  goldfields: generateProjectDocuments('goldfields'),
+  'marra-ridge': [...generateProjectDocuments('marra-ridge'), ...mockPlaceholdersByProject['marra-ridge']],
+  hedland: [...generateProjectDocuments('hedland'), ...mockPlaceholdersByProject.hedland],
+  kwinana: [...generateProjectDocuments('kwinana'), ...mockPlaceholdersByProject.kwinana],
+  goldfields: [...generateProjectDocuments('goldfields'), ...mockPlaceholdersByProject.goldfields],
 };
 
 /** All projects combined — used by search and anywhere enterprise-wide data is needed. */

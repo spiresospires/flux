@@ -32,13 +32,21 @@ export interface DocumentListParams {
   recursive?: boolean;
   status?: DocumentStatus[];
   documentType?: DocumentType[];
+  /** Content axis. Omitted = both kinds (the default grid mixes them). 'content'
+   *  hides pre-registered placeholders; 'placeholder' isolates the outstanding
+   *  deliverables. [TODO-ENG] confirm the param name against the G06 Swagger. */
+  contentState?: 'content' | 'placeholder';
   sort?: string;
   order?: 'asc' | 'desc';
   limit?: number;
   cursor?: string;
 }
 
-export type DocumentListResponse = ListResponse<Document>;
+export interface DocumentListResponse extends ListResponse<Document> {
+  /** How many of the matched records are placeholders — lets the grid header say
+   *  "1,140 documents · 7 placeholders" without loading every page. */
+  placeholderApprox?: number;
+}
 export type FolderTreeResponse = Folder[];
 
 /** G19 POST /workspaces/{wsId}/search request body (ADR-011 pagination). */

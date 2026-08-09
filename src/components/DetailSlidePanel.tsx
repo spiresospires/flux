@@ -1,10 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, CheckCircleIcon, BellIcon, StarIcon, LinkIcon, FilesIcon, MessageSquareIcon, BriefcaseIcon, EyeIcon, DownloadIcon } from 'lucide-react';
+import { XIcon, FileIcon, SendIcon, GitBranchIcon, PackageIcon, SearchIcon, FolderIcon, BarChart3Icon, ClockIcon, UserIcon, CalendarIcon, TagIcon, CheckCircleIcon, BellIcon, StarIcon, LinkIcon, FilesIcon, MessageSquareIcon, BriefcaseIcon, EyeIcon, DownloadIcon, UploadIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useBriefcase } from '../contexts/BriefcaseContext';
+import { useViewer } from '../contexts/ViewerContext';
+import { statusChipClass } from './documentStatusColors';
+import { DocumentJourney } from './DocumentJourney';
+import { VersionStack } from './VersionStack';
+import type { JourneyStep, VersionStackEntry } from '../types/journey';
+import type { DocumentStatus } from '../types/document';
 
 export type DetailPanelObjectType = 'document' | 'transmittal' | 'review' | 'workflow' | 'package' | 'folder' | 'search' | 'report';
+
+type PanelTab = 'properties' | 'versions';
+
+const PANEL_TABS: readonly PanelTab[] = ['properties', 'versions'];
 
 export interface DetailPanelData {
   objectType: DetailPanelObjectType;
@@ -22,6 +32,18 @@ export interface DetailPanelData {
   dateCreated?: string;
   fileType?: string;
   fileSize?: string;
+  /** 'placeholder' = pre-registered record with no file in the content store.
+   *  File-derived fields are empty for those, and content actions are disabled. */
+  contentState?: 'content' | 'placeholder';
+  dateExpected?: string;
+  responsibleParty?: string;
+  /** Page raster handed to the framed viewer when the eye icon is clicked. */
+  pageImage?: string;
+  /** Chronological history + remaining stages, rendered by DocumentJourney at
+   *  the bottom of the Properties tab. Absent = no journey section. */
+  journey?: JourneyStep[];
+  /** Revisions newest-first. Presence of 1+ enables the Version Stack tab. */
+  versions?: VersionStackEntry[];
   // transmittal-specific
   recipient?: string;
   issueDate?: string;
@@ -62,27 +84,13 @@ const typeConfig: Record<DetailPanelObjectType, { icon: React.ElementType; label
   report: { icon: BarChart3Icon, label: 'Report', color: 'text-indigo-700 bg-indigo-50' },
 };
 
-const statusColors: Record<string, string> = {
-  New: 'bg-secondary-50 text-secondary-700 border-secondary-200',
-  'Under Review': 'bg-warning-50 text-warning-700 border-warning-200',
-  Approved: 'bg-success-50 text-success-700 border-success-200',
-  Superseded: 'bg-plum-50 text-plum-700 border-plum-200',
-  Archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-  Overdue: 'bg-red-50 text-red-700 border-red-200',
-  'Due Today': 'bg-amber-50 text-amber-700 border-amber-200',
-  'Due Soon': 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  Pending: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-  Issued: 'bg-sky-50 text-sky-700 border-sky-200',
-  Returned: 'bg-rose-50 text-rose-700 border-rose-200',
-};
 
 function translateStatusLabel(t: (key: string, variables?: Record<string, string | number>) => string, status: string) {
   const key = ({
     New: 'statuses.new',
     'Under Review': 'statuses.underReview',
     Approved: 'statuses.approved',
-    Superseded: 'statuses.superseded',
-    Archived: 'statuses.archived',
+    Placeholder: 'statuses.placeholder',
     Overdue: 'statuses.overdue',
     'Due Today': 'statuses.dueToday',
     'Due Soon': 'statuses.dueSoon',
@@ -107,15 +115,16 @@ function Field({ label, value, icon: Icon }: { label: string; value?: string | n
   );
 }
 
-function ActionIconButton({ icon: Icon, label, onClick, active }: { icon: React.ElementType; label: string; onClick?: (e: React.MouseEvent) => void; active?: boolean }) {
+function ActionIconButton({ icon: Icon, label, onClick, active, disabled }: { icon: React.ElementType; label: string; onClick?: (e: React.MouseEvent) => void; active?: boolean; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${active ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB]'}`}
+      className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-neutral-500 ${active ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-[#0461BA] hover:bg-[#E8F1FB]'}`}
     >
       <Icon size={16} strokeWidth={2} />
     </button>
@@ -125,14 +134,38 @@ function ActionIconButton({ icon: Icon, label, onClick, active }: { icon: React.
 function DocumentDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   const { add: addToBriefcase, remove: removeFromBriefcase, isInBriefcase } = useBriefcase();
+  const { openViewer } = useViewer();
   const briefcaseDocId = data.docId ?? data.objectId;
   const inBriefcase = isInBriefcase(briefcaseDocId);
+  // Placeholder: no file in the content store, so open/download/briefcase have
+  // nothing to act on — same rule the grid's row action menu applies.
+  const placeholder = data.contentState === 'placeholder';
+  const overdue = placeholder && !!data.dateExpected && data.dateExpected < new Date().toISOString().slice(0, 10);
   return (
     <div className="space-y-6">
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-1 pb-4 border-b border-neutral-100">
-        <ActionIconButton icon={EyeIcon} label={t('detailPanel.openDocument')} onClick={(e) => { e.preventDefault(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content [AUTH] [PHASE-1] */ }} />
-        <ActionIconButton icon={DownloadIcon} label={t('detailPanel.download')} onClick={(e) => { e.preventDefault(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content (download) [AUTH] [PHASE-1] */ }} />
+        {placeholder && (
+          <ActionIconButton icon={UploadIcon} label={t('detailPanel.uploadContent')} active onClick={(e) => { e.preventDefault(); /* [TODO-ENG] wire to the upload flow (G07 POST .../content) — not built in this prototype */ }} />
+        )}
+        <ActionIconButton
+          icon={EyeIcon}
+          label={t('detailPanel.openDocument')}
+          disabled={placeholder}
+          onClick={(e) => {
+            e.preventDefault();
+            // Same framed viewer as the grid — one experience per eye icon.
+            openViewer({
+              docId: data.docId ?? data.objectId,
+              title: data.title,
+              revision: data.revision,
+              project: data.project,
+              fileType: data.fileType,
+              pageImage: data.pageImage,
+            });
+          }}
+        />
+        <ActionIconButton icon={DownloadIcon} label={t('detailPanel.download')} disabled={placeholder} onClick={(e) => { e.preventDefault(); /* [API] G07:GET /workspaces/{wsId}/documents/{docId}/content (download) [AUTH] [PHASE-1] */ }} />
 
         <div className="w-px h-5 bg-neutral-200 mx-2" />
 
@@ -145,6 +178,7 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
           icon={BriefcaseIcon}
           label={inBriefcase ? 'Remove from Briefcase' : 'Add to Briefcase'}
           active={inBriefcase}
+          disabled={placeholder}
           onClick={(e) => {
             e.preventDefault();
             if (inBriefcase) {
@@ -156,12 +190,33 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
         />
       </div>
 
+      {placeholder && (
+        <div className="flex items-start gap-2.5 rounded-md border border-dashed border-neutral-300 bg-neutral-50 px-3 py-2.5">
+          <FileIcon size={15} className="text-neutral-400 mt-0.5 flex-shrink-0" />
+          <div className="text-sm">
+            {/* The status chip in the header already says 'Placeholder' — this
+                banner carries what the chip can't: the delivery commitment. */}
+            <p className="font-medium text-neutral-800">{t('detailPanel.placeholderNoContent')}</p>
+            <p className={`text-xs mt-0.5 ${overdue ? 'text-rose-600 font-medium' : 'text-neutral-500'}`}>
+              {data.dateExpected
+                ? t(overdue ? 'detailPanel.placeholderOverdue' : 'detailPanel.placeholderExpected', { date: data.dateExpected })
+                  + (data.responsibleParty ? t('detailPanel.placeholderFrom', { party: data.responsibleParty }) : '')
+                : t('detailPanel.placeholderNoDate')}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <Field label={t('detailPanel.documentId')} value={data.docId || data.objectId} icon={FileIcon} />
         <Field label={t('detailPanel.revision')} value={data.revision} />
         <Field label={t('detailPanel.author')} value={data.author} icon={UserIcon} />
+        {/* File type / size are omitted entirely for placeholders — Field renders
+            nothing for an empty value, so no invented "PDF · 2.4 MB" appears. */}
         <Field label={t('detailPanel.fileType')} value={data.fileType} />
         <Field label={t('detailPanel.fileSize')} value={data.fileSize} />
+        <Field label={t('detailPanel.dateExpected')} value={data.dateExpected} icon={ClockIcon} />
+        <Field label={t('detailPanel.responsible')} value={data.responsibleParty} icon={UserIcon} />
         <Field label={t('detailPanel.dateCreated')} value={data.dateCreated ? new Date(data.dateCreated).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
         <Field label={t('detailPanel.lastModified')} value={data.dateModified ? new Date(data.dateModified).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={ClockIcon} />
       </div>
@@ -179,6 +234,17 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
               <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200">{t}</span>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Journey — the document's audit history as a timeline. Sits at the
+          bottom of Properties so it reads alongside the metadata it explains. */}
+      {data.journey && data.journey.length > 0 && (
+        <div className="pt-5 border-t border-neutral-100">
+          <DocumentJourney
+            steps={data.journey}
+            currentStatus={data.status as DocumentStatus | undefined}
+          />
         </div>
       )}
     </div>
@@ -318,6 +384,14 @@ function PanelInner({
   const typeLabel = t(`detailPanel.types.${data.objectType}`);
   const cfg = typeConfig[data.objectType];
   const Icon = cfg.icon;
+  // Version Stack is a document-only tab, and only when there is a stack to show.
+  const hasVersions = data.objectType === 'document' && (data.versions?.length ?? 0) > 0;
+  const [tab, setTab] = useState<PanelTab>('properties');
+  // Switching to another object (or one with no stack) must not strand the user
+  // on a tab that no longer exists.
+  useEffect(() => {
+    if (!hasVersions) setTab('properties');
+  }, [hasVersions, data.objectId]);
 
   return (
     <>
@@ -332,7 +406,7 @@ function PanelInner({
               {typeLabel}
             </span>
             {data.status && (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${statusColors[data.status] ?? 'bg-neutral-100 text-neutral-600 border-neutral-200'}`}>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${statusChipClass(data.status)}`}>
                 {translateStatusLabel(t, data.status)}
               </span>
             )}
@@ -354,8 +428,43 @@ function PanelInner({
         </button>
       </div>
 
+      {/* Tabs — only rendered when there is a second tab to switch to. */}
+      {hasVersions && (
+        <div className={`flex items-stretch gap-1 ${px} border-b border-neutral-200 bg-white shrink-0`} role="tablist">
+          {PANEL_TABS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`relative px-3 py-2.5 text-xs font-medium transition-colors ${
+                tab === id ? 'text-[#0461BA]' : 'text-neutral-500 hover:text-neutral-800'
+              }`}
+            >
+              {t(`detailPanel.tabs.${id}`)}
+              {id === 'versions' && (
+                <span className="ml-1.5 text-[10px] text-neutral-400 tabular-nums">{data.versions?.length}</span>
+              )}
+              {tab === id && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-t bg-[#0461BA]" />}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Body */}
       <div className={`flex-1 overflow-y-auto ${px} ${py}`}>
+        {tab === 'versions' && data.versions
+          ? <VersionStack
+              versions={data.versions}
+              viewerBase={{
+                docId: data.docId ?? data.objectId,
+                title: data.title,
+                project: data.project,
+                pageImage: data.pageImage,
+              }}
+            />
+          : <>
         {data.objectType === 'document'    && <DocumentDetail    data={data} />}
         {data.objectType === 'transmittal' && <TransmittalDetail data={data} />}
         {data.objectType === 'review'      && <ReviewDetail      data={data} />}
@@ -363,6 +472,8 @@ function PanelInner({
         {(data.objectType === 'package' || data.objectType === 'folder' ||
           data.objectType === 'search'  || data.objectType === 'report') &&
           <GenericDetail data={data} />}
+            </>
+        }
       </div>
     </>
   );

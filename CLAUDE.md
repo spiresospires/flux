@@ -33,12 +33,13 @@ Tests live beside the code they cover, as `*.test.ts`.
 | `npm run build` | Production build (does **not** typecheck — Vite strips types without checking) |
 | `npm run typecheck` | `tsc --noEmit`. Currently clean; keep it that way |
 | `npm run lint` | ESLint. **0 errors**, 6 known warnings — keep errors at zero |
-| `npm test` | Vitest, single run. 108 tests over business rules + icon geometry |
+| `npm test` | Vitest, single run. 180 tests over business rules, mock generators, icon geometry + two component suites |
+| `npm run check` | typecheck → lint → test in one go. Run this before any handover |
 | `npm run test:watch` | Vitest in watch mode |
 
 ⚠️ `npm run build` succeeding does **not** mean the code typechecks — Vite strips types without checking them. That is what the separate `typecheck` script is for. Run `typecheck`, `lint` and `test`; the build alone proves very little.
 
-⚠️ **There is still no CI.** Nothing runs automatically on push. See "Testing status" at the end of this file.
+✅ **CI and a pre-commit hook now run `npm run check`** (typecheck → lint → test). See "Testing status" at the end of this file.
 
 ### Key context providers
 
@@ -367,21 +368,47 @@ These are known, non-blocking, and pre-date recent sessions:
 
 ## Testing status
 
-**Vitest is installed and 108 tests pass.** Coverage is deliberately narrow: the business
-rules that a new team cannot re-derive from the UI, plus the icon geometry. Everything else
-is still unverified, and there is **no CI** — nothing runs automatically on push.
+**Vitest is installed and 180 tests pass.** Coverage is deliberately narrow: the business
+rules that a new team cannot re-derive from the UI, the mock generators, the icon geometry,
+and two component suites. The rest of the rendering is still unverified — see the manual
+checklist in **MDR_AND_PROGRESS.md §5b**.
+
+Component tests opt in per-file with `// @vitest-environment jsdom` on the first line. The
+suite runs `globals: false`, so **each such file must call `afterEach(cleanup)` itself** —
+Testing Library does not auto-register it, and without it renders accumulate and queries
+start matching duplicates from earlier tests.
+
+**`npm run check` runs typecheck → lint → test in one command, and is now enforced in two
+places** (added 2026-08-09 — previously nothing ran automatically):
+
+- **Pre-commit hook** — `.githooks/pre-commit`, wired up by the `prepare` npm script
+  (`git config core.hooksPath .githooks`), which npm runs automatically after `npm install`.
+  Zero-dependency, no husky. Bypass deliberately with `git commit --no-verify`.
+- **CI** — `.github/workflows/check.yml` runs `npm ci && npm run check` on every push and PR.
+
+⚠️ When `.githooks/pre-commit` is first committed, set its executable bit or it will be
+ignored on macOS/Linux clones (Windows is unaffected):
+`git add .githooks/pre-commit && git update-index --chmod=+x .githooks/pre-commit`
 
 | check | scope | gated? |
 |-------|-------|--------|
-| `npm run typecheck` | whole project, **clean** | no |
-| `npm run lint` | whole project, **0 errors**, 6 known warnings | no |
-| `npm test` | **108 tests**, 3 files (see below) | no |
+| `npm run typecheck` | whole project, **clean** | via `check` |
+| `npm run lint` | whole project, **0 errors**, 6 known warnings | via `check` |
+| `npm test` | **180 tests**, 10 files (see below) | via `check` |
+| `npm run check` | all three, sequential, fails fast | **yes** — pre-commit hook + CI |
 
 | test file | covers |
 |-----------|--------|
 | `src/utils/distributionEngine.test.ts` | AD rules: priority conflicts, rule warnings, draft/published and version diffs, condition and trigger rendering, category-scoped field widening |
 | `src/utils/search.test.ts` | query normalisation, what drives a match, `matchedFields`, snippet fallbacks, facet counts |
 | `src/components/flintGeometry.test.ts` | icon containment at every tier × state over 360°, rotation rigidity, tier boundaries, spoke/centre colour invariant |
+| `src/types/document.test.ts` | `isPlaceholder` / `isOverdue` — the predicates every content affordance keys off instead of a (customer-renamable) status string |
+| `src/utils/journey.test.ts` | which journey node is "current" (last status match, so a post-rejection revisit wins) and what a document has earned when it lands on a non-rung |
+| `src/data/mockJourneys.test.ts` | journey determinism, revision progression, the review-rejection loop, version-stack ordering and placeholder-on-top-of-stack |
+| `src/data/documentCorpus.test.ts` | corpus invariants: status vocabulary, placeholder field rules, folder-count exclusion, search classification |
+| `src/data/mockMarkups.test.ts` | viewer markup/comment generators — sweeps the corpus for `undefined` fields from hashed array indexing (a signed-shift bug shipped once this way) |
+| `src/components/DocumentJourney.test.tsx` | **jsdom** — current-status badge tracks the document state, red confined to the rejection path, no hard-coded width |
+| `src/components/VersionStack.test.tsx` | **jsdom** — placeholder version disables view/download, current row marked once, view opens the framed viewer for that revision |
 
 **Why these two engines first:** `distributionEngine` and `search` are pure functions with no
 DOM, no async and no mocking required — the cheapest possible coverage — and they encode

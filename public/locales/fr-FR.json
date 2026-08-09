@@ -46,8 +46,7 @@
     "draft": "Brouillon",
     "inReview": "En révision",
     "approved": "Approuvé",
-    "superseded": "Remplacé",
-    "archived": "Archivé",
+    "placeholder": "Espace réservé",
     "overdue": "En retard",
     "dueToday": "À faire aujourd'hui",
     "dueSoon": "À faire bientôt",
@@ -143,6 +142,18 @@
       "search": "Recherche enregistrée",
       "report": "Rapport"
     },
+    "tabs": {
+      "properties": "Propriétés",
+      "versions": "Pile de versions"
+    },
+    "placeholderNoContent": "Aucun contenu téléversé",
+    "placeholderExpected": "Attendu le {{date}}",
+    "placeholderOverdue": "En retard — attendu le {{date}}",
+    "placeholderFrom": " de {{party}}",
+    "placeholderNoDate": "Aucune date de livraison définie",
+    "uploadContent": "Téléverser le contenu",
+    "dateExpected": "Date attendue",
+    "responsible": "Responsable",
     "documentId": "ID du document",
     "revision": "Révision",
     "author": "Auteur",
@@ -592,6 +603,26 @@
       "plum": "Prune"
     }
   },
+  "journey": {
+    "title": "Parcours",
+    "earned": "{{percent}} % acquis",
+    "currentStatus": "Statut actuel",
+    "ariaLabel": "Parcours du document"
+  },
+  "versionStack": {
+    "title": "Pile de versions",
+    "ariaLabel": "Pile de versions",
+    "count": "{{count}} versions",
+    "countOne": "1 version",
+    "empty": "Aucun historique de révision pour ce document.",
+    "rev": "Rév.",
+    "status": "Statut",
+    "date": "Date",
+    "current": "Actuelle",
+    "noContent": "Aucun contenu",
+    "viewRevision": "Afficher la révision {{revision}}",
+    "downloadRevision": "Télécharger la révision {{revision}}"
+  },
   "filters": {
     "searchPlaceholder": "Rechercher des documents...",
     "status": "Statut",
@@ -599,6 +630,12 @@
     "project": "Projet",
     "placeholders": "Espaces réservés",
     "includeDocumentPlaceholders": "Inclure les espaces réservés de document",
+    "content": "Contenu",
+    "contentOptions": {
+      "all": "Tous les éléments",
+      "withContent": "Avec contenu uniquement",
+      "placeholdersOnly": "Espaces réservés uniquement"
+    },
     "fileType": "Type de fichier",
     "allFileTypes": "Tous les types de fichier",
     "versionControl": "Gestion des versions",
@@ -622,9 +659,7 @@
       "new": "Nouveau",
       "underReview": "En cours de révision",
       "approved": "Approuvé",
-      "issued": "Émis",
-      "superseded": "Remplacé",
-      "archived": "Archivé"
+      "issued": "Émis"
     },
     "documentTypeOptions": {
       "drawing": "Plan",
@@ -680,6 +715,8 @@
       "type": "Type",
       "author": "Auteur",
       "dateModified": "Date de modification",
+      "dateExpected": "Date attendue",
+      "responsibleParty": "Responsable",
       "beamSize": "Dimension de poutre",
       "materialGrade": "Nuance du matériau",
       "loadRating": "Charge admissible",
