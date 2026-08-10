@@ -1,6 +1,6 @@
 # FusionLive FLUX — UX Wireframe Prototype
 
-A clickable wireframe / prototype exploring a redesigned UX for the FusionLive engineering document management system. This is a **UX mockup**, not production code — there is no real backend or auth, and prototype persistence is currently limited to local client storage for selected UI preferences and workspace state.
+A clickable wireframe / prototype exploring a redesigned UX for the FusionLive engineering document management system. This is a **UX mockup**, not production code — there is no real backend or auth. API calls go over HTTP against typed contracts and are answered by Mock Service Worker (MSW) with seeded mock data; set `VITE_API_MODE=real` (and `VITE_API_BASE_URL`) to point at a real backend with no component changes. A handful of UI preferences (appearance, panel widths, chat history width, etc.) persist to `localStorage`.
 
 ## Getting Started
 
@@ -12,23 +12,28 @@ A clickable wireframe / prototype exploring a redesigned UX for the FusionLive e
 
 | Path | Screen |
 | --- | --- |
-| `/` | Documents (folders + filters + grid) |
+| `/` | Dashboard |
+| `/documents` | Documents (folders + filters + grid) |
 | `/packages` | Packages library, wizard, detail |
 | `/chat` | Ask Flint chat with conversation history |
-| `/document/:id` | Document detail |
+| `/search` | Search results |
+| `/briefcase` | My Briefcase |
+| `/admin/distribution` | Automatic Distribution |
+| `/admin/workgroups` | Workgroups |
 | `/design-system` | Design system reference |
+
+Document detail isn't a routed page — clicking a document opens a global `DocumentViewer` overlay on top of whichever screen you're on.
 
 ## Key UX changes vs current FusionLive
 
 ### Global chrome
-- **FusionLive brand banner** — thin dark-blue banner pinned to the top of every page with the FusionLive wordmark in the top-right.
-- **Left navigation rail** — collapsed icon rail expands on hover. Items: Dashboard, Documents, Packages, Workflows, Transmittals, Reports, Admin, Projects, Chat. The rest of the page dims when the rail expands so it stands out.
-- **Home logo button** — the top-left home control now uses the Clough logo image instead of the text placeholder. The source asset is stored in [`artifacts/Clough_Colore.png`](./artifacts/Clough_Colore.png).
-- **Active item routing** — Documents → `/`, Packages → `/packages`, Chat → `/chat`. All other items are placeholders in this prototype.
-- **Appearance switcher** (gear icon at the bottom of the rail) — replaced the unfinished multi-palette picker with a simple **Light / Dark** mode toggle. Choice persists in `localStorage` and applies via a `data-theme="dark"` attribute on `<html>`.
+- **Top bar** — a white 60px bar pinned to the top of every page with a company-logo switcher (top-left, defaults to the Idox logo — also lets you preview Clough, Iluka, Twinza and Rosetti-Marino branding) and profile / notifications controls (top-right).
+- **Scope / project picker** — a dropdown in the top bar, next to the logo switcher. Lets you switch between enterprise scope (all projects) and a single project workspace; this scope drives the Dashboard, Documents nav visibility, and Chat's conversation filtering everywhere in the app.
+- **Left navigation rail** — fixed-width icon rail (no hover-expand). Items: Dashboard, Briefcase, Flint (chat), Search, and Documents (shown only in project scope). An Admin group (Distribution, Workgroups) appears only in project scope for users with the relevant permission. Settings sits at the bottom.
+- **Active item routing** — Dashboard → `/`, Documents → `/documents`, Packages → `/packages`, Chat → `/chat`, Search → `/search`, Briefcase → `/briefcase`, Admin items → `/admin/distribution` / `/admin/workgroups`.
+- **Appearance switcher** (gear icon at the bottom of the rail) — a 2-option **Light / Dark** picker. Choice persists in `localStorage` and applies via `data-appearance` / `data-view` / `data-theme` attributes on `<html>`.
 
 ### Documents view
-- **Project picker moved into the folder/filter panel** (previously at the top of the document grid).
 - **Removed redundant "Sort by" control** — the column headers already sort.
 - **Compact grid header** — single-line "X documents found • Showing N" plus a smaller View button.
 - **Aligned gutters** — equal narrow gap between left rail / folder panel / grid.
@@ -70,10 +75,7 @@ The Packages area includes:
   - Per-chat context menu: Pin / Unpin, Rename (inline), Delete
   - Collapsible — collapses to a thin 40px rail with New-chat and expand buttons
   - **Resizable** — drag the right edge of the sidebar to widen it (240–560px)
-- **Chat scope switcher** at the top of the sidebar — choose between **Enterprise chat** (spans every project the user has access to) or **Project chat** (scoped to a single project workspace).
-  - Each scope has its own conversation history (pinned + recent filter by scope).
-  - A persistent banner above the chat content reinforces the active scope (violet for enterprise, brand blue for project).
-  - Default scope follows the project currently selected in the Documents view.
+- **Scope-aware history** — the sidebar's Pinned/Recent lists filter by whichever scope (enterprise or a specific project) is currently selected in the top-bar scope picker. Chat doesn't have its own separate scope switcher — it inherits scope globally, the same as every other screen.
 - **Seeded EDMS-flavoured example conversations** — TAG ↔ document associations, latest revisions, where-used queries, vendor datasheets, transmittal counts, hold points, redlines, etc. Each is tagged to a project or to enterprise scope.
 - **Inline "Ask Flint" entry points**
   - Hovering a folder in the folder tree reveals a sparkle button that opens the chat pre-prompted with *"What do you want to ask Flint about the **&lt;folder&gt;** folder?"*.
@@ -81,11 +83,10 @@ The Packages area includes:
   - Suggestion chips adapt to the chosen subject (Summarise, Who is responsible, Latest activity, Open issues/holds, Recent changes).
 
 ### Multi-project workspace
-- Selecting a different project from the Documents project picker now refreshes the workspace:
-  - Folder document counts rescale per project (Shard 100%, Empire State 85%, Skyline 70%, Tower 45%).
-  - The document grid is reseeded — each project shows a different deterministic mix of documents.
-  - Selected folder and pagination reset on switch.
-  - The active project persists in `localStorage` and is read by the chat scope picker.
+Four mock projects, themed as a Western Australian mining EPC portfolio: **Marra Ridge Iron Ore Mine**, **Port Hedland Berth 6 Expansion**, **Kwinana Lithium Hydroxide Plant**, **Goldfields Rail Duplication**. Selecting a different project from the top-bar scope picker refreshes the workspace:
+- Folder document counts and the document grid reseed per project — each shows a different deterministic mix of documents.
+- Selected folder and pagination reset on switch.
+- The active project persists in `localStorage` and is read by the Chat scope filtering described above.
 
 ## Tech
 
@@ -95,4 +96,5 @@ The Packages area includes:
 - React Router
 - Framer Motion
 - Lucide icons
-
+- TanStack React Query + Mock Service Worker (MSW) — mock HTTP API layer standing in for the real backend
+- Leaflet + React Leaflet — Dashboard project map view
