@@ -2,7 +2,6 @@
 cd /d "%~dp0"
 echo.
 echo  Starting Flux dev server...
-echo  Open your browser at: http://localhost:5173
+echo  A browser tab will open automatically once it's ready.
 echo.
-start "" "http://localhost:5173"
 npm run dev
