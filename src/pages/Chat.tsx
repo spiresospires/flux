@@ -465,7 +465,8 @@ const onExit = () => navigate('/');
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, []);
+    // setHistoryWidth is the useUserPref setter — useCallback(…, []), stable.
+  }, [setHistoryWidth]);
   const startResize = () => {
     resizingRef.current = true;
     document.body.style.cursor = 'col-resize';
@@ -1289,8 +1290,8 @@ function ChatHistorySidebar(p: SidebarProps) {
         aria-orientation="vertical"
         aria-label={t('chat.resizeHistory')}
         title={t('chat.dragToResize')}
-        className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize group z-10">
-        <div className="absolute inset-y-0 right-0 w-px bg-neutral-200 group-hover:bg-[#0461BA] group-active:bg-[#0461BA] transition-colors" />
+        className="absolute top-0 right-0 h-full w-4 cursor-col-resize group z-10">
+        <div className="absolute inset-y-0 right-0 w-0.5 bg-[#0461BA] opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-150" />
       </div>
     </aside>);
 

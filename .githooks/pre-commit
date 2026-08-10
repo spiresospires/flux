@@ -9,9 +9,38 @@
 # committing a work-in-progress spike. Don't make a habit of it: there is a CI
 # workflow running the same command, so a bypass only defers the failure.
 echo "pre-commit: npm run check"
-npm run check || {
+
+# Output is teed so the failure can be classified below while the developer still sees
+# it live. A pipeline's $? is tee's status, not npm's, and PIPESTATUS is a bashism — so
+# npm's real exit code is stashed in a side file from inside the brace group. POSIX-safe.
+log=$(mktemp 2>/dev/null || echo "${TMPDIR:-/tmp}/flux-precommit.$$")
+{ npm run check 2>&1; echo "$?" > "$log.status"; } | tee "$log"
+status=$(cat "$log.status" 2>/dev/null || echo 1)
+
+if [ "$status" -ne 0 ]; then
   echo ""
-  echo "pre-commit: FAILED — commit aborted."
-  echo "Fix the errors above, or re-run with --no-verify to bypass deliberately."
+  # Distinguish a known INFRASTRUCTURE flake from a real failure. The suite itself is
+  # fine in this case — a vitest worker never started (a hardcoded 60s startup timeout
+  # vs a cold jsdom read on Windows), so its file was skipped and the run exited non-zero.
+  # We still exit 1: nothing is masked and there is no auto-retry. The developer just
+  # gets told the truth instead of "fix the errors above", which is false here.
+  if grep -q '\[vitest-pool\]' "$log" 2>/dev/null; then
+    echo "pre-commit: FAILED — but this looks like the KNOWN vitest worker-start flake,"
+    echo "not a test failure. A worker timed out starting, so one test file never ran."
+    echo ""
+    echo "  Confirm: 'Failed to start threads worker' above, and a passing count 8-9"
+    echo "  short of 180 (e.g. 171 or 172). If so, no test actually failed."
+    echo ""
+    echo "  Re-running often clears it. See docs/quality-gates.md -> 'Open issue:"
+    echo "  intermittent worker-start failure on Windows'. If it persists, that section"
+    echo "  documents the cure (an antivirus exclusion for node_modules)."
+    echo "  This is the one case --no-verify is legitimately for."
+  else
+    echo "pre-commit: FAILED — commit aborted."
+    echo "Fix the errors above, or re-run with --no-verify to bypass deliberately."
+  fi
+  rm -f "$log" "$log.status" 2>/dev/null
   exit 1
-}
+fi
+
+rm -f "$log" "$log.status" 2>/dev/null

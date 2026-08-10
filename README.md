@@ -8,6 +8,21 @@ A clickable wireframe / prototype exploring a redesigned UX for the FusionLive e
 2. Run `npm run dev`
 3. Open http://localhost:5173/
 
+## Quality gates
+
+One command checks the project: `npm run check` runs **typecheck → lint → test**
+(fail-fast). It's enforced in three places — on demand, a zero-dependency
+`.githooks/pre-commit` hook (installed automatically by `npm install`), and CI
+(`.github/workflows/check.yml`, on every push and PR). Current state: typecheck
+clean, ESLint 0 errors / 0 warnings, 180 tests across 10 files.
+
+> Note: `npm run build` does **not** type-check — Vite strips types without checking
+> them. Use `npm run check`.
+
+Full reference — enforcement points, the ESLint config rationale, the three Vitest
+config traps, the per-file test map, and operational gotchas — is in
+[docs/quality-gates.md](docs/quality-gates.md).
+
 ## Routes
 
 | Path | Screen |

@@ -32,7 +32,7 @@ Tests live beside the code they cover, as `*.test.ts`.
 | `npm run dev` | Vite dev server on :5173 |
 | `npm run build` | Production build (does **not** typecheck — Vite strips types without checking) |
 | `npm run typecheck` | `tsc --noEmit`. Currently clean; keep it that way |
-| `npm run lint` | ESLint. **0 errors**, 6 known warnings — keep errors at zero |
+| `npm run lint` | ESLint. **0 errors, 0 warnings** — keep it there |
 | `npm test` | Vitest, single run. 180 tests over business rules, mock generators, icon geometry + two component suites |
 | `npm run check` | typecheck → lint → test in one go. Run this before any handover |
 | `npm run test:watch` | Vitest in watch mode |
@@ -393,7 +393,7 @@ ignored on macOS/Linux clones (Windows is unaffected):
 | check | scope | gated? |
 |-------|-------|--------|
 | `npm run typecheck` | whole project, **clean** | via `check` |
-| `npm run lint` | whole project, **0 errors**, 6 known warnings | via `check` |
+| `npm run lint` | whole project, **0 errors, 0 warnings** | via `check` |
 | `npm test` | **180 tests**, 10 files (see below) | via `check` |
 | `npm run check` | all three, sequential, fails fast | **yes** — pre-commit hook + CI |
 
@@ -417,34 +417,41 @@ search filters on `searchableText` alone while the snippet is built from a *diff
 labelled fields, so the two can legitimately disagree; and a priority conflict requires equal
 priority **and** differing reasons, because unequal priorities are resolved by definition.
 
-**Keep lint errors at zero.** This matters more than the errors themselves did: a
-permanently-failing lint is indistinguishable from a newly-broken one, so if `npm run lint`
-always exits non-zero, running it regularly carries no signal. At zero, any new error is
-unambiguously something just introduced.
+**Keep lint at zero — errors and warnings.** This matters more than the findings did: a
+lint that always reports something is indistinguishable from a newly-broken one, so if
+`npm run lint` never comes back clean, running it regularly carries no signal. At zero,
+anything new is unambiguously something just introduced.
 
-The 6 remaining warnings are a known baseline, not blockers: 4 × `react-hooks/exhaustive-deps`
-and 2 × `react-refresh/only-export-components`. Three of the four dep warnings involve
-`useUserPref` setters, which are `useCallback(…, [])` and therefore referentially stable —
-adding them to the dep arrays is safe. The fourth (`handleClose`) is a locally-defined function
-and would re-subscribe every render, so it needs a `useCallback` rather than a blind dep add.
+The old 6-warning baseline was burned down to zero on 2026-08-10. For the record, since the
+same shapes recur: the 3 × `react-hooks/exhaustive-deps` on `useUserPref` setters
+(`CollapsibleFilterPanel`, `Chat`, `DocumentBrowser`) were fixed by adding the setter to the
+dep array — it's `useCallback(…, [])`, referentially stable, so the effect still subscribes
+once. `FeedbackWidget`'s `handleClose` warning was fixed by **inlining** its body into the
+Escape effect (a local function recreated each render would re-subscribe if added to deps).
+The 2 × `react-refresh/only-export-components` (`DocumentCard`, `RuleEditor`) were fixed by
+moving the non-component helper to a sibling module (`fileTypeIcon.tsx`, `ruleTemplate.ts`);
+the extracted `.tsx` must itself stay component-free (the DWG glyph was inlined as an
+anonymous factory, not a named component).
 
-⚠️ Nothing runs automatically. All three must be invoked by hand.
+✅ `npm run check` now runs automatically — the `.githooks/pre-commit` hook on commit and
+`.github/workflows/check.yml` on push/PR (see the enforcement note above). Running it by hand
+is still the fastest local feedback loop.
 
 ### Highest-value gaps, in order
 
-1. **CI** — still none, and now the biggest gap. A clean-machine run is the only thing that
-   catches the class of bug local checks structurally cannot: an uncommitted file that
-   everything imports. `flintGeometry.ts` was untracked for a while and every local check
-   passed, because the file was on disk. A fresh clone would have failed instantly.
-   The remote is currently GitHub and the move to GitLab happens at handover, so a GitLab
-   pipeline should not be written until the repo actually moves; if a gate is wanted before
-   then it should be GitHub Actions, running `npm ci → typecheck → lint → test → build`.
+1. ~~**CI**~~ — **done** (`.github/workflows/check.yml`, `npm ci → npm run check` on every push
+   and PR). It closed the class of bug local checks structurally cannot catch: an uncommitted
+   file that everything imports — `flintGeometry.ts` was untracked for a while and every local
+   check passed because the file was on disk; a fresh clone would have failed instantly.
+   The remote is currently GitHub; the move to GitLab happens at handover, so the equivalent
+   GitLab pipeline should be written when the repo actually moves, running the same
+   `npm ci → npm run check`.
 2. **Contexts and `useUserPref`** — persistence, the localStorage parse-failure fallbacks, and
    the cross-window `storage` event sync. All have real edge cases and are currently only
    verifiable by clicking through the app. Needs `jsdom` and `@testing-library/react`, which
    are deliberately **not** installed yet — the current suite is pure functions and needs
    neither, so the install was kept minimal.
-3. **The 6 lint warnings** — a burn-down, not a blocker. See the note above.
+3. ~~**The 6 lint warnings**~~ — **done** (burned down to zero, 2026-08-10). See the note above.
 
 ### Deliberately not tested
 

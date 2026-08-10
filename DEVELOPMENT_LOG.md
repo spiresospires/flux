@@ -251,6 +251,10 @@ Vitest installed and configured; **108 tests** across three files. `npm test` / 
 run is the only thing that catches an uncommitted file that everything imports. See "Testing
 status" in `CLAUDE.md`.
 
+> **Superseded (2026-08-09, §30):** CI now exists — `.github/workflows/check.yml` runs
+> `npm ci → npm run check` on every push and PR, plus a `.githooks/pre-commit` hook. Current
+> state and full detail: `docs/quality-gates.md`.
+
 ---
 
 ## 6. EDMS Filename Sanitisation Rules
@@ -611,7 +615,7 @@ Verified in browser: status counts across all four workspaces are now Placeholde
 
 Sections 26–28 shipped with documentation but **no tests** — the 108 passing tests were all pre-existing (`distributionEngine`, `search`, `flintGeometry`). Closed that gap before handover. **156 tests now pass across 7 files.**
 
-**New: `npm run check`** — `typecheck && lint && test`, fails fast. The three were easy to half-run; there is still no CI, so one command is the closest thing to a gate.
+**New: `npm run check`** — `typecheck && lint && test`, fails fast. The three were easy to half-run; there is still no CI, so one command is the closest thing to a gate. *(CI + a pre-commit hook were added shortly after — §30.)*
 
 **Four new test files**, all pure-function (the suite runs `environment: 'node'`, no jsdom):
 
@@ -659,3 +663,69 @@ With one map to edit, `Superseded` went: **FusionLive has no such status.** Supe
 **Test runner made deterministic.** Both the default `forks` pool *and* `threads` intermittently failed to start a worker for the jsdom files ("Timeout waiting for worker to respond") — four clean runs on threads turned out to be luck, and it failed again on the fifth. Running many workers at once starves the slow ones, and jsdom setup is by far the slowest thing in the suite. Since `npm run check` now gates commits and CI, a flaky runner is worse than a slow one: `pool: 'threads'` **plus `fileParallelism: false`**, so files run sequentially. Verified over five consecutive full runs, zero start failures, 12–18s warm. If speed ever matters, raise parallelism for the node-environment files only rather than globally.
 
 Verified in browser: grid card click opens the panel with `?doc=`; viewer opens framed from the properties eye icon *and* the grid row action menu (different project) with both header buttons present, maximises to full viewport and restores, closes on Escape; all three viewer comments render distinct bodies. Status counts across all four workspaces are Placeholder / New / Under Review / Approved / Issued only. tsc clean, **180 tests** pass across 10 files, eslint 6 warnings (baseline).
+
+---
+
+## 31. View Style Simplified to a Light / Dark Toggle, Floating Layout Retired (2026-08-10)
+
+**Floating layout and the standalone 'light' appearance are gone.** The View Style picker in Settings offered five combinations — Light Floating, Light Flush, Dark Floating, Dark Flush, Basic Flush — as a 2×2 tile grid plus a special-cased full-width tile. Product decision: flush is now the only layout, Basic Flush is the permanent default, and the picker collapses to exactly two options, **Light Mode** (`appearance: 'basic'`) and **Dark Mode** (`appearance: 'dark'`), both always `layout: 'flush'`. Panel header renamed from "View Style" to "Appearance" to match — presented like the light/dark toggle in any modern app rather than a bespoke FLUX-refactor picker.
+
+**Found and fixed a latent persistence bug while touching this.** `loadFluxStyle()`'s localStorage validation in `ViewStyleContext.tsx` only ever accepted `appearance === 'light' || 'dark'` — `'basic'` was never in the allow-list, so selecting Basic Flush and reloading silently discarded the choice and fell back to the old default (`{appearance:'light', layout:'floating'}`). It only *looked* persistent because state lived in React until the next reload. Validation now accepts `'basic' | 'dark'` with `layout === 'flush'` only; anything else (old floating saves, plain `'light'`) falls through to the new default `{appearance:'basic', layout:'flush'}`, so pre-existing localStorage from before this change self-heals instead of erroring.
+
+`ColorCustomizer.tsx`'s `FluxPicker` dropped the appearance+layout icon pairing (`AppearanceIcon`/`LayoutIcon`, `LayersIcon`/`AlignJustifyIcon`/`CircleIcon`) since there's no layout choice left — each tile is now a single Sun/Moon icon, label, and description. `fluxOptions` shrank from four entries to two; the old full-width "Basic Flush" special case is gone, folded into the regular tile grid. Locale keys `lightFloating(Desc)`, `lightFlush(Desc)`, `darkFloating(Desc)`, `darkFlush(Desc)`, `basicFlush(Desc)` removed from both `en-US.json` and `fr-FR.json`; replaced with `lightMode(Desc)` / `darkMode(Desc)`; `fluxTitle` changed from "View Style"/"Style de vue" to "Appearance"/"Apparence". Edited both locale packs with the Edit tool, not PowerShell — see the §28/§30 encoding incidents.
+
+**Deliberately not touched:** the `html[data-view='flush']`-gated CSS in `index.css` still exists conditionally rather than being made unconditional. Since `data-view` will now always be `'flush'` (nothing sets `'floating'` anymore), the non-flush default rules are simply unreachable dead weight, not deleted. Left alone to keep this change scoped to the picker and its persistence; a follow-up could strip the floating-only rules and make flush the CSS baseline outright.
+
+Verified in browser: Appearance panel shows exactly two tiles (Light Mode checked by default); clicking Dark Mode applies instantly across the whole shell and persists correctly across a reload; switching back to Light Mode also persists (confirming the validation fix). tsc clean, eslint 6 warnings (pre-existing baseline, none in touched files), 180/180 tests pass (one `VersionStack.test.tsx` worker-start timeout on the first run was the same transient vitest-pool flake documented in §30 — re-ran clean).
+
+---
+
+## 32. Lint Baseline Burned Down to Zero + Quality-Gates Doc (2026-08-10)
+
+The standing 6-warning eslint baseline (carried since §17) is **gone — 0 errors, 0 warnings.** Each was fixed at the root, not silenced:
+
+- **3 × `react-hooks/exhaustive-deps` on `useUserPref` setters** (`CollapsibleFilterPanel`, `Chat`, `DocumentBrowser`) — the setter is `useCallback(…, [])`, referentially stable, so it was added to the resize effect's dep array. The effect still subscribes once; the deps are now honest.
+- **1 × `react-hooks/exhaustive-deps` on a local function** (`FeedbackWidget`'s `handleClose`) — recreated every render, so a blind dep-add would re-subscribe each render. Fixed by **inlining** its body (`setIsOpen(false)` + `setTimeout(reset, 300)`) into the Escape effect, matching the identical, already-clean auto-close effect directly above it. The effect now depends only on `isOpen`.
+- **2 × `react-refresh/only-export-components`** (`DocumentCard`, `RuleEditor`) — a module can't export a component *and* a non-component helper without breaking Fast Refresh. Extracted the helpers: `getFileTypeIcon` → new `src/components/fileTypeIcon.tsx`; `newRuleTemplate` → new `src/components/distribution/ruleTemplate.ts`. Consumers (`VersionStack`, `DocumentBrowser`, `RulesTab`) updated. **Gotcha:** the first extraction still warned — the extracted `.tsx` had a named `DwgIcon` component next to the helper. A component-free module was the actual requirement, so the DWG glyph was inlined into the icon map as an anonymous factory. Lesson: `only-export-components` is about the *module containing a named component alongside a non-component export*, not merely about what's exported.
+
+**New handover doc: `docs/quality-gates.md`** — the current-state reference for testing/lint/CI (the one gate `npm run check`, the three enforcement points, the ESLint rationale, the three Vitest config traps, the per-file test map, operational gotchas). README gained a short "Quality gates" section pointing to it. Stale CI claims corrected: CLAUDE.md's "Testing status" tail (said "Nothing runs automatically" / "CI — still none" — both false since §30) and dated superseded pointers added to §18/§29.
+
+Verified: `npm run check` — tsc clean, **eslint 0 errors / 0 warnings**, 180/180 tests across 10 files pass. No behaviour change (dep-array honesty, an inlined handler matching an existing pattern, and pure module moves).
+
+---
+
+## 33. Vitest Worker-Start Flake — ATTEMPTED FIX, RETRACTED (2026-08-10)
+
+> **🛑 RETRACTED — see §34.** This entry claimed the flake was fixed by
+> `poolOptions.threads.singleThread`. That claim is **false**: `singleThread` is dead config
+> in vitest 4 (the string does not exist anywhere in the 4.1.10 package), so the change was a
+> silent no-op, and the flake recurred ~15 minutes after this was written. The entry is kept
+> because the reasoning error is instructive, but **do not apply the fix it describes.**
+
+The *"Failed to start threads worker … Timeout waiting for worker to respond"* flake on the jsdom files (`DocumentJourney.test.tsx` / `VersionStack.test.tsx`) — noted as "transient, re-ran clean" in §30/§31 — stopped being cosmetic: it aborted a real `push-to-github-flux.bat` commit via the pre-commit hook (9/10 files, 171/180 tests, 1 error).
+
+**§30's `fileParallelism: false` was necessary but not sufficient.** It makes files run *sequentially*, but Vitest still spawns a **fresh worker per file**. On this machine the jsdom import is ~30s (antivirus/disk-bound `node_modules`), and the previous worker's teardown/import starves the pool's startup handshake for the next worker, which then times out. Sequential-but-still-respawning left the race intact — it just made it rarer, which is why five clean runs in §30 read as "fixed" when it wasn't.
+
+**Fix:** `poolOptions: { threads: { singleThread: true } }`. The whole suite runs in one long-lived worker — a single startup handshake total, no per-file spawn race left to lose. `fileParallelism: false` kept as explicit redundancy. Rationale written into `vitest.config.ts` replacing the old "files run sequentially" note; `docs/quality-gates.md` trap #3 updated to match.
+
+Verified: **four consecutive `npm test` runs, 180/180, zero worker-start errors**, and it's *faster* (~50–64s vs the failing run's 153s) since there's no repeated spawn/teardown churn. Full `npm run check` green. If speed ever matters, don't restore global multi-worker parallelism — split the node-only files into a separate parallel project and keep the jsdom files single-threaded.
+
+---
+
+## 34. Worker-Start Flake: Actual Mechanism, Prewarm Mitigation, and Why §33 Was Wrong (2026-08-10)
+
+§33's fix was dead config and its verification was meaningless. Both errors are worth recording because they are the same error twice.
+
+**The mechanism, from vitest 4.1.10 source.** `START_TIMEOUT` is a hardcoded `6e4` (60s) at `node_modules/vitest/dist/chunks/cli-api.BK8pd4xc.js:2794`, armed at `:2906` via `withTimeout(waitForStart(), …)`; `WORKER_START_TIMEOUT` is a hardcoded `9e4` at `:3395`. **Neither is reachable from config, CLI or env** — the ceiling cannot be raised. The DOM environment is imported *inside* that window, and measured on this machine `import('jsdom')` costs **~80,500ms cold vs ~1,600ms warm**, while `new JSDOM()` costs **99ms**. So ~99.9% of the cost is cold-reading jsdom's ~1,730-file tree at **~35ms/file vs ~0.54ms/file warm (65×)** — antivirus scanning `node_modules`, i.e. file I/O, not DOM work.
+
+**Why §33 (and §30 before it) could not have worked.** `poolOptions.threads.singleThread` is **dead config in vitest 4** — the string `singleThread` appears nowhere in the 4.1.10 package, and `poolOptions` only emits a deprecation warning. It was a silent no-op whose comment described a mechanism vitest 4 doesn't implement. And structurally: **anything that reduces the NUMBER of worker startups cannot beat a fixed PER-startup ceiling.** `fileParallelism: false` (§30) and `singleThread` (§33) both made exactly that mistake. Lesson: confirm a config key exists in the installed version before attributing a behaviour change to it.
+
+**Why the "verification" was worthless — the more important lesson.** §33 cited four consecutive clean runs; §30 cited five. Neither carried information. This machine has 32GB RAM with ~15.6GB free, so `node_modules` (237MB) cannot be evicted from page cache on demand — **warm runs cannot reproduce the failure**, so warm clean runs are uninformative at any N (20 ≈ 5 ≈ 0). Worse, the clean runs used bare `npm test` while the real failures came through `npm run check`, where `tsc` and `eslint` churn the cache first. A tally of passes is not evidence when the failure mode is structurally absent from the conditions being sampled.
+
+**Mitigation applied: `scripts/prewarm-test-env.mjs`**, chained ahead of vitest in the `test` script. It imports jsdom and the vitest worker graph in a plain node process — **which has no timeout** — so the cold read is paid outside the 60s window and the in-handshake read hits a warm cache. Total work is unchanged; it moves. Always exits 0, so it can never block the suite. Effect on the in-window quantity: reported `environment` **3.57s**, vs 17–22s on previously-marginal runs and 28–54s on the failing ones.
+
+**Rejected after investigation** (each for a specific, evidenced reason): `isolate: false` — `ThreadsPoolWorker` defines no `canReuse` (`cli-api:3135-3188`; only Typecheck/VmForks/VmThreads do), so a node-env runner can never serve a jsdom task; it would remove only the *second, already-warm* jsdom startup (~1.5s) while making `afterEach(cleanup)` cross-file load-bearing. `happy-dom` — only makes DOM construction cheaper, which is 99ms of an 80,500ms cost. `pool: 'vmThreads'` — experimental, and cross-realm `instanceof` breaks Testing Library. Patching the vendored constant — content-hashed 495KB bundle, changes every vitest bump. Auto-retry in the hook — masks a machine pathology and couples the gate to a vendored string. `fileParallelism: false` is **kept**, but now documented for its real reason: serial cold reads beat concurrent ones on a contended disk, and serial execution lets the second jsdom file ride the first's warm cache.
+
+**Still open, and honestly labelled as such.** The prewarm is verified only on a warm cache. The decisive test needs a genuinely cold one (post-reboot) and is written up as a 3-stage protocol in `docs/quality-gates.md`; Stage C gives the standing invariant — *prewarm duration may be arbitrarily large; reported `environment` must stay in single-digit seconds.* **The actual cure is an antivirus exclusion for `C:\GitHub\flux\node_modules`** (admin/IT action); it removes the 35ms/file cause rather than relocating it, but unlike the script it does not travel with the handover.
+
+**Two harness defects fixed alongside.** `.githooks/pre-commit` now tees its output and classifies the failure: on a `[vitest-pool]` marker it prints that this is the known worker-start flake rather than "Fix the errors above" — which was false in this case and trained reflexive `--no-verify` — while **still exiting 1**, with no auto-retry and nothing masked (verified the classifier both fires on the pool error and does *not* fire on a real assertion failure). `push-to-github-flux.bat` had **no error handling at all**: it ran `git push` and printed "Operation complete." even when the hook aborted the commit, reporting success for work never committed. Now guarded with `if errorlevel 1`.

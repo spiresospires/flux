@@ -181,10 +181,17 @@ export function FeedbackWidget() {
     setIsDone(true);
   }
 
-  // Allow Escape to close the panel.
+  // Allow Escape to close the panel. Inlines handleClose's body (close + reset
+  // after the exit animation) so the effect depends only on isOpen — the same
+  // pattern as the auto-close effect above, which references reset the same way.
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+        setTimeout(reset, 300);
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen]);

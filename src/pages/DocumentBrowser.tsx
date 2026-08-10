@@ -18,7 +18,8 @@ import React, {
   useRef
 } from
   'react';
-import { DocumentCard, getFileTypeIcon, PlaceholderFileIcon } from '../components/DocumentCard';
+import { DocumentCard, PlaceholderFileIcon } from '../components/DocumentCard';
+import { getFileTypeIcon } from '../components/fileTypeIcon';
 import { statusColors } from '../components/documentStatusColors';
 import { FilterPanel, type ContentStateFilter } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
@@ -802,7 +803,8 @@ export function DocumentBrowser() {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, []);
+    // setPanelWidth is the useUserPref setter — useCallback(…, []), stable.
+  }, [setPanelWidth]);
   const startPanelResize = () => {
     panelResizingRef.current = true;
     document.body.style.cursor = 'col-resize';

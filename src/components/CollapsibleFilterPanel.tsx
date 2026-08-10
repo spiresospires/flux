@@ -54,7 +54,9 @@ export function CollapsibleFilterPanel({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, []);
+    // setWidth is the useUserPref setter — useCallback(…, []), referentially
+    // stable, so this effect subscribes once.
+  }, [setWidth]);
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();

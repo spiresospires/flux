@@ -12,7 +12,8 @@
 // line per row, rather than a wide table that would need horizontal scrolling.
 import { DownloadIcon, EyeIcon } from 'lucide-react';
 import { statusColors } from './documentStatusColors';
-import { PlaceholderFileIcon, getFileTypeIcon } from './DocumentCard';
+import { PlaceholderFileIcon } from './DocumentCard';
+import { getFileTypeIcon } from './fileTypeIcon';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useViewer } from '../contexts/ViewerContext';
 import type { VersionStackEntry } from '../types/journey';

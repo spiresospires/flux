@@ -165,6 +165,54 @@
   --color-plum-700: #542A4A;
   --color-plum-800: #381C31;
   --color-plum-900: #1C0E19;
+
+  /* ── Scrollbar tokens (Claude.ai-style: thin, low-contrast) ──
+     Single source of truth consumed by the global rules below. */
+  --scrollbar-size: 8px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.28);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.45);
+  --scrollbar-thumb-active: rgba(0, 0, 0, 0.55);
+}
+
+/* ── Modern scrollbars, applied globally ──────────────────────────────────
+   Universal selector + CSS vars = one definition covers every scrollable
+   surface in the app (folder tree, tables, panels, modals, page scroll)
+   with no per-component classes to add or maintain. */
+html,
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); /* Firefox */
+}
+
+*::-webkit-scrollbar { /* Chromium, Edge, Safari */
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-active);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Fully hidden scrollbar for horizontal chip strips (filter rows) that only
+   need drag/wheel scrolling, no visible affordance. */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* ----- Density: compact override (WCAG 2.2 AA — 24px target-size floor) ----- */
@@ -201,6 +249,9 @@ html[data-density='compact'] {
 html[data-theme='dark'] {
   --main-bg-color: #0f172a;
   --element-bg-color: #1e293b;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.22);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.48);
   background-color: #0f172a;
   color: #e5e7eb;
 }

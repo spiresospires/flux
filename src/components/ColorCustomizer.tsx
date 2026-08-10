@@ -1,14 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  SunIcon,
-  MoonIcon,
-  CheckIcon,
-  LayersIcon,
-  AlignJustifyIcon,
-  ZapIcon,
-  CircleIcon,
-} from 'lucide-react';
+import { SunIcon, MoonIcon, CheckIcon, ZapIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useViewStyle } from '../contexts/ViewStyleContext';
 import type { Appearance, Layout, ViewStyle } from '../contexts/ViewStyleContext';
@@ -73,15 +65,14 @@ export function StandardPicker({
   );
 }
 
-// ─── Four-option FLUX view-style picker ──────────────────────────────────────
+// ─── Two-option FLUX appearance picker (Light / Dark, flush layout only) ─────
 
 interface FluxOption {
   appearance: Appearance;
   layout: Layout;
   label: string;
   desc: string;
-  AppearanceIcon: React.ElementType;
-  LayoutIcon: React.ElementType;
+  Icon: React.ElementType;
 }
 
 function FluxPicker({
@@ -108,16 +99,14 @@ function FluxPicker({
         </span>
       </div>
 
-      {/* 2×2 tile grid */}
+      {/* Light / Dark tiles */}
       <div className="grid grid-cols-2 gap-1.5">
         {options.map((opt) => {
-          const active =
-            currentStyle.appearance === opt.appearance && currentStyle.layout === opt.layout;
-          const AIcon = opt.AppearanceIcon;
-          const LIcon = opt.LayoutIcon;
+          const active = currentStyle.appearance === opt.appearance;
+          const Icon = opt.Icon;
           return (
             <button
-              key={`${opt.appearance}-${opt.layout}`}
+              key={opt.appearance}
               onClick={() => onSelect({ appearance: opt.appearance, layout: opt.layout })}
               className={`relative flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
                 active
@@ -131,22 +120,12 @@ function FluxPicker({
                   className="absolute top-1.5 right-1.5 text-[#0461BA]"
                 />
               )}
-              {/* Icon pair */}
-              <div className="flex items-center gap-1">
-                <div
-                  className={`w-6 h-6 rounded flex items-center justify-center ${
-                    active ? 'bg-[#0461BA] text-white' : 'bg-neutral-200 text-neutral-600'
-                  }`}
-                >
-                  <AIcon size={13} />
-                </div>
-                <div
-                  className={`w-6 h-6 rounded flex items-center justify-center ${
-                    active ? 'bg-[#0461BA]/70 text-white' : 'bg-neutral-100 text-neutral-500'
-                  }`}
-                >
-                  <LIcon size={12} />
-                </div>
+              <div
+                className={`w-7 h-7 rounded flex items-center justify-center ${
+                  active ? 'bg-[#0461BA] text-white' : 'bg-neutral-200 text-neutral-600'
+                }`}
+              >
+                <Icon size={14} />
               </div>
               {/* Label */}
               <div className="text-center">
@@ -160,51 +139,6 @@ function FluxPicker({
             </button>
           );
         })}
-
-        {/* Basic Flush — full-width preset tile */}
-        {(() => {
-          const active = currentStyle.appearance === 'basic';
-          return (
-            <button
-              onClick={() => onSelect({ appearance: 'basic', layout: 'flush' })}
-              className={`col-span-2 relative flex items-center gap-3 p-2.5 rounded-lg border transition-all ${
-                active
-                  ? 'bg-[#E8F1FB] border-[#0461BA]'
-                  : 'bg-neutral-50 hover:bg-[#F0F4F8] border-neutral-200'
-              }`}
-            >
-              {active && (
-                <CheckIcon size={11} className="absolute top-1.5 right-1.5 text-[#0461BA]" />
-              )}
-              {/* Icon pair */}
-              <div className="flex items-center gap-1 shrink-0">
-                <div
-                  className={`w-6 h-6 rounded flex items-center justify-center ${
-                    active ? 'bg-[#0461BA] text-white' : 'bg-neutral-200 text-neutral-600'
-                  }`}
-                >
-                  <CircleIcon size={13} />
-                </div>
-                <div
-                  className={`w-6 h-6 rounded flex items-center justify-center ${
-                    active ? 'bg-[#0461BA]/70 text-white' : 'bg-neutral-100 text-neutral-500'
-                  }`}
-                >
-                  <AlignJustifyIcon size={12} />
-                </div>
-              </div>
-              {/* Label */}
-              <div className="flex-1 text-left">
-                <div className="text-[11px] font-semibold text-neutral-900 leading-tight">
-                  {t('appearance.basicFlush')}
-                </div>
-                <div className="text-[10px] text-neutral-500 leading-tight mt-0.5">
-                  {t('appearance.basicFlushDesc')}
-                </div>
-              </div>
-            </button>
-          );
-        })()}
       </div>
     </div>
   );
@@ -218,36 +152,18 @@ export function ColorCustomizer({ isOpen, onClose }: ColorCustomizerProps) {
 
   const fluxOptions: FluxOption[] = [
     {
-      appearance: 'light',
-      layout: 'floating',
-      label: t('appearance.lightFloating'),
-      desc: t('appearance.lightFloatingDesc'),
-      AppearanceIcon: SunIcon,
-      LayoutIcon: LayersIcon,
-    },
-    {
-      appearance: 'light',
+      appearance: 'basic',
       layout: 'flush',
-      label: t('appearance.lightFlush'),
-      desc: t('appearance.lightFlushDesc'),
-      AppearanceIcon: SunIcon,
-      LayoutIcon: AlignJustifyIcon,
-    },
-    {
-      appearance: 'dark',
-      layout: 'floating',
-      label: t('appearance.darkFloating'),
-      desc: t('appearance.darkFloatingDesc'),
-      AppearanceIcon: MoonIcon,
-      LayoutIcon: LayersIcon,
+      label: t('appearance.lightMode'),
+      desc: t('appearance.lightModeDesc'),
+      Icon: SunIcon,
     },
     {
       appearance: 'dark',
       layout: 'flush',
-      label: t('appearance.darkFlush'),
-      desc: t('appearance.darkFlushDesc'),
-      AppearanceIcon: MoonIcon,
-      LayoutIcon: AlignJustifyIcon,
+      label: t('appearance.darkMode'),
+      desc: t('appearance.darkModeDesc'),
+      Icon: MoonIcon,
     },
   ];
 

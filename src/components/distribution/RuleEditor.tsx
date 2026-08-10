@@ -55,20 +55,8 @@ interface RuleEditorProps {
   onClose: () => void;
 }
 
-export function newRuleTemplate(): AdRule {
-  return {
-    id: '',
-    name: '',
-    description: '',
-    triggers: [{ kind: 'upload' }],
-    conditions: [],
-    assignments: [],
-    priority: 50,
-    enabled: true,
-    updatedAt: '',
-    updatedBy: '',
-  };
-}
+// newRuleTemplate moved to ./ruleTemplate so this module exports only its
+// component (react-refresh/only-export-components).
 
 export function RuleEditor({ wsId, rule, isNew, users, workgroups, settings, onClose }: RuleEditorProps) {
   const [draft, setDraft] = useState<AdRule>(rule);

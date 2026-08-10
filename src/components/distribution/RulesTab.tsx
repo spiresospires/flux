@@ -32,7 +32,8 @@ import {
 } from '../../hooks/useDistribution';
 import { useUserPref } from '../../hooks/useUserPref';
 import { resolveRecipient, formatShortDate } from './shared';
-import { RuleEditor, newRuleTemplate } from './RuleEditor';
+import { RuleEditor } from './RuleEditor';
+import { newRuleTemplate } from './ruleTemplate';
 
 type GroupBy = 'discipline' | 'category' | 'trigger' | 'none';
 

@@ -34,17 +34,22 @@ interface ViewStyleContextType {
 
 const FLUX_STYLE_KEY = 'flux-view-style';
 
-/** Default style — floating layout, light appearance — for all users on all projects. */
-export const DEFAULT_VIEW_STYLE: ViewStyle = { appearance: 'light', layout: 'floating' };
+/** Default style — flush layout, basic (light) appearance — for all users on all projects.
+ *  Floating layout and the standalone 'light' appearance were retired in favour of a
+ *  single flush layout with a two-way Light ('basic') / Dark appearance toggle. */
+export const DEFAULT_VIEW_STYLE: ViewStyle = { appearance: 'basic', layout: 'flush' };
 
 function loadFluxStyle(): ViewStyle | null {
   try {
     const saved = localStorage.getItem(FLUX_STYLE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved) as Partial<ViewStyle>;
+    // Only 'basic' (Light Mode) and 'dark' (Dark Mode) are selectable now, both
+    // always 'flush'. Any older saved style (floating, or plain 'light') falls
+    // through to the default rather than being accepted as-is.
     if (
-      (parsed.appearance === 'light' || parsed.appearance === 'dark') &&
-      (parsed.layout === 'floating' || parsed.layout === 'flush')
+      (parsed.appearance === 'basic' || parsed.appearance === 'dark') &&
+      parsed.layout === 'flush'
     ) {
       return parsed as ViewStyle;
     }
