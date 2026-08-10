@@ -178,17 +178,25 @@ unchanged — the cost moves out of the timed window rather than disappearing. I
 Effect on the quantity that actually matters — vitest's reported `environment` time, i.e. the
 in-window DOM setup cost:
 
-| | reported `environment` |
-|---|---|
-| Failing runs (before) | 28.11s – 53.99s |
-| Passing-but-marginal runs (before) | 17s – 22s |
-| With prewarm | **3.57s** |
+| | prewarm (untimed) | reported `environment` (inside the 60s window) | result |
+|---|---|---|---|
+| Failing runs (before) | — | 28.11s – 53.99s | ✗ worker killed |
+| Passing-but-marginal (before) | — | 17s – 22s | ✓ but close |
+| With prewarm, warm cache | 1,738ms | **3.57s** | ✓ 180/180 |
+| **With prewarm, cold cache** | **104,278ms** | **12.14s** | **✓ 180/180** |
 
-**⚠️ Honestly scoped: this is a mitigation, not a cure, and it is NOT fully verified.** The
-run above had a warm cache (prewarm reported 1,738ms). The decisive test needs a genuinely
-cold cache — see the protocol below. The real cure is removing the ~35ms/file cold-read cost:
-**an antivirus exclusion for `C:\GitHub\flux\node_modules`**, which needs admin rights and is
-a machine/IT action. That also cannot travel with the handover, whereas the prewarm script can.
+**The cold-cache row is the one that matters.** On that run the prewarm absorbed **104
+seconds** of module reading outside the timed window; had that been paid inside the worker
+handshake it would have blown the 60s ceiling outright. Instead the in-window cost was 12.14s
+— a ~5x margin — and the full suite ran. That is a positive demonstration under exactly the
+condition that was breaking commits, which is worth more than any number of warm passes.
+
+**Still honestly scoped: this is a mitigation, not a cure.** It relocates the cost rather than
+removing it, so total wall-clock is unchanged (~90s cold). The cure is removing the ~35ms/file
+cold-read cost itself: **an antivirus exclusion for `C:\GitHub\flux\node_modules`**, which
+needs admin rights and is a machine/IT action. Note the trade-off — the exclusion fixes the
+cause but cannot travel with the handover, whereas the prewarm script does. Both are worth
+having.
 
 ### How to verify a fix here (and why clean runs prove nothing)
 
@@ -204,16 +212,19 @@ uninformative — 20 ≈ 5 ≈ 0. Verification has to be mechanism-based:
    compare. PASS = first is tens of seconds, second ~1.5s. This validates the whole premise
    (that filesystem warmth transfers across processes). If the *second* is still tens of
    seconds, the prewarm approach is worthless and only the AV exclusion remains.
-2. **Stage B — cold end-to-end.** In that same post-reboot session, run the real chained gate
-   (`npm run check`, not a bare `npm test` — `tsc` and `eslint` churn the cache first). The
-   result that matters is a run where prewarm logs a **large** number (tens of seconds) *and*
-   the suite passes with `environment` in single-digit seconds. That is a positive
-   demonstration under the exact condition that breaks the gate.
+2. **Stage B — cold end-to-end. ✅ PASSED 2026-08-10.** Run the real chained gate
+   (`npm run check`, not a bare `npm test` — `tsc` and `eslint` churn the cache first) on a
+   cold cache. A pass means prewarm logs a **large** number *and* the suite completes with
+   `environment` far below 60s. Observed: **prewarm 104,278ms, `environment` 12.14s, 180/180
+   passed** (total 92.08s). The 104s that prewarm absorbed is cost that would otherwise have
+   landed inside the 60s window.
 3. **Stage C — standing invariant.** Every run logs its prewarm duration. The invariant to
-   watch: *prewarm duration may be arbitrarily large; reported `environment` must stay in
-   single-digit seconds.* If `environment` climbs back into the tens of seconds, the prewarm
-   is no longer covering what the worker reads, and it needs extending (add a read-and-discard
-   walk of `node_modules/vitest/dist`, `node_modules/@vitest` and `node_modules/vite/dist`).
+   watch: *prewarm duration may be arbitrarily large; reported `environment` must stay well
+   under 60s.* Observed so far: 3.57s warm, 12.14s cold — treat anything above ~25s as the
+   warning sign, since that is where the margin starts to disappear. If `environment` climbs
+   back toward the tens of seconds, the prewarm is no longer covering everything the worker
+   reads, and it needs extending (add a read-and-discard walk of `node_modules/vitest/dist`,
+   `node_modules/@vitest` and `node_modules/vite/dist`).
 
 Don't use `npm ci` as the cold rig: npm has just written those files, so they're page-cache
 warm and only the AV scan cache is cold — a non-reproduction would be ambiguous. (And this
