@@ -284,13 +284,83 @@ The detail panel supports two rendering variants via the `variant` prop:
 - Resizing uses the shared `PanelResizeHandle` component (`src/components/PanelResizeHandle.tsx`): a faint centred line + always-visible grip pill rendered **in the 16px `browser-layout` gap** between islands (positioned `-left-4`/`-right-4` off the host panel's edge). The same handle resizes the folder-tree island via `CollapsibleFilterPanel` (`useUserPref('docBrowser.treeWidth', 320)`), so both separators look and behave identically. Dragging recalculates width from `window.innerWidth - e.clientX` (detail panel) / `e.clientX - rect.left` (tree).
 - `content-panel` has `transition-all duration-200` — smoothly compresses as the panel opens.
 - `browser-layout` has `items-stretch` so all columns fill full height.
-- Animation: `opacity+x` slide-in (`x: 20 → 0`, 200 ms ease-out). No backdrop.
-- **Active row highlight**: the row matching `panelData.docId` gets `bg-[#F0F6FF] ring-1 ring-inset ring-[#0461BA]/20` — lighter than the selection blue so the two states are visually distinct.
+- Animation: `opacity+x` slide-in (`x: 20 → 0`, 200 ms ease-out) on the panel itself, plus a `width: 0 ↔ panelWidth` animation on the wrapper for the collapse rule below. `DetailSlidePanel`'s `AnimatePresence` lives **inside** the wrapper, so the wrapper must animate rather than unmount — unmounting it takes the exit animation with it and the grid snaps wider in one frame.
+- **What the panel shows is derived, never pushed.** `panelData` is a `useMemo` over the active row (debounced), not state. Every "open properties" affordance — the reference link, the row action menu, a grid/list card — calls `previewDocument(doc)`, which only moves the cursor. There is no `setPanelData`.
+- **Collapse rule**: 2+ checked rows collapses the panel (there is no single document to describe); dropping back to 0–1 re-expands it on the active row. See the row interaction model below.
+- The panel **X** sets a `panelDismissed` flag; it deliberately does not clear `activeDocId`, so closing the panel never costs the user their place in the list. Any row click or arrow press clears the flag.
 
 **Shared inner content (`PanelInner`):**
 Both variants use the same `PanelInner` component for header and body. Only the outer `motion.aside` wrapper differs. `px`/`py` props allow tighter padding in the narrower split panel (`px-4 py-4`) vs the drawer (`px-6 py-5`).
 
 **Drawer variant** is preserved intact — no other call-sites need updating.
+
+---
+
+## Document Browser — Row Interaction Model (Outlook-style)
+
+The table view follows new Outlook's message-list + reading-pane pattern. **Two
+independent pieces of state, neither derived from the other:**
+
+| State | Type | Drives |
+|---|---|---|
+| `activeDocId` | one id | The roving cursor → the properties sidebar |
+| `selectedDocumentIds` | `Set<string>` | The bulk action bar (and the collapse rule) |
+
+Ticking a checkbox never moves the cursor. Moving the cursor never ticks a box.
+If you find yourself wanting to sync them, re-read this table — the split is what
+lets a user preview one document while five others stay selected for a bulk action.
+
+| Input | `activeDocId` | `selectedDocumentIds` |
+|---|---|---|
+| Click row body | → this row | unchanged |
+| Click checkbox | unchanged | toggle this row |
+| Ctrl/Cmd+click row body | unchanged | toggle this row |
+| Shift+click row body / checkbox | unchanged | add range from anchor |
+| ArrowUp / ArrowDown | ± 1 row | unchanged |
+| Home / End | first / last **loaded** row | unchanged |
+| Shift+Arrow / Shift+Home / Shift+End | moves | add range from anchor |
+| Space (cursor row, or a focused checkbox) | unchanged | toggle |
+| Enter | unchanged | unchanged — opens the framed viewer; **no-op on a placeholder** (no file to open) |
+| Ctrl/Cmd+A | unchanged | all loaded rows |
+
+`selectionAnchorRef` is the range anchor: the last row deliberately landed on or
+ticked. A plain row click sets it; arrow movement does not.
+
+**Roving focus, not real focus.** Real keyboard focus stays on the `<table
+role="grid" tabIndex={0}>` and never moves to a row; the cursor is
+`aria-activedescendant` pointing at `docrow-<docId>`. Moving `focus()` onto each
+row per arrow press is precisely what lets focus escape into panel content and
+silently kills further keyboard nav. Rows carry `aria-selected` = *checked*, not
+active.
+
+**Sidebar rule by checked count:** `0 or 1` → shows `activeDocId` (at count 1 it
+still shows the active row, which may not be the checked one — this is not a
+special case, it falls out of the same rule); `2+` → collapses, with a polite
+`aria-live` announcement. Arrow navigation keeps working while collapsed.
+
+**Visual treatments must stay distinct** — both states can be true on one row:
+checked = `bg-[#E8F1FB]` + ticked box; active = `bg-[#F0F6FF]` + `ring-2
+ring-inset ring-[#0461BA]`.
+
+**`?doc=` follows the preview.** The URL is written from the debounced cursor with
+`replace: true`, and the seeding effect ignores its own echo via `urlDocWrittenRef`
+— it cannot compare against `activeDocId`, because the URL trails the cursor by one
+debounce and seeding on that difference drags the cursor backwards. A deep link
+seeds the cursor only; it must **not** tick the checkbox (it used to, which left
+users arriving from search holding a selection they never made).
+
+⚠️ `scrollIntoView({ block: 'nearest' })` is **not sufficient** here: the column
+header is `sticky`, so 'nearest' parks the active row underneath it and the row
+reads as vanished. `scrollRowIntoView` measures the `thead` overlap and nudges
+`scrollTop` back by it.
+
+⚠️ The sidebar derive is debounced (`ACTIVE_PANEL_DEBOUNCE_MS = 160`) because
+`toDocumentDetail` runs `buildJourney` + `buildVersionStack`, and because the G06
+single-document fetch is gated on the row lookup *failing* — hold an arrow key
+without that gate and it fires one request per row skated past.
+
+Grid (card) and list views have no checkboxes and no keyboard handler; this model
+is table-view only.
 
 ---
 

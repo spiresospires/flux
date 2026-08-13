@@ -701,6 +701,20 @@
     "askFlintAbout": "Demander à Flint pour {{id}}",
     "addToClipboard": "Ajouter {{id}} au presse-papiers",
     "removeFromClipboard": "Retirer {{id}} du presse-papiers",
+    "gridAria": "Documents. Utilisez les flèches pour parcourir les lignes, Espace pour sélectionner une ligne, Entrée pour ouvrir.",
+    "bulk": {
+      "count": "{{count}} sélectionné(s)",
+      "clear": "Effacer la sélection",
+      "clipboard": "Presse-papiers",
+      "briefcase": "Porte-documents",
+      "export": "Exporter (CSV)",
+      "download": "Télécharger",
+      "transmit": "Transmettre",
+      "notWired": "Non disponible dans ce prototype",
+      "panelHidden": "Plusieurs documents sélectionnés. Volet Propriétés masqué — aucun document unique à décrire.",
+      "panelShown": "Volet Propriétés affichant {{id}}.",
+      "panelClosed": "Volet Propriétés fermé."
+    },
     "columns": {
       "reference": "Référence",
       "title": "Titre",

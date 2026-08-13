@@ -73,6 +73,8 @@ import {
   AlertTriangleIcon,
   RefreshCwIcon,
   UploadIcon,
+  DownloadIcon,
+  SendIcon,
   ClockIcon
 } from
   'lucide-react';
@@ -718,6 +720,14 @@ function ColumnHeaderDropdown({
 const ITEMS_PER_PAGE = 20;
 // Stable empty references so hooks/memos don't re-run while queries are loading.
 const EMPTY_FOLDERS: Folder[] = [];
+// How long the properties sidebar trails the active row. Holding an arrow key
+// walks the cursor at the OS repeat rate (~30/s); the sidebar must not rebuild —
+// or rewrite the URL, or fetch — once per row skated past. The cursor itself is
+// never debounced, so the highlight stays glued to the key.
+const ACTIVE_PANEL_DEBOUNCE_MS = 160;
+/** DOM id for a row, so the grid container can point `aria-activedescendant` at
+ *  it without ever moving real focus onto the row itself. */
+const rowDomId = (docId: string) => `docrow-${docId}`;
 export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
@@ -757,10 +767,37 @@ export function DocumentBrowser() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: workspaces } = useWorkspaces();
   const highlightedDocId = searchParams.get('doc');
+
+  // ── Two independent row axes (new Outlook's message list) ───────────────────
+  // NEITHER is derived from the other, and that is the whole point: "the row I am
+  // looking at" and "the rows I am about to act on" are different questions, and
+  // a grid that answers them with one piece of state cannot express "preview this
+  // one while those five stay selected". So:
+  //   checked (a set)   → bulk action bar, and the sidebar collapse rule below
+  //   active  (one id)  → the roving cursor that drives the properties sidebar
+  // Ticking a box never moves the cursor; moving the cursor never ticks a box.
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
-  // Keyboard/active-row cursor (distinct from the checked set) + range anchor.
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
+  // Anchor for contiguous ranges (Shift+Click / Shift+Arrow): the last row the
+  // user deliberately landed on or ticked — not necessarily the active row.
   const selectionAnchorRef = useRef<string | null>(null);
+  const checkedCount = selectedDocumentIds.size;
+  // The sidebar can only ever describe ONE document, so above one checked row
+  // there is no single subject to describe and it collapses. Two checked rows is
+  // the threshold, not one: a single tick is still a bulk selection of size one,
+  // and hiding the preview then would punish the user for starting one.
+  const sidebarCollapsed = checkedCount >= 2;
+  // Separate from the collapse rule: this is the *user's* dismiss (the panel X).
+  // It deliberately does not clear activeDocId — losing your place in the list
+  // because you closed a panel is the Outlook focus bug in another costume. Any
+  // subsequent click or arrow press clears it.
+  const [panelDismissed, setPanelDismissed] = useState(false);
+  // The subject of the sidebar: activeDocId, trailing it by one debounce.
+  const [panelDocId, setPanelDocId] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => setPanelDocId(activeDocId), ACTIVE_PANEL_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [activeDocId]);
 
   // Cross-workspace deep link (e.g. from enterprise search): ?ws= switches scope
   // once the G03 workspace list has loaded.
@@ -773,16 +810,31 @@ export function DocumentBrowser() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, workspaces]);
 
+  // A deep link (?doc= from enterprise search) arrives as a PREVIEW: it seeds the
+  // cursor only. It used to seed selectedDocumentIds as well, which meant landing
+  // here from search left you holding a one-row bulk selection you never made —
+  // exactly the conflation the two axes above exist to prevent.
+  //
+  // The param is now two-way (the sync effect below writes the cursor into it), so
+  // this has to ignore its own echo. It cannot simply compare against activeDocId:
+  // the URL trails the cursor by one debounce, so mid-arrow the two legitimately
+  // disagree and seeding on that difference would drag the cursor backwards to the
+  // row the user just left. Only a value we did NOT write is a real deep link.
+  const urlDocWrittenRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!highlightedDocId) return;
-    // Seed the selection for an external deep link, but never clobber an
-    // existing multi-select (row clicks also write the ?doc= param).
-    setSelectedDocumentIds((prev) => (prev.size === 0 ? new Set([highlightedDocId]) : prev));
+    if (!highlightedDocId || highlightedDocId === urlDocWrittenRef.current) return;
+    urlDocWrittenRef.current = highlightedDocId;
+    setActiveDocId(highlightedDocId);
+    // Skip the debounce — a deep link should not open blank for 160ms.
+    setPanelDocId(highlightedDocId);
   }, [highlightedDocId]);
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
   const [openActionSubmenuKey, setOpenActionSubmenuKey] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
+  // Polite announcement for the one thing that moves without the user touching it:
+  // the sidebar opening or closing because the checked count crossed the "one
+  // subject" boundary. Same aria-live pattern as the Chat transcript.
+  const [liveMessage, setLiveMessage] = useState('');
   // [MOCK] Panel width persisted via useUserPref — swaps to Oracle preferences API when available.
   // [API] G02:GET /user/preferences/docBrowser.panelWidth
   const [panelWidth, setPanelWidth] = useUserPref<number>('docBrowser.panelWidth', 360);
@@ -834,6 +886,11 @@ export function DocumentBrowser() {
   const groupLoadRefs = useRef(new Map<string, HTMLDivElement | null>());
   // Scrollable data container ref for localized scrolling (right-hand panel)
   const dataContainerRef = useRef<HTMLDivElement | null>(null);
+  // The focusable grid itself. Real keyboard focus lives here and NOWHERE else —
+  // roving focus is simulated with activeDocId + aria-activedescendant. Calling
+  // focus() on each row as the cursor moves is what lets focus escape the list
+  // into panel/detail content and silently kills further arrow navigation.
+  const gridRef = useRef<HTMLTableElement | null>(null);
 
   const folderLookup = useMemo(() => {
     const map = new Map<string, { id: string; name: string; parentId: string | null; children: string[]; documentCount: number }>();
@@ -1164,6 +1221,11 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     });
   };
 
+  const clearSelection = () => {
+    setSelectedDocumentIds(new Set());
+    selectionAnchorRef.current = null;
+  };
+
   const toggleSelectAllDisplayed = () => {
     setSelectedDocumentIds((prev) => {
       const next = new Set(prev);
@@ -1206,28 +1268,80 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   };
 
   const scrollRowIntoView = (docId: string) => {
-    const el = dataContainerRef.current?.querySelector(`[data-doc-id="${CSS.escape(docId)}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+    const container = dataContainerRef.current;
+    const el = container?.querySelector<HTMLElement>(`[data-doc-id="${CSS.escape(docId)}"]`);
+    if (!container || !el) return;
+    el.scrollIntoView({ block: 'nearest' });
+    // 'nearest' counts a row as visible as soon as it is inside the scroll port —
+    // but the column header is sticky and paints over the top of it, so arrowing
+    // upward (and Home in particular) parks the active row *underneath* the
+    // headers and it reads as having vanished. Nudge back by the overlap.
+    const header = container.querySelector('thead');
+    if (!header) return;
+    const overlap = header.getBoundingClientRect().bottom - el.getBoundingClientRect().top;
+    if (overlap > 0) container.scrollTop -= overlap;
   };
 
-  // Click on a row body (or its checkbox): plain = toggle that row + set anchor;
-  // Shift = extend the contiguous range from the anchor. Always moves the cursor.
-  const handleRowActivate = (doc: Document, e: { shiftKey: boolean }) => {
-    const anchor = selectionAnchorRef.current;
-    if (e.shiftKey && anchor) {
-      selectRange(anchor, doc.id);
-    } else {
+  /** Move the cursor. Never touches the checked set — every caller here is a
+   *  navigation gesture, and navigation must be free of side effects on what a
+   *  bulk action would hit. Clears a manual dismiss: arrowing to a new row is a
+   *  request to see it. */
+  const moveActiveTo = (docId: string) => {
+    setActiveDocId(docId);
+    setPanelDismissed(false);
+    scrollRowIntoView(docId);
+  };
+
+  /** Extend the checked range from the anchor to `docId`, seeding the anchor from
+   *  the cursor when there isn't one yet so Shift+click works as a first action. */
+  const extendSelectionTo = (docId: string) => {
+    const anchor = selectionAnchorRef.current ?? activeDocId ?? docId;
+    selectionAnchorRef.current = anchor;
+    selectRange(anchor, docId);
+  };
+
+  // ── Pointer model ───────────────────────────────────────────────────────────
+  // Row body, no modifier → "show me this one": moves the cursor, ticks nothing.
+  // Ctrl/Cmd+click        → "add this to what I'm acting on": ticks, cursor still.
+  // Shift+click           → extends the ticked range, cursor still.
+  const handleRowClick = (doc: Document, e: React.MouseEvent) => {
+    if (e.shiftKey) {
+      extendSelectionTo(doc.id);
+    } else if (e.ctrlKey || e.metaKey) {
       toggleDocumentSelection(doc.id);
       selectionAnchorRef.current = doc.id;
+    } else {
+      previewDocument(doc);
+      // A plain click is the "last row I deliberately landed on", so it becomes
+      // the anchor a later Shift+click ranges from.
+      selectionAnchorRef.current = doc.id;
     }
-    setActiveDocId(doc.id);
-    dataContainerRef.current?.focus({ preventScroll: true });
+    // Focus returns to the grid, not the row, so arrow keys keep working after a
+    // click — and so a click never steals focus into the row's action buttons.
+    gridRef.current?.focus({ preventScroll: true });
   };
 
-  // Keyboard model on the list container: Ctrl/Cmd+A = select all, Up/Down move
-  // the cursor (Shift extends the range), Space toggles the cursor row.
-  const handleListKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  // The checkbox is the bulk-action axis alone: it never moves the cursor and
+  // never changes what the sidebar is showing.
+  const handleCheckboxClick = (doc: Document, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.shiftKey) {
+      extendSelectionTo(doc.id);
+      return;
+    }
+    toggleDocumentSelection(doc.id);
+    selectionAnchorRef.current = doc.id;
+  };
+
+  // ── Keyboard model, on the grid container ───────────────────────────────────
+  // Arrow/Home/End move the cursor only. Space ticks the cursor row. Enter opens
+  // the document. Ctrl/Cmd+A selects all. Shift+Arrow / Shift+Home / Shift+End
+  // extend the ticked range — the only keys that touch both axes, and only
+  // because the user asked with a modifier.
+  const handleListKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     const target = e.target as HTMLElement;
+    // Typing in a column filter or search box is not grid navigation.
     if (target.closest('input, textarea, [contenteditable="true"]')) return;
     const ids = navigableDocs.map((d) => d.id);
 
@@ -1240,28 +1354,49 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
     if (ids.length === 0) return;
 
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
       e.preventDefault();
       const curIdx = activeDocId ? ids.indexOf(activeDocId) : -1;
-      const nextIdx =
-        curIdx === -1
-          ? 0
-          : e.key === 'ArrowDown'
-            ? Math.min(curIdx + 1, ids.length - 1)
-            : Math.max(curIdx - 1, 0);
-      const nextId = ids[nextIdx];
-      setActiveDocId(nextId);
-      if (e.shiftKey) {
-        const anchor = selectionAnchorRef.current ?? activeDocId ?? nextId;
-        selectionAnchorRef.current = anchor;
-        selectRange(anchor, nextId);
+      // End lands on the last row currently in the list, not the last document in
+      // the workspace — under cursor pagination (ADR-011) the rest isn't loaded yet.
+      let nextIdx: number;
+      if (e.key === 'Home') {
+        nextIdx = 0;
+      } else if (e.key === 'End') {
+        nextIdx = ids.length - 1;
+      } else if (curIdx === -1) {
+        // Nothing active yet — the first arrow press lands on the first row
+        // rather than doing nothing.
+        nextIdx = 0;
+      } else {
+        nextIdx = e.key === 'ArrowDown'
+          ? Math.min(curIdx + 1, ids.length - 1)
+          : Math.max(curIdx - 1, 0);
       }
-      scrollRowIntoView(nextId);
+      const nextId = ids[nextIdx];
+      moveActiveTo(nextId);
+      if (e.shiftKey) extendSelectionTo(nextId);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      // This handler bubbles from the table, so it runs BEFORE the browser
+      // activates a focused control — without this guard, preventDefault below
+      // swallows Enter on the row action menu, the reference link, a column sort
+      // header or the select-all checkbox, and opens the viewer instead.
+      if (target.closest('button, a')) return;
+      e.preventDefault();
+      // Enter is the step *past* preview: the sidebar is already showing this
+      // row's properties, so Enter opens the document itself in the framed
+      // viewer. A placeholder has no file in the content store, so there is
+      // nothing to open — the row's View action is disabled for the same reason.
+      const doc = navigableDocs.find((d) => d.id === activeDocId);
+      if (doc && !isPlaceholder(doc)) openViewer(toViewerTarget(doc));
       return;
     }
 
     if (e.key === ' ' || e.key === 'Spacebar') {
-      if (target.closest('button')) return; // let a focused button handle Space
+      if (target.closest('button')) return; // a focused checkbox handles its own Space
       e.preventDefault();
       if (activeDocId) {
         toggleDocumentSelection(activeDocId);
@@ -1311,30 +1446,33 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     };
   };
 
-  // Opening a document writes ?doc= so the selection is shareable and survives
-  // refresh; closing removes it. The panel itself is fed by the single-document
-  // endpoint below, so a deep-linked doc opens even when its row isn't in the
-  // loaded cursor pages.
-  const openDocumentPanel = (doc: Document) => {
-    setPanelData(toDocumentDetail(doc));
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set('doc', doc.id);
-      return next;
-    }, { replace: true });
+  /** Every "open the properties" affordance — the reference link, the row action
+   *  menu, a grid/list card — now just moves the cursor. The sidebar follows the
+   *  cursor and the ?doc= param follows the sidebar, so there is one source of
+   *  truth instead of three places pushing snapshots into the panel. Clears a
+   *  manual dismiss: asking explicitly to see properties must reopen the panel. */
+  const previewDocument = (doc: Document) => {
+    setActiveDocId(doc.id);
+    // An explicit open shouldn't wait out the arrow-key debounce.
+    setPanelDocId(doc.id);
+    setPanelDismissed(false);
   };
-  const closeDocumentPanel = () => {
-    setPanelData(null);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('doc');
-      return next;
-    }, { replace: true });
-  };
+  const dismissDetailPanel = () => setPanelDismissed(true);
 
-  // [API] G06:GET /workspaces/{wsId}/documents/{docId} — resolves the ?doc= deep
-  // link independently of the list, because under cursor pagination (ADR-011) the
-  // row may not be in the loaded pages. Row highlight stays best-effort.
+  // ── What the properties sidebar is describing ───────────────────────────────
+  // Derived from the (debounced) cursor, never stored: the panel showing something
+  // other than the active row was the old bug class this replaces.
+  const panelDocFromRows = useMemo(
+    () => (panelDocId ? orderedDocuments.find((d) => d.id === panelDocId) : undefined),
+    [panelDocId, orderedDocuments]
+  );
+
+  // [API] G06:GET /workspaces/{wsId}/documents/{docId} — resolves a doc the list
+  // hasn't got, because under cursor pagination (ADR-011) a deep-linked row may
+  // not be in the loaded pages. Row highlight stays best-effort.
+  // Gated on the row lookup FAILING, not merely on a doc being previewed: arrowing
+  // through loaded rows must never touch the network, and now that the cursor
+  // feeds the panel it would otherwise fire once per row.
   // [TODO-ENG] If "scroll to the deep-linked row" becomes a requirement, G06 needs
   // a seek/around parameter — decide with engineering.
   // A cross-workspace deep link carries ?ws=, but ScopeContext only catches up on
@@ -1345,18 +1483,68 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   // 'marra-ridge') waits too.
   const wsParam = searchParams.get('ws');
   const scopeMatchesUrl = !wsParam || wsParam === activeProjectId;
-  const { data: deepLinkedDoc } = useQuery({
-    queryKey: queryKeys.document(activeProjectId, highlightedDocId ?? ''),
-    queryFn: () => getDocument(activeProjectId, highlightedDocId!),
-    enabled: !!highlightedDocId && scopeMatchesUrl,
+  const { data: fetchedPanelDoc } = useQuery({
+    queryKey: queryKeys.document(activeProjectId, panelDocId ?? ''),
+    queryFn: () => getDocument(activeProjectId, panelDocId!),
+    enabled: !!panelDocId && !panelDocFromRows && scopeMatchesUrl,
   });
-  useEffect(() => {
-    if (deepLinkedDoc) setPanelData(toDocumentDetail(deepLinkedDoc));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLinkedDoc]);
 
-  const handleExport = (type: 'visible' | 'all') => {
-    const colsToExport = type === 'visible' ? columns : allColumns;
+  // React Query hands back the *previous* doc while a new key resolves, so the id
+  // is checked before trusting it — otherwise a deep link briefly shows the wrong
+  // document's properties.
+  const panelDoc = panelDocFromRows ?? (fetchedPanelDoc?.id === panelDocId ? fetchedPanelDoc : undefined);
+  // toDocumentDetail runs buildJourney + buildVersionStack, so it is memoised on
+  // the document rather than re-derived on every render of a 137 KB page.
+  const panelData = useMemo<DetailPanelData | null>(
+    () => (panelDoc ? toDocumentDetail(panelDoc) : null),
+    // toDocumentDetail is a pure mapper re-created each render; keying the memo on
+    // it would defeat the memo entirely.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [panelDoc]
+  );
+
+  // The URL follows the preview — ADR-010 makes the URL the shareable view state,
+  // so "the row I'm looking at" belongs in it. Written from the debounced id with
+  // replace:true, so holding an arrow key neither stacks history entries nor
+  // rewrites the param once per row.
+  useEffect(() => {
+    if ((panelDocId ?? null) === (searchParams.get('doc') ?? null)) return;
+    // Claim this value so the seeding effect above recognises the echo.
+    urlDocWrittenRef.current = panelDocId;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (panelDocId) next.set('doc', panelDocId);
+      else next.delete('doc');
+      return next;
+    }, { replace: true });
+  }, [panelDocId, searchParams, setSearchParams]);
+
+  // Announce only the transitions the user didn't directly ask for: the sidebar
+  // collapsing or reopening because the checked count crossed the boundary.
+  // Deliberately count-free while collapsed — the message persists in the live
+  // region after it's read, and re-announcing on every Shift+Arrow to keep a
+  // number current would be noise. The count lives in the bulk bar, and each
+  // row's own aria-selected carries its state.
+  const prevSidebarCollapsedRef = useRef(false);
+  useEffect(() => {
+    if (sidebarCollapsed === prevSidebarCollapsedRef.current) return;
+    prevSidebarCollapsedRef.current = sidebarCollapsed;
+    setLiveMessage(
+      sidebarCollapsed
+        ? t('documentBrowser.bulk.panelHidden')
+        : panelDocId
+          ? t('documentBrowser.bulk.panelShown', { id: panelDocId })
+          : t('documentBrowser.bulk.panelClosed')
+    );
+  }, [sidebarCollapsed, panelDocId, t]);
+
+  const selectedDocuments = useMemo(
+    () => orderedDocuments.filter((doc) => selectedDocumentIds.has(doc.id)),
+    [orderedDocuments, selectedDocumentIds]
+  );
+
+  const handleExport = (type: 'visible' | 'all' | 'selected') => {
+    const colsToExport = type === 'all' ? allColumns : columns;
 
     // 1. Generate Header Row
     // Wrapping each heading in quotes and doubling any internal quotes for standard CSV escaping mapping.
@@ -1365,7 +1553,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     // 2. Data rows come from the loaded (cursor-paged) items only.
     // [TODO-ENG] Full exports belong server-side (G27 exports) — the client can't
     // see beyond the pages it has fetched under ADR-011.
-    const dataRows = filteredDocuments.map(doc => {
+    const dataRows = (type === 'selected' ? selectedDocuments : filteredDocuments).map(doc => {
       return colsToExport.map(col => {
         let val = getDocumentColumnText(doc, col.key);
         // Properly escape double quotes if text contains them
@@ -1394,8 +1582,31 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     URL.revokeObjectURL(url);
   };
 
+  // ── Bulk actions over the checked set ───────────────────────────────────────
+  // Only the loaded (cursor-paged) rows can be resolved to documents, which is the
+  // same limit Ctrl+A already carries.
+  // [TODO-ENG] Server-side bulk operations (G27 exports, G07 content, transmittals)
+  // should take the *query* plus the checked ids, not a client-resolved list.
+  const bulkAddToClipboard = () => {
+    selectedDocuments.forEach((doc) => addToClipboard(doc));
+  };
+  const bulkAddToBriefcase = () => {
+    selectedDocuments.forEach((doc) => addToBriefcase({
+      docId: doc.id,
+      title: doc.title,
+      reference: doc.id,
+      revision: doc.revisionNumber,
+      status: doc.status,
+      fileType: doc.fileType,
+      fileSize: doc.fileSize,
+      author: doc.author,
+      projectName: doc.project,
+      folderId: doc.folderId,
+    }));
+  };
+
   const renderDocumentRow = (doc: Document) => {
-    const isSelected = selectedDocumentIds.has(doc.id);
+    const isChecked = selectedDocumentIds.has(doc.id);
     const isActive = activeDocId === doc.id;
     const placeholder = isPlaceholder(doc);
     const overdue = isOverdue(doc);
@@ -1403,32 +1614,33 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     return (
       <tr
         key={doc.id}
+        // Referenced by aria-activedescendant on the grid — this is how a screen
+        // reader is told which row the cursor is on without focus ever moving here.
+        id={rowDomId(doc.id)}
         data-doc-id={doc.id}
-        onClick={(e) => handleRowActivate(doc, e)}
+        // In a grid, aria-selected means "part of the selection" — the checked set,
+        // not the cursor.
+        aria-selected={isChecked}
+        onClick={(e) => handleRowClick(doc, e)}
+        // Two states that can both be true at once, so neither may own the same
+        // channel: checked = blue tint + ticked box (what a bulk action will hit),
+        // active = lighter tint + a brand ring (what the sidebar is describing).
         className={`transition-colors group cursor-pointer ${
-          isSelected || highlightedDocId === doc.id
+          isChecked
             ? 'bg-[#E8F1FB]'
-            : panelData?.docId === doc.id
+            : isActive
               ? 'bg-[#F0F6FF]'
               : 'hover:bg-neutral-50'
-        } ${
-          isActive
-            ? 'ring-2 ring-inset ring-[#0461BA]'
-            : panelData?.docId === doc.id
-              ? 'ring-1 ring-inset ring-[#0461BA]/20'
-              : ''
-        }`}
+        } ${isActive ? 'ring-2 ring-inset ring-[#0461BA]' : ''}`}
       >
         <td>
           <SelectionCheckboxButton
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleRowActivate(doc, e);
-            }}
-            checked={isSelected}
-            ariaLabel={isSelected ? t('documentBrowser.deselectDocument', { id: doc.id }) : t('documentBrowser.selectDocument', { id: doc.id })}
-            className={!isSelected ? 'opacity-0 group-hover:opacity-100' : ''}
+            onClick={(e) => handleCheckboxClick(doc, e)}
+            checked={isChecked}
+            ariaLabel={isChecked ? t('documentBrowser.deselectDocument', { id: doc.id }) : t('documentBrowser.selectDocument', { id: doc.id })}
+            // focus:opacity-100 matters for the keyboard-only path: an unchecked
+            // box is hover-revealed, and Tab must not land on something invisible.
+            className={!isChecked ? 'opacity-0 group-hover:opacity-100 focus:opacity-100' : ''}
           />
         </td>
         {columns.map((col) => {
@@ -1446,12 +1658,12 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         : getFileTypeIcon(doc.fileType)({ size: 16, className: 'shrink-0' })}
                       <button
                         onClick={(e) => {
-                          // Reference link opens the properties panel — never toggles the row.
-                          // openDocumentPanel also writes ?doc= so the selection is
-                          // shareable / multi-window safe (ADR-010).
+                          // Reference link previews the document — never ticks the
+                          // row. previewDocument moves the cursor, which the ?doc=
+                          // param follows, so the link stays shareable /
+                          // multi-window safe (ADR-010).
                           e.stopPropagation();
-                          openDocumentPanel(doc);
-                          setActiveDocId(doc.id);
+                          previewDocument(doc);
                         }}
                         className="text-[#0461BA] hover:text-[#035299] font-medium text-left transition-colors"
                       >
@@ -1552,7 +1764,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
                             {/* Properties Item */}
                             <div className="relative px-1" onMouseEnter={() => setOpenActionSubmenuKey(null)}>
-                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); openDocumentPanel(doc); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
+                              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); previewDocument(doc); setOpenActionMenuId(null); }} className="w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-neutral-100">
                                 <div className="text-neutral-500 mt-0.5"><InfoIcon size={16} /></div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <span className="text-sm font-medium text-neutral-900">Properties</span>
@@ -1657,7 +1869,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               return (
                 <td key={col.key} style={tdStyle}>
                   <button
-                    onClick={() => openDocumentPanel(doc)}
+                    onClick={() => previewDocument(doc)}
                     className="text-neutral-900 group-hover:text-[#0461BA] transition-colors font-medium text-left"
                   >
                     {doc.title}
@@ -2393,6 +2605,82 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
               {/* Content Area */}
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                {/* Sidebar collapse/expand is the one state change the user doesn't
+                    directly command, so it is the one thing announced. */}
+                <div aria-live="polite" role="status" className="sr-only">{liveMessage}</div>
+
+                {/* Bulk action bar — the checked set's reason for existing. Appears
+                    from one checked row: at count 1 the sidebar is still previewing
+                    the (possibly different) active row, so without this there is no
+                    on-screen evidence a selection exists at all. */}
+                <AnimatePresence initial={false}>
+                  {checkedCount > 0 && (
+                    <motion.div
+                      key="bulk-bar"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      className="overflow-hidden shrink-0"
+                    >
+                      {/* flex-wrap + nowrap labels: the grid column is narrow while a
+                          wide detail panel is open, and squeezing the row would
+                          otherwise break button labels mid-word. */}
+                      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#0461BA]/25 bg-[#E8F1FB] px-3 py-2">
+                        <span className="text-xs font-semibold text-[#0461BA] whitespace-nowrap">
+                          {t('documentBrowser.bulk.count', { count: checkedCount })}
+                        </span>
+                        <button
+                          onClick={clearSelection}
+                          className="text-xs font-medium text-neutral-600 hover:text-neutral-900 underline decoration-dotted transition-colors whitespace-nowrap"
+                        >
+                          {t('documentBrowser.bulk.clear')}
+                        </button>
+                        <span className="h-4 w-px bg-[#0461BA]/20 mx-1" aria-hidden="true" />
+                        <button
+                          onClick={bulkAddToClipboard}
+                          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors whitespace-nowrap"
+                        >
+                          <ClipboardIcon size={13} /> {t('documentBrowser.bulk.clipboard')}
+                        </button>
+                        <button
+                          onClick={bulkAddToBriefcase}
+                          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors whitespace-nowrap"
+                        >
+                          <BriefcaseIcon size={13} /> {t('documentBrowser.bulk.briefcase')}
+                        </button>
+                        <button
+                          onClick={() => handleExport('selected')}
+                          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors whitespace-nowrap"
+                        >
+                          <ShareIcon size={13} /> {t('documentBrowser.bulk.export')}
+                        </button>
+                        {/* Disabled rather than absent: these are the two actions a
+                            user reaches for first on a multi-select, and a bar that
+                            silently omits them reads as "not supported" instead of
+                            "not built yet".
+                            [TODO-ENG] Download needs G07 content retrieval; Transmit
+                            needs transmittal creation. Neither exists in this
+                            prototype — wire both to the real endpoints. */}
+                        <button
+                          disabled
+                          title={t('documentBrowser.bulk.notWired')}
+                          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white border border-neutral-200 text-xs font-medium text-neutral-400 border-dashed cursor-not-allowed whitespace-nowrap"
+                        >
+                          <DownloadIcon size={13} /> {t('documentBrowser.bulk.download')}
+                        </button>
+                        <button
+                          disabled
+                          title={t('documentBrowser.bulk.notWired')}
+                          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white border border-neutral-200 text-xs font-medium text-neutral-400 border-dashed cursor-not-allowed whitespace-nowrap"
+                        >
+                          <SendIcon size={13} /> {t('documentBrowser.bulk.transmit')}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {isDocsError ?
                   // RFC 7807 errors surface here with a retry — the states the mock
                   // data era never exercised. [PHASE-1]
@@ -2435,7 +2723,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                       {/* Wrap grid in a horizontally-scrollable container and
                         add a sticky synced scrollbar so the horizontal
                         scrollbar remains visible at the bottom of the grid */}
-                      <GridWithStickyScrollbar documents={displayedDocuments} highlightedDocId={highlightedDocId} onOpenDocument={openDocumentPanel} />
+                      <GridWithStickyScrollbar documents={displayedDocuments} highlightedDocId={panelDocId} onOpenDocument={previewDocument} />
                       {hasMore && !groupByColumn &&
                         <div
                           ref={loadMoreRef}
@@ -2459,8 +2747,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         {displayedDocuments.map((doc) =>
                           <div key={doc.id}>
                             <button
-                              onClick={() => openDocumentPanel(doc)}
-                              className={`w-full text-left block border p-3 hover:shadow-sm transition-all bg-white rounded-md group ${highlightedDocId === doc.id ? 'border-[#0461BA] ring-2 ring-[#0461BA]/20 shadow-md' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                              onClick={() => previewDocument(doc)}
+                              className={`w-full text-left block border p-3 hover:shadow-sm transition-all bg-white rounded-md group ${activeDocId === doc.id ? 'border-[#0461BA] ring-2 ring-[#0461BA]/20 shadow-md' : 'border-neutral-200 hover:border-neutral-300'}`}>
 
                               <div className="flex gap-3">
                                 {/* Placeholders have no content, so nothing to preview —
@@ -2625,8 +2913,30 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                           </AnimatePresence>
 
                           {/* Unified scroll wrapper — handles both vertical and horizontal scrolling */}
-                          <div ref={dataContainerRef} tabIndex={0} onKeyDown={handleListKeyDown} className="flex-1 min-h-0 overflow-auto w-full focus:outline-none" style={{ scrollbarGutter: 'stable' }}>
-                            <table className="w-full doc-table border-collapse whitespace-nowrap">
+                          <div ref={dataContainerRef} className="flex-1 min-h-0 overflow-auto w-full" style={{ scrollbarGutter: 'stable' }}>
+                            {/* The grid semantics and the keyboard focus live on the
+                                table, not the scroll wrapper: aria-activedescendant
+                                is only meaningful on the element that holds the
+                                composite role AND the focus. The scroll wrapper stays
+                                a plain scroll wrapper (scrollRowIntoView targets it). */}
+                            <table
+                              ref={gridRef}
+                              role="grid"
+                              tabIndex={0}
+                              aria-multiselectable="true"
+                              aria-label={t('documentBrowser.gridAria')}
+                              // The cursor survives list changes, so a column filter
+                              // or a collapsed group can leave activeDocId pointing at
+                              // a row that is no longer rendered — an invalid ARIA
+                              // reference. Only emit it while the row exists.
+                              aria-activedescendant={activeDocId && navigableDocs.some((d) => d.id === activeDocId)
+                                ? rowDomId(activeDocId)
+                                : undefined}
+                              onKeyDown={handleListKeyDown}
+                              // Tabbing into the grid before any row is active would
+                              // otherwise show nothing at all — the active-row ring
+                              // is the usual focus cue, and there is no active row yet.
+                              className="w-full doc-table border-collapse whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0461BA]/40">
                               <thead className="sticky top-0 z-20 bg-white shadow-sm">
                                 <tr className="border-b border-neutral-200 bg-neutral-50">
                                   <th className="text-left w-10">
@@ -2774,17 +3084,47 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             </div>
 
             {/* Split detail panel — third flex column, sits alongside the grid.
-                Resize handle lives in the browser-layout gap to its left. */}
-            {panelData && (
-              <div className="relative shrink-0 h-full" style={{ width: panelWidth }}>
-                <PanelResizeHandle side="left" onResizeStart={startPanelResize} ariaLabel={t('panel.resize')} />
-                <DetailSlidePanel
-                  data={panelData}
-                  onClose={closeDocumentPanel}
-                  variant="split"
-                />
-              </div>
-            )}
+                Resize handle lives in the browser-layout gap to its left.
+
+                Collapse rule: above one checked row there is no single document to
+                describe, so the panel slides shut and reopens when the count drops
+                back to 0–1. The cursor keeps moving underneath it — a user
+                extending a range still needs the arrow keys.
+
+                The WIDTH animates on this wrapper rather than the wrapper
+                unmounting: DetailSlidePanel's own AnimatePresence is *inside* it,
+                so unmounting would take the exit animation with it and snap the
+                grid wider in one frame. */}
+            <AnimatePresence initial={false}>
+              {panelData && !panelDismissed && (
+                <motion.div
+                  key="detail-panel"
+                  className="relative shrink-0 h-full"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: sidebarCollapsed ? 0 : panelWidth, opacity: sidebarCollapsed ? 0 : 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  {/* The handle sits 16px outside the panel's left edge, so it can't
+                      live inside the clipping box below — it's dropped outright while
+                      collapsed rather than left floating over the grid. */}
+                  {!sidebarCollapsed && (
+                    <PanelResizeHandle side="left" onResizeStart={startPanelResize} ariaLabel={t('panel.resize')} />
+                  )}
+                  <div className="h-full overflow-hidden">
+                    {/* Fixed inner width so the panel's contents don't reflow (and
+                        text doesn't re-wrap) while the wrapper animates shut. */}
+                    <div className="h-full" style={{ width: panelWidth }}>
+                      <DetailSlidePanel
+                        data={panelData}
+                        onClose={dismissDetailPanel}
+                        variant="split"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
           </motion.div>
       </AnimatePresence>

@@ -701,6 +701,20 @@
     "askFlintAbout": "Ask Flint about {{id}}",
     "addToClipboard": "Add {{id}} to clipboard",
     "removeFromClipboard": "Remove {{id}} from clipboard",
+    "gridAria": "Documents. Use the arrow keys to move through rows, Space to select a row, Enter to open.",
+    "bulk": {
+      "count": "{{count}} selected",
+      "clear": "Clear selection",
+      "clipboard": "Clipboard",
+      "briefcase": "Briefcase",
+      "export": "Export (CSV)",
+      "download": "Download",
+      "transmit": "Transmit",
+      "notWired": "Not available in this prototype",
+      "panelHidden": "Multiple documents selected. Properties panel hidden — no single document to describe.",
+      "panelShown": "Properties panel showing {{id}}.",
+      "panelClosed": "Properties panel closed."
+    },
     "columns": {
       "reference": "Reference",
       "title": "Title",
