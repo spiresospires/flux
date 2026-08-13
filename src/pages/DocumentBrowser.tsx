@@ -739,6 +739,10 @@ export function DocumentBrowser() {
   const [leftPanelMode, setLeftPanelMode] = useState<'filter' | 'folder'>(
     'folder'
   );
+  // Folder/filter panel open state, persisted like the Chat history sidebar
+  // (chat.historyOpen). Defaults to OPEN — unlike Chat, this panel is the
+  // page's primary navigation.
+  const [leftPanelOpen, setLeftPanelOpen] = useUserPref<boolean>('docBrowser.treeOpen', true);
   const navigate = useNavigate();
   const activeRailItem = 'documents';
   // Folder tree over HTTP (G05, MSW-served in the prototype). Each workspace has
@@ -2086,8 +2090,8 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
             {/* Sidebar Island */}
             <CollapsibleFilterPanel
-              isExpanded
-              showCollapseToggle={false}
+              isExpanded={leftPanelOpen}
+              onToggle={() => setLeftPanelOpen((v) => !v)}
               mode={leftPanelMode}
               onModeChange={setLeftPanelMode}
             >

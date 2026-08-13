@@ -1202,9 +1202,14 @@ function ChatHistorySidebar(p: SidebarProps) {
   };
   const handleDragEnd = () => { setDraggingId(null); setDragOverId(null); };
 
+  // Collapsed: a 40px strip of buttons, not a panel. Tagged collapsed-rail
+  // (NOT left-panel) — in flush view left-panel would paint it grey with a
+  // divider, but collapsed it should read as part of the chat surface.
   if (!p.open) {
     return (
-      <div className="w-10 shrink-0 bg-white flex flex-col items-center py-3 gap-2 rounded-xl overflow-hidden shadow-md">
+      <div
+        data-component="collapsed-rail"
+        className="w-10 shrink-0 bg-white flex flex-col items-center py-3 gap-2 rounded-xl overflow-hidden shadow-md">
         <button
           onClick={p.onToggle}
           title={t('chat.showHistory')}

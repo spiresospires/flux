@@ -731,3 +731,41 @@ Verified: **four consecutive `npm test` runs, 180/180, zero worker-start errors*
 **Still a mitigation, not a cure.** It relocates the cost rather than removing it, so cold wall-clock is unchanged (~90s). **The actual cure is an antivirus exclusion for `C:\GitHub\flux\node_modules`** (admin/IT action): it removes the 35ms/file cause instead of moving it. Trade-off worth stating — the exclusion cannot travel with the handover, whereas the prewarm script does. Both are worth having.
 
 **Two harness defects fixed alongside.** `.githooks/pre-commit` now tees its output and classifies the failure: on a `[vitest-pool]` marker it prints that this is the known worker-start flake rather than "Fix the errors above" — which was false in this case and trained reflexive `--no-verify` — while **still exiting 1**, with no auto-retry and nothing masked (verified the classifier both fires on the pool error and does *not* fire on a real assertion failure). `push-to-github-flux.bat` had **no error handling at all**: it ran `git push` and printed "Operation complete." even when the hook aborted the commit, reporting success for work never committed. Now guarded with `if errorlevel 1`.
+
+---
+
+## 35. Collapsed Chat-History Rail: Curled Corners in Flush View (2026-08-13)
+
+**Bug:** with the Flint chat history sidebar collapsed, grey wedges appeared at the top and bottom of the 40px button rail — it read as a rounded card curling away from the page edge.
+
+**Root cause:** flush view flattens islands by attribute selector (`[data-component='left-panel']` / `[data-component='content-panel']` → radius 0, no shadow, index.css §"Flush view"). The *expanded* `<aside>` in Chat.tsx carries `data-component="left-panel"`, so it flattened correctly; the *collapsed* branch was a bare `<div>` with no `data-component` at all. It therefore kept its Tailwind `rounded-xl shadow-md` while everything around it went square. Flush also applies `gap: 0 !important` to `page-layout` (the `--layout-gap` variable itself is untouched), so the rail butts directly against content-panel at x=128 — the 12px radius then cut visible notches out of the shared top and bottom edge. Floating view was unaffected (rounding is correct there), which is why it went unnoticed — the same blind spot as §11.
+
+**Fix:** new `data-component="collapsed-rail"` on the collapsed branch, with a flush rule that zeroes **radius and shadow only** — deliberately no background and no border. The element keeps the `.bg-white` class that content-panel also uses, so the two track each other in every appearance (including `html[data-theme='dark'] .bg-white`) and the rail disappears into the chat surface: collapsed, there is no visible sidebar, just the two buttons. `left-panel` was rejected as the tag for exactly that reason — it paints a grey panel background plus a right divider, correct for an expanded panel but it invents a sidebar that isn't there.
+
+Verified in the browser across all six view × appearance combinations: rail background === content-panel background in each; flush → radius 0 / no shadow / no border / 0px gap; floating → 12px radius, shadow, 8px gap (island preserved). Expanded panel unchanged. Note `data-appearance='dark'` does not recolour these surfaces — the dark background comes from `data-theme='dark'`; checked separately, both #1e293b.
+
+**Scope:** flush-only, deliberately. In floating view every surface is an island, so the collapsed rail stays a rounded, shadowed card there. No test references `[data-component]` selectors, so the attribute rename is inert for the suite.
+
+---
+
+## 36. Collapsible Folder/Filter Panel in Documents (2026-08-13)
+
+**Ask:** give the Documents folder/filter panel the same collapse UX as the Flint chat history sidebar (§35) — a `PanelLeftClose` button in the panel, a 40px button rail when collapsed.
+
+**Dead code removed first.** `CollapsibleFilterPanel` already had a collapse affordance: an 18px chevron tab hanging off the panel's right edge, gated behind `showCollapseToggle`. Its only consumer, `DocumentBrowser`, passed `showCollapseToggle={false}` and a hardcoded `isExpanded` — so that tab had never rendered. Prop and tab both deleted rather than left as a second, competing affordance; `isExpanded`/`onToggle` are now required.
+
+**State.** `docBrowser.treeOpen` via `useUserPref`, owned by DocumentBrowser exactly as Chat owns `chat.historyOpen`, and sitting beside the existing `docBrowser.treeWidth`. Default **true**, deliberately unlike Chat's `false`: the folder tree is this page's primary navigation, not an optional history list.
+
+**One deliberate divergence from Chat: the panel is hidden, not unmounted.** Chat's collapsed branch is an early return, which is safe there — its sidebar holds nothing worth keeping. `FolderTree` however owns `expandedFolders` and `searchTerm` in local `useState` (FolderTree.tsx:26-27), so an early return would reset the tree to all-collapsed and clear the search box on every collapse. The expanded panel therefore stays mounted under `display:none` while the rail renders beside it. Verified in the browser: expand `01 Project Management` → collapse → reopen from the rail, and the tree still reads `01 Project Management` / `Project Controls & Reporting` / `Contracts & Variations` / `02 Engineering` — the children are still there, not re-collapsed.
+
+**Button placement.** The collapse button is a sibling of the pill group inside the existing `px-4 py-2` row, not a header row of its own — a new row would push everything down and break the segmented toggle's alignment with the grid column headers. Kept to 28px so the 36px pills still set the row height: measured **52px before and after**. At the 240px minimum panel width both labels still fit un-truncated (`scrollWidth === clientWidth` on each); `min-w-0` + `truncate` added to the pills so narrower future minimums degrade instead of overflowing.
+
+**framer-motion dropped from the component.** Its only users were the 0→width collapse animation and the chevron-tab rotation, both now gone. Collapse is instant, matching Chat.
+
+**Collapsed rail** reuses §35's `data-component="collapsed-rail"` and its `.bg-white` class verbatim, so the flush rule added there applies with no CSS change. Three buttons: expand, then Folders/Filters — the quick-switch reopens the panel straight into the wanted mode, the counterpart of Chat's New-chat button on its rail. The obvious hazard — one click to Folders while filters are applied, hiding the UI that set them — does not materialise: applied filters render as removable chips in the *content-panel* header (`Content: Placeholders only` / `Clear all`), and those were confirmed still present with the panel collapsed to the rail and mode switched to Folders. Nothing becomes unreachable. Verified in flush light **and** flush dark: rail background === content-panel background (`#fff` / `#1e293b`), radius 0, no shadow, and rail right edge = content-panel left edge = 128px, so there is no seam. All three buttons hit-test clean via `elementFromPoint`. `layout: 'floating'` was retired in `ViewStyleContext` (only `basic`/`dark` × `flush` are selectable), so flush is the whole surface to check.
+
+**No new locale keys** — `panel.collapse` / `panel.expand` / `panel.folders` / `panel.filters` already exist in both `en-US` and `fr-FR`. `aria-expanded` + `aria-controls="filter-panel-content"` moved off the panel div onto the two toggle buttons, where they belong.
+
+**Known wart, left alone:** `.hover\:bg-neutral-200:hover` has no `html[data-theme='dark']` override (index.css:265-266 has them for neutral-50 and -100), so these buttons hover to `#e0e0e0` in dark mode. Pre-existing and app-wide — every FolderTree row and every Chat sidebar button does the same — so the new buttons match their neighbours. Fixing it is one line but repaints hover across the app; a separate decision.
+
+**Gates:** lint clean, 180/180 tests. `npm run typecheck` reports two errors in `src/components/ProjectMapView.tsx` — pre-existing in that file's uncommitted WIP, untouched here.

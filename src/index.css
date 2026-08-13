@@ -411,6 +411,21 @@ html[data-view='flush'] [data-component='content-panel'] {
   min-height: 100% !important;   /* fills remainder when content is short */
 }
 
+/* ── Collapsed rail (Chat history sidebar, collapsed): flush and invisible ──
+   A collapsed panel is a strip of buttons, not a panel: it must disappear into
+   the content surface beside it. So this rule zeroes radius and shadow ONLY —
+   no background, no border. The element keeps its .bg-white class, the same
+   one content-panel uses, so the two stay identical in every appearance
+   (including html[data-theme='dark'] .bg-white above) with no seam between.
+   Tagging it left-panel instead would paint it grey with a right divider —
+   correct for an expanded panel, but here it invents a sidebar that is not
+   there. Leaving it untagged is worse still: its 12px radius then carves
+   notches out of the page edge where it butts against content-panel.       */
+html[data-view='flush'] [data-component='collapsed-rail'] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 /* ── Header panel (SearchResults): flush, no radius, no shadow ──
    A shrink-0 page header must NOT be marked content-panel — the
    min-height:100% above would inflate it to the full page height and
