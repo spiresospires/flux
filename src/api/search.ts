@@ -11,5 +11,7 @@ import type { SearchRequest, SearchResponse } from './types';
 export const ENTERPRISE_SEARCH_SCOPE = '_all';
 
 export function search(wsId: string, request: SearchRequest): Promise<SearchResponse> {
-  return apiClient.post<SearchResponse>(`/workspaces/${wsId}/search`, request);
+  // Encoded for the same reason as the other segments (see src/api/folders.ts).
+  // '_all' is unaffected — encodeURIComponent leaves it alone.
+  return apiClient.post<SearchResponse>(`/workspaces/${encodeURIComponent(wsId)}/search`, request);
 }

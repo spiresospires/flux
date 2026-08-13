@@ -6,6 +6,8 @@
 import { apiClient } from './client';
 import type { FolderTreeResponse } from './types';
 
+// wsId is encoded: it reaches here from the ?ws= deep-link param (ADR-010), so it
+// is not guaranteed path-safe. Matches src/api/distribution.ts.
 export function getFolderTree(wsId: string): Promise<FolderTreeResponse> {
-  return apiClient.get<FolderTreeResponse>(`/workspaces/${wsId}/folders/tree`);
+  return apiClient.get<FolderTreeResponse>(`/workspaces/${encodeURIComponent(wsId)}/folders/tree`);
 }

@@ -37,7 +37,8 @@ import { useDocuments } from '../hooks/useDocuments';
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import { getDocument } from '../api/documents';
 import { queryKeys } from '../api/queryKeys';
-import type { ProjectId } from '../data/projects';
+import { PROJECTS, type ProjectId } from '../data/projects';
+import { resolveWorkspaceId, urlWorkspaceHonoured } from './documentBrowserWorkspace';
 // [MOCK] Journey/version-stack derivation — deleted with the rest of src/data.
 import { buildJourney, buildVersionStack } from '../data/mockJourneys';
 import {
@@ -728,15 +729,34 @@ const ACTIVE_PANEL_DEBOUNCE_MS = 160;
 /** DOM id for a row, so the grid container can point `aria-activedescendant` at
  *  it without ever moving real focus onto the row itself. */
 const rowDomId = (docId: string) => `docrow-${docId}`;
+/** Statically known workspace ids — the ?ws= vocabulary we can vouch for before
+ *  the G03 workspace list has loaded, so a deep link is correct on first render. */
+const PROJECT_IDS: readonly string[] = PROJECTS.map((p) => p.id);
 export function DocumentBrowser() {
   const { t } = useLocalization();
   const { clipboard, addToClipboard, removeFromClipboard, isInClipboard } = useClipboard();
   const { add: addToBriefcase, remove: removeFromBriefcase, isInBriefcase } = useBriefcase();
   const { openViewer } = useViewer();
   const { scope, setScope } = useScope();
-  // The browser is only reachable in project scope (LeftRail hides Documents in
-  // enterprise mode); fall back to the first project if scope is mid-transition.
-  const activeProjectId: ProjectId = scope.kind === 'project' ? (scope.id as ProjectId) : 'marra-ridge';
+  // Deep-linkable view state — ?ws=&folder=&doc= (ADR-010 multi-window). Read
+  // before anything derives from it, because the workspace id below does.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: workspaces } = useWorkspaces();
+  const wsParam = searchParams.get('ws');
+  // The URL — not ScopeContext — decides which workspace this view queries.
+  // ScopeContext is the chrome's idea of "current workspace" and only catches up
+  // to ?ws= one effect later (see the sync effect below), so deriving from scope
+  // alone made every query on the first render of a cross-workspace deep link ask
+  // the *previously persisted* workspace: a guaranteed 404 on the single-document
+  // fetch, and a wasted folder-tree + document-list round-trip behind it.
+  // Trust the G03 list once it has loaded, the static ids before that, so the
+  // first render is already correct for a known workspace.
+  const activeProjectId: ProjectId = resolveWorkspaceId(
+    wsParam,
+    scope,
+    workspaces?.map((w) => w.id) ?? PROJECT_IDS,
+    'marra-ridge'
+  );
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedDocType, setSelectedDocType] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -760,12 +780,10 @@ export function DocumentBrowser() {
   const foldersQuery = useFolderTree(activeProjectId);
   const projectFolders = foldersQuery.data ?? EMPTY_FOLDERS;
 
-  // Deep-linkable selection state — ?ws=&folder=&doc= (ADR-010 multi-window).
   // `folder`/`doc` are DERIVED from the URL (validated below against the loaded
   // tree), never copied into useState, so refresh/second-window restore is free
   // and a workspace switch simply invalidates a stale folder param.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { data: workspaces } = useWorkspaces();
+  // (searchParams / workspaces are read above — activeProjectId depends on them.)
   const highlightedDocId = searchParams.get('doc');
 
   // ── Two independent row axes (new Outlook's message list) ───────────────────
@@ -1475,18 +1493,17 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
   // feeds the panel it would otherwise fire once per row.
   // [TODO-ENG] If "scroll to the deep-linked row" becomes a requirement, G06 needs
   // a seek/around parameter — decide with engineering.
-  // A cross-workspace deep link carries ?ws=, but ScopeContext only catches up on
-  // the effect above — so between first paint and that effect, activeProjectId is
-  // still the *persisted* workspace. Firing then asks the wrong workspace for the
-  // document and logs a 404 before self-correcting. Compare against
-  // activeProjectId, not scope.id, so an enterprise-scope load (which falls back to
-  // 'marra-ridge') waits too.
-  const wsParam = searchParams.get('ws');
-  const scopeMatchesUrl = !wsParam || wsParam === activeProjectId;
+  // The workspace race this used to guard against is gone: activeProjectId now
+  // derives from ?ws= synchronously, so it is never briefly the persisted
+  // workspace. What remains is the case the derive cannot resolve — an unknown
+  // ?ws= — where falling back to the persisted workspace would ask it for a
+  // document that lives elsewhere, i.e. a guaranteed 404. Wait instead; if the G03
+  // list later vouches for the id, the resolve succeeds and this fetch proceeds.
+  const canFetchPanelDoc = urlWorkspaceHonoured(wsParam, activeProjectId);
   const { data: fetchedPanelDoc } = useQuery({
     queryKey: queryKeys.document(activeProjectId, panelDocId ?? ''),
     queryFn: () => getDocument(activeProjectId, panelDocId!),
-    enabled: !!panelDocId && !panelDocFromRows && scopeMatchesUrl,
+    enabled: !!panelDocId && !panelDocFromRows && canFetchPanelDoc,
   });
 
   // React Query hands back the *previous* doc while a new key resolves, so the id

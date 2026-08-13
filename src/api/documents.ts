@@ -20,9 +20,14 @@ export function getDocuments(
   if (params.limit) qs.set('limit', String(params.limit));
   if (params.cursor) qs.set('cursor', params.cursor);
   const suffix = qs.toString() ? `?${qs.toString()}` : '';
-  return apiClient.get<DocumentListResponse>(`/workspaces/${wsId}/documents${suffix}`);
+  return apiClient.get<DocumentListResponse>(`/workspaces/${encodeURIComponent(wsId)}/documents${suffix}`);
 }
 
+// Path segments are encoded — wsId reaches here from the ?ws= URL param (ADR-010
+// deep links) and docId from ?doc=, so neither is guaranteed to be path-safe.
+// Matches src/api/distribution.ts, which already encodes every segment.
 export function getDocument(wsId: string, docId: string): Promise<Document> {
-  return apiClient.get<Document>(`/workspaces/${wsId}/documents/${docId}`);
+  return apiClient.get<Document>(
+    `/workspaces/${encodeURIComponent(wsId)}/documents/${encodeURIComponent(docId)}`
+  );
 }

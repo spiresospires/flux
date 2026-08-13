@@ -33,7 +33,7 @@ Tests live beside the code they cover, as `*.test.ts`.
 | `npm run build` | Production build (does **not** typecheck — Vite strips types without checking) |
 | `npm run typecheck` | `tsc --noEmit`. Currently clean; keep it that way |
 | `npm run lint` | ESLint. **0 errors, 0 warnings** — keep it there |
-| `npm test` | Vitest, single run. 180 tests over business rules, mock generators, icon geometry + two component suites |
+| `npm test` | Vitest, single run. 194 tests over business rules, mock generators, icon geometry + two component suites |
 | `npm run check` | typecheck → lint → test in one go. Run this before any handover |
 | `npm run test:watch` | Vitest in watch mode |
 
@@ -376,7 +376,13 @@ All three dropdown menus (scope selector, notifications, profile) use `createPor
 
 ## Search → DocumentBrowser Navigation
 
-Card click navigates to `/documents?ws=<projectId>&folder=<folderId>&doc=<docId>` — URL params, not `location.state`, so the link is shareable, survives refresh, and opens correctly in a second browser window. DocumentBrowser derives `selectedFolderId` from the `folder` param (validated against the loaded tree — stale params resolve to null), derives `highlightedDocId` from `doc`, and switches scope from `ws` once the G03 workspace list loads.
+Card click navigates to `/documents?ws=<projectId>&folder=<folderId>&doc=<docId>` — URL params, not `location.state`, so the link is shareable, survives refresh, and opens correctly in a second browser window. DocumentBrowser derives `selectedFolderId` from the `folder` param (validated against the loaded tree — stale params resolve to null) and `highlightedDocId` from `doc`.
+
+**The `?ws=` param — not `ScopeContext` — decides which workspace the browser queries.** `resolveWorkspaceId` (`src/pages/documentBrowserWorkspace.ts`, 14 tests) derives it synchronously, so there is no render in which the id is wrong. ScopeContext is the *chrome's* idea of the current workspace (banner dropdown, left rail) and still catches up one effect later, which is fine for chrome but was not fine for queries: deriving `activeProjectId` from scope alone meant the first render of a cross-workspace deep link asked the *previously persisted* workspace — a guaranteed 404 on the G06 single-document fetch plus a wasted folder-tree and document-list round-trip behind it.
+
+⚠️ The param is **validated, not trusted** — against the G03 list once loaded, the static `PROJECTS` ids before that. `wsId` is interpolated into the request path, so an unresolvable value must never reach the API layer. An unknown-but-real workspace (production has more than the four static ids) resolves to the current workspace until G03 vouches for it, and `urlWorkspaceHonoured` keeps the document fetch disabled meanwhile — asking the persisted workspace for a document the URL places elsewhere can only 404.
+
+All `/workspaces/{wsId}/…` path segments are `encodeURIComponent`-wrapped (`documents.ts`, `folders.ts`, `search.ts`, `distribution.ts`) since both `wsId` and `docId` originate in URL params.
 
 ---
 
@@ -438,7 +444,7 @@ These are known, non-blocking, and pre-date recent sessions:
 
 ## Testing status
 
-**Vitest is installed and 180 tests pass.** Coverage is deliberately narrow: the business
+**Vitest is installed and 194 tests pass.** Coverage is deliberately narrow: the business
 rules that a new team cannot re-derive from the UI, the mock generators, the icon geometry,
 and two component suites. The rest of the rendering is still unverified — see the manual
 checklist in **MDR_AND_PROGRESS.md §5b**.
@@ -464,7 +470,7 @@ ignored on macOS/Linux clones (Windows is unaffected):
 |-------|-------|--------|
 | `npm run typecheck` | whole project, **clean** | via `check` |
 | `npm run lint` | whole project, **0 errors, 0 warnings** | via `check` |
-| `npm test` | **180 tests**, 10 files (see below) | via `check` |
+| `npm test` | **194 tests**, 11 files (see below) | via `check` |
 | `npm run check` | all three, sequential, fails fast | **yes** — pre-commit hook + CI |
 
 | test file | covers |
@@ -477,6 +483,7 @@ ignored on macOS/Linux clones (Windows is unaffected):
 | `src/data/mockJourneys.test.ts` | journey determinism, revision progression, the review-rejection loop, version-stack ordering and placeholder-on-top-of-stack |
 | `src/data/documentCorpus.test.ts` | corpus invariants: status vocabulary, placeholder field rules, folder-count exclusion, search classification |
 | `src/data/mockMarkups.test.ts` | viewer markup/comment generators — sweeps the corpus for `undefined` fields from hashed array indexing (a signed-shift bug shipped once this way) |
+| `src/pages/documentBrowserWorkspace.test.ts` | which workspace a deep link queries: URL beats a disagreeing scope on the first render, unknown/traversal ids rejected, and the document fetch stays gated while a claim is unresolvable |
 | `src/components/DocumentJourney.test.tsx` | **jsdom** — current-status badge tracks the document state, red confined to the rejection path, no hard-coded width |
 | `src/components/VersionStack.test.tsx` | **jsdom** — placeholder version disables view/download, current row marked once, view opens the framed viewer for that revision |
 

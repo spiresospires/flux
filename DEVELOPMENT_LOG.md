@@ -812,3 +812,25 @@ Verified in the browser across all six view × appearance combinations: rail bac
 **Also worth knowing:** `checkedCount` counts ids while `selectedDocuments` resolves them against loaded rows, so filtering checked rows out of view can show "5 selected" while bulk Clipboard adds 2. Pre-existing shape — the checked set was never cleared on filter change — but the new bar makes the count visible for the first time.
 
 **Gates:** lint clean across `src` (0 errors, 0 warnings), 180/180 tests. `npm run typecheck` still reports the same two pre-existing `src/components/ProjectMapView.tsx` errors from that file's uncommitted WIP — untouched here, and they will block the pre-commit hook until someone fixes them.
+
+---
+
+## 38. The `?ws=` Deep-Link Workspace Race (2026-08-13)
+
+**The bug.** `activeProjectId` was derived from `ScopeContext`, but `ScopeContext` only catches up to `?ws=` one effect later. So on the first render of a cross-workspace deep link (enterprise search → `/documents?ws=hedland&doc=…`), every query keyed on `activeProjectId` asked the *previously persisted* workspace: a guaranteed 404 on the G06 single-document fetch, plus a wasted folder-tree and document-list round-trip behind it, and a flash of the wrong workspace's rows.
+
+**The old mitigation only hid one symptom.** A `scopeMatchesUrl` gate disabled the single-document query until scope caught up, so the 404 stopped being logged — but the folder tree and the document list were never gated and kept firing against the wrong workspace, and the panel sat empty for the duration of the round-trip.
+
+**The fix is to stop deriving the workspace from the chrome.** ADR-010 already makes the URL the source of truth for the view; `ScopeContext` is the *banner and rail's* idea of the current workspace. `resolveWorkspaceId` (`src/pages/documentBrowserWorkspace.ts`) resolves `?ws=` synchronously, so there is no render in which the id is wrong, and all three queries are correct on the first paint. The scope-sync effect still runs — the chrome does need to catch up — it is just no longer load-bearing for data.
+
+**Validated, not trusted.** `wsId` is interpolated straight into the request path, so the param is checked against the G03 workspace list once loaded and the static `PROJECTS` ids before that. An unknown id resolves to the current workspace rather than reaching the API layer. Production will have workspaces outside the four static ids: those resolve as soon as G03 vouches for them, and until then behave exactly as before rather than breaking.
+
+**What the gate means now.** `urlWorkspaceHonoured` replaces `scopeMatchesUrl`. It is no longer "wait for scope" but "this URL made a workspace claim we could not resolve" — and in that case falling back to the persisted workspace would ask it for a document that lives elsewhere, which can only 404. So it waits, and resolves on its own if G03 later lists the id.
+
+**Path segments encoded.** `documents.ts`, `folders.ts` and `search.ts` interpolated `wsId`/`docId` raw; `distribution.ts` already wrapped every segment in `encodeURIComponent`. Aligned the three with the convention — the derive above makes a URL param load-bearing on the first render, so the encoding gap stopped being theoretical. `'_all'` (the enterprise search sentinel) is unaffected.
+
+**Why a test module and not a browser check.** The Browser pane was hidden, so the preview could not be driven — screenshots cannot composite and navigation is denied. Rather than assert a fix I could not exercise, the resolution was extracted as a pure function and pinned with **14 tests** (194 total, up from 180): URL beats a disagreeing scope on the first render (the race itself), the URL wins in enterprise scope too, unknown ids and `../../admin` are rejected, a G03-vouched id outside the static set is accepted, and the fetch gate composes correctly in both directions. This follows the repo's own precedent — pure functions, no DOM, no mocking — and unlike a screenshot it runs in CI forever. Worth noting the tests are genuine regression guards: under the old derive, `?ws=hedland` with scope on `marra-ridge` resolved to `marra-ridge`, so the first test fails against the previous code.
+
+**Not verified end-to-end in a running browser.** The mechanism is a synchronous derive with no async dependency, so there is no window for it to be wrong, but a live cross-workspace deep link (watching the network panel for the absent 404) has not been re-run since the pane was unavailable. Cheap to confirm when it is open again: load `/documents?ws=hedland&doc=<a hedland doc>` from a session persisted to a different workspace and check that no `/workspaces/marra-ridge/documents/…` request appears.
+
+**Gates:** typecheck clean, lint clean across `src` (0/0), 194/194 tests.
