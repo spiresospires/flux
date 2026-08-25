@@ -23,7 +23,6 @@ import { getFileTypeIcon } from '../components/fileTypeIcon';
 import { statusColors } from '../components/documentStatusColors';
 import { FilterPanel, type ContentStateFilter } from '../components/FilterPanel';
 import { FolderTree } from '../components/FolderTree';
-import { LeftRail } from '../components/LeftRail';
 import { CollapsibleFilterPanel } from '../components/CollapsibleFilterPanel';
 import { DetailSlidePanel, type DetailPanelData } from '../components/DetailSlidePanel';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
@@ -80,7 +79,7 @@ import {
 } from
   'lucide-react';
 import { useViewer } from '../contexts/ViewerContext';
-import type { ViewerTarget } from '../types/viewer';
+import { toViewerTarget } from '../viewer/toViewerTarget';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useBriefcase } from '../contexts/BriefcaseContext';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -88,6 +87,7 @@ import { useScope } from '../contexts/ScopeContext';
 import { useDensity } from '../contexts/DensityContext';
 import type { Density } from '../contexts/DensityContext';
 import { useUserPref } from '../hooks/useUserPref';
+import { useViewportClass } from '../shell/useViewportClass';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isPlaceholder, isOverdue } from '../types/document';
@@ -773,8 +773,17 @@ export function DocumentBrowser() {
   // (chat.historyOpen). Defaults to OPEN — unlike Chat, this panel is the
   // page's primary navigation.
   const [leftPanelOpen, setLeftPanelOpen] = useUserPref<boolean>('docBrowser.treeOpen', true);
+  // Phone gets its own open/closed state, deliberately NOT persisted through
+  // docBrowser.treeOpen: a phone session must never write a viewport-derived
+  // value into a desktop preference (see docs/responsive-architecture.md §5)
+  // — a phone user opening the tree sheet must not cause it to reopen
+  // inline on their next desktop visit. Defaults closed so the table gets
+  // full width immediately; there was no equivalent "collapsed" state to
+  // inherit anyway, since the panel is inline (not a sheet) on every other
+  // viewport.
+  const isPhone = useViewportClass() === 'phone';
+  const [phoneTreeSheetOpen, setPhoneTreeSheetOpen] = useState(false);
   const navigate = useNavigate();
-  const activeRailItem = 'documents';
   // Folder tree over HTTP (G05, MSW-served in the prototype). Each workspace has
   // its own tree — switching projects in the banner refetches it.
   const foldersQuery = useFolderTree(activeProjectId);
@@ -1422,17 +1431,6 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
       }
     }
   };
-
-  /** Everything the framed viewer needs. The page raster stands in for the
-   *  rendered PDF the real Apryse viewer would load over G07. */
-  const toViewerTarget = (doc: Document): ViewerTarget => ({
-    docId: doc.id,
-    title: doc.title,
-    revision: doc.revisionNumber,
-    project: doc.project,
-    fileType: doc.fileType,
-    pageImage: doc.thumbnail || undefined,
-  });
 
   const toDocumentDetail = (doc: Document): DetailPanelData => {
     const placeholder = isPlaceholder(doc);
@@ -2285,6 +2283,39 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
     });
   };
 
+  // Shared between the desktop/tablet inline panel and the phone sheet —
+  // computed once so the two presentations can never drift.
+  const folderOrFilterContent =
+    leftPanelMode === 'filter' ?
+      <FilterPanel
+        selectedStatus={selectedStatus}
+        onStatusChange={setSelectedStatus}
+        contentState={contentState}
+        onContentStateChange={setContentState}
+        selectedDocType={selectedDocType}
+        onDocTypeChange={setSelectedDocType}
+        selectedCategories={selectedCategories}
+        onCategoryChange={setSelectedCategories} /> :
+      foldersQuery.isLoading ?
+        <div className="space-y-2 p-3 animate-pulse" aria-busy="true" aria-label="Loading folders">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-6 bg-neutral-100 rounded" style={{ marginLeft: (i % 3) * 12 }} />
+          ))}
+        </div> :
+      foldersQuery.isError ?
+        <div className="p-3 text-xs text-neutral-500">
+          <p className="font-medium text-neutral-700 mb-1">Couldn't load folders</p>
+          <button
+            onClick={() => foldersQuery.refetch()}
+            className="inline-flex items-center gap-1 text-[#0461BA] hover:underline">
+            <RefreshCwIcon size={11} /> Retry
+          </button>
+        </div> :
+      <FolderTree
+        folders={projectFolders}
+        selectedFolderId={selectedFolderId}
+        onFolderSelect={selectFolder} />;
+
   return (
     <div
       data-component="browser-shell"
@@ -2311,54 +2342,48 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             data-component="browser-layout"
             className="flex h-full gap-4 pl-[var(--left-rail-width,88px)] items-stretch">
 
-            {/* Left Rail */}
-            <LeftRail
-              activeItem={activeRailItem}
-              onItemClick={() => {}} />
+            {/* Sidebar Island — inline on desktop/tablet ('panel' variant).
+                On phone the identical content instead renders as an
+                on-demand full-screen sheet (below), so nothing here
+                consumes flex width when isPhone — see phoneTreeSheetOpen. */}
+            {!isPhone && (
+              <CollapsibleFilterPanel
+                isExpanded={leftPanelOpen}
+                onToggle={() => setLeftPanelOpen((v) => !v)}
+                mode={leftPanelMode}
+                onModeChange={setLeftPanelMode}
+              >
+                {folderOrFilterContent}
+              </CollapsibleFilterPanel>
+            )}
 
-
-            {/* Sidebar Island */}
-            <CollapsibleFilterPanel
-              isExpanded={leftPanelOpen}
-              onToggle={() => setLeftPanelOpen((v) => !v)}
-              mode={leftPanelMode}
-              onModeChange={setLeftPanelMode}
-            >
-
-              {leftPanelMode === 'filter' ?
-                <FilterPanel
-                  selectedStatus={selectedStatus}
-                  onStatusChange={setSelectedStatus}
-                  contentState={contentState}
-                  onContentStateChange={setContentState}
-                  selectedDocType={selectedDocType}
-                  onDocTypeChange={setSelectedDocType}
-                  selectedCategories={selectedCategories}
-                  onCategoryChange={setSelectedCategories} /> :
-
-
-                foldersQuery.isLoading ?
-                  <div className="space-y-2 p-3 animate-pulse" aria-busy="true" aria-label="Loading folders">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="h-6 bg-neutral-100 rounded" style={{ marginLeft: (i % 3) * 12 }} />
-                    ))}
-                  </div> :
-                foldersQuery.isError ?
-                  <div className="p-3 text-xs text-neutral-500">
-                    <p className="font-medium text-neutral-700 mb-1">Couldn't load folders</p>
-                    <button
-                      onClick={() => foldersQuery.refetch()}
-                      className="inline-flex items-center gap-1 text-[#0461BA] hover:underline">
-                      <RefreshCwIcon size={11} /> Retry
-                    </button>
-                  </div> :
-                <FolderTree
-                  folders={projectFolders}
-                  selectedFolderId={selectedFolderId}
-                  onFolderSelect={selectFolder} />
-
-              }
-            </CollapsibleFilterPanel>
+            {/* Phone: the same tree/filter content as an on-demand full-screen
+                sheet, opened via the Folders button in the content-panel
+                header toolbar below. `phoneTreeSheetOpen` is local, session-
+                only state — never routed through docBrowser.treeOpen, so a
+                phone visit can never overwrite the desktop panel-open
+                preference (docs/responsive-architecture.md §5). */}
+            <AnimatePresence>
+              {isPhone && phoneTreeSheetOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="fixed inset-0 z-40 bg-white"
+                >
+                  <CollapsibleFilterPanel
+                    variant="sheet"
+                    isExpanded
+                    onToggle={() => setPhoneTreeSheetOpen(false)}
+                    mode={leftPanelMode}
+                    onModeChange={setLeftPanelMode}
+                  >
+                    {folderOrFilterContent}
+                  </CollapsibleFilterPanel>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Main Content Island */}
             <div
@@ -2529,6 +2554,22 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   <div />
                 )}
                 <div className="flex items-center gap-1">
+                  {/* Folders/Filters trigger — phone only. Opens the same
+                      content (FolderTree or FilterPanel, per leftPanelMode)
+                      as the inline panel on wider screens, as a full-screen
+                      sheet instead — see phoneTreeSheetOpen above. */}
+                  {isPhone && (
+                    <button
+                      onClick={() => setPhoneTreeSheetOpen(true)}
+                      className="relative h-9 min-w-[44px] px-2 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-colors inline-flex items-center justify-center"
+                      aria-label={t('panel.folders')}
+                    >
+                      <FolderIcon size={16} />
+                      {(selectedStatus.length > 0 || selectedDocType.length > 0 || selectedCategories.length > 0 || contentState) && (
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#0461BA] ring-2 ring-white" />
+                      )}
+                    </button>
+                  )}
                   {/* Clipboard button */}
                   {clipboard.length > 0 && (
                     <ClipboardDropdown align="right">

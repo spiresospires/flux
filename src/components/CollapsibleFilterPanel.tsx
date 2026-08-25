@@ -3,7 +3,8 @@ import {
   FilterIcon,
   FolderIcon,
   PanelLeftCloseIcon,
-  PanelLeftOpenIcon } from
+  PanelLeftOpenIcon,
+  XIcon } from
 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useUserPref } from '../hooks/useUserPref';
@@ -15,6 +16,15 @@ interface CollapsibleFilterPanelProps {
   onModeChange: (mode: 'filter' | 'folder') => void;
   children: React.ReactNode;
   topSlot?: React.ReactNode;
+  /** 'panel' (default) — the desktop/tablet inline island: fixed pixel
+   *  width, drag-resizable, collapses to a 40px icon rail.
+   *  'sheet' — full-width phone presentation. The caller (DocumentBrowser)
+   *  mounts this component only while its own phone-only open state is
+   *  true, so there is no collapsed-rail case to render here; width is
+   *  always 100% rather than the persisted drag-resize pixel value, and
+   *  there is no resize handle, since dragging a column width by mouse has
+   *  no touch equivalent (see docs/responsive-architecture.md §7). */
+  variant?: 'panel' | 'sheet';
 }
 export function CollapsibleFilterPanel({
   isExpanded,
@@ -22,8 +32,10 @@ export function CollapsibleFilterPanel({
   mode,
   onModeChange,
   children,
-  topSlot
+  topSlot,
+  variant = 'panel'
 }: CollapsibleFilterPanelProps) {
+  const isSheet = variant === 'sheet';
   const { t } = useLocalization();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const resizingRef = useRef(false);
@@ -68,14 +80,14 @@ export function CollapsibleFilterPanel({
     'w-8 h-8 rounded-md flex items-center justify-center transition-colors';
 
   return (
-    <div className="relative h-full flex-shrink-0 flex">
+    <div className={`relative h-full flex ${isSheet ? 'w-full' : 'flex-shrink-0'}`}>
       {/* Collapsed: a 40px strip of buttons, not a panel — same treatment as the
           Chat history sidebar. Tagged collapsed-rail (NOT left-panel): in flush
           view left-panel would paint it grey with a right divider, inventing a
           sidebar that is not there. See index.css for the full reasoning.
           bg-white (not --element-bg-color) is deliberate — it's the class
           content-panel uses, so rail and content stay seamless in every theme. */}
-      {!isExpanded &&
+      {!isExpanded && !isSheet &&
         <div
           data-component="collapsed-rail"
           className="w-10 shrink-0 bg-white flex flex-col items-center py-3 gap-2 rounded-xl overflow-hidden shadow-md">
@@ -112,14 +124,14 @@ export function CollapsibleFilterPanel({
       {/* Expanded panel. Hidden rather than unmounted while collapsed: FolderTree
           owns its expanded rows and search term in local state, so unmounting
           would reset the tree on every collapse/expand round trip. */}
-      <div className={`relative h-full flex ${isExpanded ? '' : 'hidden'}`}>
+      <div className={`relative h-full flex ${isExpanded ? '' : 'hidden'} ${isSheet ? 'flex-1' : ''}`}>
         {/* Main Panel - Island Card */}
         <div
           ref={panelRef}
           data-component="left-panel"
-          className="h-full rounded-xl shadow-md overflow-hidden flex flex-col relative"
+          className={`h-full overflow-hidden flex flex-col relative ${isSheet ? 'w-full' : 'rounded-xl shadow-md'}`}
           style={{
-            width,
+            width: isSheet ? '100%' : width,
             backgroundColor: 'var(--element-bg-color, #FFFFFF)'
           }}>
 
@@ -156,13 +168,13 @@ export function CollapsibleFilterPanel({
               </div>
               <button
                 onClick={onToggle}
-                title={t('panel.collapse')}
-                aria-label={t('panel.collapse')}
+                title={isSheet ? t('common.close') : t('panel.collapse')}
+                aria-label={isSheet ? t('common.close') : t('panel.collapse')}
                 aria-expanded={true}
                 aria-controls="filter-panel-content"
-                className="w-7 h-7 shrink-0 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 inline-flex items-center justify-center transition-colors">
+                className={`shrink-0 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 inline-flex items-center justify-center transition-colors ${isSheet ? 'w-11 h-11' : 'w-7 h-7'}`}>
 
-                <PanelLeftCloseIcon size={16} />
+                {isSheet ? <XIcon size={20} /> : <PanelLeftCloseIcon size={16} />}
               </button>
             </div>
 
@@ -171,8 +183,9 @@ export function CollapsibleFilterPanel({
           </div>
         </div>
 
-        {/* Resize handle — sits in the browser-layout gap to the right of this island */}
-        <PanelResizeHandle side="right" onResizeStart={startResize} ariaLabel={t('panel.resize')} />
+        {/* Resize handle — no touch equivalent (mouse-only drag), and no
+            meaning against a full-width sheet — desktop/tablet 'panel' only. */}
+        {!isSheet && <PanelResizeHandle side="right" onResizeStart={startResize} ariaLabel={t('panel.resize')} />}
       </div>
     </div>);
 
