@@ -11,7 +11,6 @@ import {
   TriangleAlertIcon,
   CircleSlashIcon,
 } from 'lucide-react';
-import { LeftRail } from '../components/LeftRail';
 import { statusChipClass } from '../components/documentStatusColors';
 import { useBriefcase } from '../contexts/BriefcaseContext';
 import { BriefcaseItem, BriefcaseState } from '../types/briefcase';
@@ -94,7 +93,6 @@ export function MyBriefcase() {
 
   return (
     <div data-component="page-shell" className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
-      <LeftRail activeItem="briefcase" onItemClick={() => {}} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">

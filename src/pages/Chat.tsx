@@ -32,7 +32,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 // [PHASE-1]
 import { mockDocuments } from '../data/mockDocuments';
 import { statusColors } from '../components/documentStatusColors';
-import { LeftRail } from '../components/LeftRail';
 import { ClipboardDropdown } from '../components/ClipboardDropdown';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useScope } from '../contexts/ScopeContext';
@@ -115,7 +114,6 @@ export function Chat() {
   // [PHASE-1]
   const askAbout = searchParams.get('ask');
   const askKind = searchParams.get('askKind') as 'project' | 'folder' | 'document' | null;
-const onExit = () => navigate('/');
   const onDocumentSelect = (_docId: string) => navigate('/documents');
   const { t } = useLocalization();
   const [conversations, setConversations] = useState<Conversation[]>(() => {
@@ -876,11 +874,7 @@ const onExit = () => navigate('/');
       transition={{
         duration: 0.25
       }}
-      className="fixed inset-x-0 top-[60px] bottom-0 bg-[var(--main-bg-color)] z-30 flex pl-[var(--left-rail-width,88px)]">
-
-      <LeftRail
-        activeItem="chat"
-        onItemClick={() => onExit()} />
+      className="fixed inset-x-0 top-[60px] bottom-0 bg-[var(--main-bg-color)] z-10 flex pl-[var(--left-rail-width,88px)]">
 
       <div data-component="page-shell" className="flex-1 w-full p-4">
         <div data-component="page-layout" className="w-full flex items-stretch gap-4 h-[calc(100vh-92px)]">

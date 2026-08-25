@@ -17,7 +17,6 @@ import {
   ScrollTextIcon,
   Share2Icon,
 } from 'lucide-react';
-import { LeftRail } from '../../components/LeftRail';
 import { RulesTab } from '../../components/distribution/RulesTab';
 import { HistoryTab } from '../../components/distribution/HistoryTab';
 import { SettingsTab } from '../../components/distribution/SettingsTab';
@@ -69,7 +68,6 @@ export function AutomaticDistribution() {
 
   return (
     <div data-component="page-shell" className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
-      <LeftRail activeItem="distribution" onItemClick={() => {}} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">

@@ -1,46 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { SettingsIcon } from 'lucide-react';
 import { FlintIcon } from './FlintIcon';
-import {
-  LayoutDashboardIcon,
-  SettingsIcon,
-  SearchIcon,
-  FolderIcon,
-  BriefcaseIcon,
-  Share2Icon,
-  UsersIcon,
-} from 'lucide-react';
-import { ColorCustomizer } from './ColorCustomizer';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useScope } from '../contexts/ScopeContext';
-import { useSearch } from '../contexts/SearchContext';
 import { useBriefcase } from '../contexts/BriefcaseContext';
-import { usePermissions } from '../contexts/PermissionContext';
-interface LeftRailProps {
-  activeItem: string;
-  onItemClick: (item: string) => void;
-}
-interface NavItem {
-  id: string;
-  icon: React.ElementType;
-  label: string;
-  onClick?: () => void;
-}
-export function LeftRail({
-  activeItem,
-  onItemClick
-}: LeftRailProps) {
+import { useShellOverlay } from '../contexts/ShellLayoutContext';
+import { useNavItems, type NavItem } from './nav/useNavItems';
+
+// LeftRail is mounted ONCE, in AppShell — never per-page. Both former props
+// (`activeItem`, `onItemClick`) were dead: the active item was always
+// overridden by the route (`routeActiveItem` below), and `onItemClick` was
+// unreachable through every click path except a keyboard-only corner case on
+// the Settings item — which navigated AWAY from the page instead of opening
+// the colour customiser (each page wired a different, page-specific
+// onItemClick). Settings is now handled once, uniformly, by this component
+// alone, so that bug cannot recur. See docs/responsive-architecture.md §6.
+export function LeftRail() {
   const { t } = useLocalization();
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [showColorCustomizer, setShowColorCustomizer] = useState(false);
   const { scope } = useScope();
-  const { lastQuery } = useSearch();
   const { count: briefcaseCount } = useBriefcase();
-  const { hasPermission } = usePermissions();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { isColorCustomizerOpen, setColorCustomizerOpen } = useShellOverlay();
+  const { navItems, adminItems, routeActiveItem } = useNavItems();
 
   // ── Documents icon highlight ───────────────────────────────────────────────
   // When the user selects a project workspace the Documents nav item appears.
@@ -60,79 +43,12 @@ export function LeftRail({
     return () => clearTimeout(t);
   }, [scope.kind]);
 
-  const routeActiveItem =
-    location.pathname === '/' ? 'dashboard' :
-    location.pathname.startsWith('/briefcase') ? 'briefcase' :
-    location.pathname.startsWith('/documents') ? 'documents' :
-    location.pathname.startsWith('/search') ? 'search' :
-    location.pathname.startsWith('/packages') ? 'packages' :
-    location.pathname.startsWith('/chat') ? 'chat' :
-    location.pathname.startsWith('/admin/distribution') ? 'distribution' :
-    location.pathname.startsWith('/admin/workgroups') ? 'workgroups' :
-    activeItem;
-
-  const navItems: NavItem[] = [
-    {
-      id: 'dashboard',
-      icon: LayoutDashboardIcon,
-      label: t('navigation.dashboard'),
-      onClick: () => navigate('/'),
-    },
-    {
-      // Briefcase is a cross-workspace, user-level collection — always visible in both scopes.
-      id: 'briefcase',
-      icon: BriefcaseIcon,
-      label: t('navigation.briefcase'),
-      onClick: () => navigate('/briefcase'),
-    },
-    {
-      id: 'chat',
-      icon: LayoutDashboardIcon, // placeholder — FlintIcon is rendered directly below
-      label: 'Flint',
-      onClick: () => navigate('/chat'),
-    },
-    {
-      id: 'search',
-      icon: SearchIcon,
-      label: t('navigation.search'),
-      onClick: () => navigate(lastQuery ? `/search?q=${encodeURIComponent(lastQuery)}` : '/search'),
-    },
-    ...(scope.kind === 'project'
-      ? [{
-          id: 'documents' as const,
-          icon: FolderIcon,
-          label: t('navigation.documents'),
-          onClick: () => navigate('/documents'),
-        }]
-      : []),
-  ];
-
-  // Admin section — workspace governance (AUTO_DISTRIBUTION_PLAN.md). Only for
-  // users holding an AD grant, and only in project scope: rule sets and
-  // workgroups are workspace-scoped, so enterprise scope has nothing to show.
-  const adminItems: NavItem[] =
-    scope.kind === 'project' && hasPermission('ad.view')
-      ? [
-          {
-            id: 'distribution',
-            icon: Share2Icon,
-            label: t('navigation.distribution'),
-            onClick: () => navigate('/admin/distribution'),
-          },
-          {
-            id: 'workgroups',
-            icon: UsersIcon,
-            label: t('navigation.workgroups'),
-            onClick: () => navigate('/admin/workgroups'),
-          },
-        ]
-      : [];
-
   const bottomItems: NavItem[] = [
     {
       id: 'settings',
       icon: SettingsIcon,
       label: t('navigation.settings'),
+      onClick: () => setColorCustomizerOpen(!isColorCustomizerOpen),
     },
   ];
 
@@ -146,38 +62,27 @@ export function LeftRail({
       e.preventDefault();
       setFocusedIndex((prev) => (prev - 1 + allItems.length) % allItems.length);
     } else if (e.key === 'Enter' && focusedIndex >= 0) {
-      const item = allItems[focusedIndex];
-      if (item.onClick) {
-        item.onClick();
-      } else {
-        onItemClick(item.id);
-      }
+      allItems[focusedIndex].onClick();
     }
   };
+
   const renderNavItem = (item: NavItem, index: number) => {
     const isActive = routeActiveItem === item.id;
     const isFocused = focusedIndex === index;
     const isFlint = item.id === 'chat';
-    const Icon = item.icon;
     const isSettings = item.id === 'settings';
+    const isHighlightable = item.id === 'documents';
+    const Icon = item.icon;
     return (
       <button
         key={item.id}
-        onClick={() => {
-          if (isSettings) {
-            setShowColorCustomizer(!showColorCustomizer);
-          } else if (item.onClick) {
-            item.onClick();
-          } else {
-            onItemClick(item.id);
-          }
-        }}
+        onClick={item.onClick}
         onFocus={() => setFocusedIndex(index)}
         onMouseEnter={() => setHoveredId(item.id)}
         onMouseLeave={() => setHoveredId(null)}
         className={`
           relative w-full flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-md transition-colors duration-200
-          ${isActive || isSettings && showColorCustomizer ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-neutral-700 hover:bg-[#F0F4F8]'}
+          ${isActive || (isSettings && isColorCustomizerOpen) ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-neutral-700 hover:bg-[#F0F4F8]'}
           ${isFocused ? 'ring-2 ring-[#0461BA] ring-offset-1' : ''}
         `}
         aria-current={isActive ? 'page' : undefined}
@@ -205,16 +110,21 @@ export function LeftRail({
           // it re-triggers every time the item mounts (i.e. every time the user
           // switches into a project workspace).
           <span
-            key={item.id === 'documents' && documentsHighlight ? 'highlighted' : 'normal'}
-            className={item.id === 'documents' && documentsHighlight ? 'animate-docs-appear flex items-center justify-center' : 'flex items-center justify-center'}
+            key={isHighlightable && documentsHighlight ? 'highlighted' : 'normal'}
+            className={isHighlightable && documentsHighlight ? 'animate-docs-appear flex items-center justify-center' : 'flex items-center justify-center'}
           >
             <Icon
               size={20}
-              className={`flex-shrink-0 ${isActive || isSettings && showColorCustomizer ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`}
+              className={`flex-shrink-0 ${isActive || (isSettings && isColorCustomizerOpen) ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`}
             />
           </span>
         )}
-        <span className="text-[11px] leading-none font-medium text-center w-full truncate px-1">
+        {/* data-part="rail-label": hidden in icon-only mode via
+            html[data-nav-mode='rail-icon'] in index.css — the label's own
+            height is what keeps the button above the 44px touch floor at
+            full size, so hiding it there is paired with a min-height rule
+            rather than just `display: none` on the label alone. */}
+        <span data-part="rail-label" className="text-[11px] leading-none font-medium text-center w-full truncate px-1">
           {item.label}
         </span>
       </button>
@@ -225,8 +135,8 @@ export function LeftRail({
       <nav
         onKeyDown={handleKeyDown}
         data-component="leftrail"
-        className="fixed left-0 top-[60px] h-[calc(100vh-60px)] bg-white border-r border-neutral-200 z-20 flex flex-col py-2 overflow-hidden"
-        style={{ width: 88 }}
+        className="fixed left-0 top-[60px] h-[calc(100svh-60px)] bg-white border-r border-neutral-200 z-20 flex flex-col py-2 overflow-hidden"
+        style={{ width: 'var(--left-rail-width, 88px)' }}
         role="navigation"
         aria-label={t('navigation.main')}
       >
@@ -275,11 +185,6 @@ export function LeftRail({
         </div>
       </nav>
 
-      {/* Color Customizer Popover */}
-      <ColorCustomizer
-        isOpen={showColorCustomizer}
-        onClose={() => setShowColorCustomizer(false)} />
-      
     </>);
 
 }

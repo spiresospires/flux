@@ -3,7 +3,6 @@
 // All data is the inline samplePackages array below — no shared mock file yet.
 // [PHASE-2] Packages are not part of the Phase 1 delivery (G08).
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { LeftRail } from '../components/LeftRail';
 import { useLocalization } from '../contexts/LocalizationContext';
 import {
   PlusIcon,
@@ -298,7 +297,6 @@ type View = 'library' | 'wizard' | 'detail';
 
 export function Packages() {
   const { t } = useLocalization();
-  const [activeRailItem, setActiveRailItem] = useState('packages');
   const [view, setView] = useState<View>('library');
   const [packages, setPackages] = useState<PackageObject[]>(samplePackages);
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
@@ -351,9 +349,6 @@ export function Packages() {
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
-      <LeftRail
-        activeItem={activeRailItem}
-        onItemClick={setActiveRailItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
         {view === 'library' &&

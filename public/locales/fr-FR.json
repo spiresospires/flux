@@ -12,7 +12,10 @@
     "admin": "Admin",
     "distribution": "Distribution",
     "workgroups": "Groupes de travail",
-    "main": "Navigation principale"
+    "main": "Navigation principale",
+    "more": "Plus",
+    "menu": "Menu",
+    "switchWorkspace": "Toucher pour changer d'espace de travail"
   },
   "banner": {
     "hideNavigation": "Masquer le rail de navigation",

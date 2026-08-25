@@ -3,7 +3,6 @@
 // a later Admin phase). Workspace-scoped, same guards as Automatic Distribution.
 // [PHASE-1]
 import { LockIcon, UserIcon, UsersIcon } from 'lucide-react';
-import { LeftRail } from '../../components/LeftRail';
 import { useScope } from '../../contexts/ScopeContext';
 import { usePermissions } from '../../contexts/PermissionContext';
 import { useAdUsers, useWorkgroups } from '../../hooks/useDistribution';
@@ -23,7 +22,6 @@ export function Workgroups() {
 
   return (
     <div data-component="page-shell" className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
-      <LeftRail activeItem="workgroups" onItemClick={() => {}} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">

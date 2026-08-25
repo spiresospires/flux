@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './api/queryClient';
+import { AppShell } from './components/AppShell';
+import { RequiresViewport } from './components/RequiresViewport';
 import { DocumentBrowser } from './pages/DocumentBrowser';
 import { Chat } from './pages/Chat';
 import { DesignSystem } from './pages/DesignSystem';
@@ -46,15 +48,29 @@ export function App() {
                   <BrandBanner />
                   <FeedbackWidget />
                   <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/documents" element={<DocumentBrowser />} />
-                    <Route path="/chat" element={<Chat />} />
-                    <Route path="/search" element={<SearchResults />} />
-                    <Route path="/briefcase" element={<MyBriefcase />} />
-                    <Route path="/admin/distribution" element={<AutomaticDistribution />} />
-                    <Route path="/admin/workgroups" element={<Workgroups />} />
-                    <Route path="/design-system" element={<DesignSystem />} />
-                    <Route path="/packages" element={<Packages />} />
+                    <Route element={<AppShell />}>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/documents" element={<DocumentBrowser />} />
+                      <Route path="/chat" element={<Chat />} />
+                      <Route path="/search" element={<SearchResults />} />
+                      <Route path="/briefcase" element={<MyBriefcase />} />
+                      <Route path="/admin/distribution" element={<AutomaticDistribution />} />
+                      <Route path="/admin/workgroups" element={<Workgroups />} />
+                      <Route path="/packages" element={<Packages />} />
+                    </Route>
+                    {/* Not part of AppShell: an internal reference page with no
+                        rail/shell of its own, gated at desktop per product
+                        decision D4 (2026-08-17) — the biggest concentration of
+                        responsive-prefix churn in the repo, zero customer
+                        value below a laptop. */}
+                    <Route
+                      path="/design-system"
+                      element={
+                        <RequiresViewport min="desktop" feature="Design System">
+                          <DesignSystem />
+                        </RequiresViewport>
+                      }
+                    />
                   </Routes>
                   {/* Mounted once, above the routes: the viewer is opened from
                       the grid, the properties panel and the version stack. */}

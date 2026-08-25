@@ -52,6 +52,26 @@
   --layout-gap: 0.5rem;
 
   /* ─────────────────────────────────────────────────────────────────────────
+   * SHELL LAYOUT TOKENS  (see docs/responsive-architecture.md §4)
+   * --left-rail-width is the ONLY place that number lives — LeftRail's own
+   * width and every page's `ml-`/`pl-[var(--left-rail-width,88px)]` content
+   * offset all read this one variable, so changing it here re-flows every
+   * page with zero page edits. Do NOT set this from JavaScript
+   * (getComputedStyle/style.setProperty): an inline style on <html> beats
+   * every rule below with no error, silently defeating this whole layer.
+   * ───────────────────────────────────────────────────────────────────────── */
+  --left-rail-width: 88px;
+  --banner-h: 60px;
+  --bottom-nav-h: 0px;
+  --card-min-w: 220px;
+  /* Touch-target floor. 0 by default (fine pointer); raised under
+   * `pointer: coarse` below. Deliberately separate from --row-btn (the
+   * density scale) — density is a taste preference about text rhythm,
+   * touch-target size is a correctness constraint, and overloading one
+   * token for both makes them permanently fight. */
+  --touch-btn-min: 0px;
+
+  /* ─────────────────────────────────────────────────────────────────────────
    * DENSITY  (set on html[data-density] by DensityContext; default below =
    * 'comfortable'). One global preference drives row/cell padding, body text
    * size, list-icon + action-button sizing and grid gaps across every list and
@@ -245,6 +265,33 @@ html[data-density='compact'] {
   font-size: var(--row-text);
 }
 
+/* ── Shell responsive breakpoints (docs/responsive-architecture.md §3/§4) ──
+   Widths mirror Tailwind's UNMODIFIED default md/lg boundaries (768/1024) so
+   this tier and the existing `md:`/`lg:`/`xl:` classes elsewhere in the app
+   can never disagree. Do not add `theme.screens` to tailwind.config.js. */
+@media (max-width: 1023px) {
+  :root { --left-rail-width: 56px; }
+}
+@media (max-width: 767px) {
+  :root {
+    --left-rail-width: 0px;
+    --bottom-nav-h: 56px;
+    --card-min-w: 150px;
+  }
+}
+
+/* Icon-only rail (tablet-portrait, or user-collapsed on wider screens):
+   hide the label, but restore the height it was providing — deleting a
+   ~15px label without a compensating min-height collapses each button
+   below the 44px touch floor, on exactly the device class where touch is
+   guaranteed. */
+html[data-nav-mode='rail-icon'] [data-component='leftrail'] [data-part='rail-label'] {
+  display: none;
+}
+html[data-nav-mode='rail-icon'] [data-component='leftrail'] button {
+  min-height: 44px;
+}
+
 /* ----- Dark theme overrides ----- */
 html[data-theme='dark'] {
   --main-bg-color: #0f172a;
@@ -340,6 +387,18 @@ html[data-view='flush'][data-appearance='dark'] [data-component='leftrail'] .bor
 [data-component='browser-shell'],
 [data-component='page-shell'] {
   padding: var(--layout-gap);
+  /* Height is owned HERE, not by each page's `h-[calc(100vh-60px)]` utility
+   * class — identical specificity (0,1,0 for both an attribute selector and
+   * a class selector), and this rule comes later in the file (after
+   * @import 'tailwindcss/utilities' at the top), so it wins. Seven page
+   * files, one edit. `svh` not `vh`: with the mobile URL bar shown, `100vh`
+   * overflows the visible area, and several of these roots are
+   * `overflow-hidden`, making the bottom strip unreachable rather than
+   * merely off-screen. `svh` (not `dvh`) because this is a fixed shell —
+   * `dvh` reflows continuously as the toolbar collapses, which reads as
+   * jitter on every scroll. See docs/responsive-architecture.md §4. */
+  height: calc(100svh - var(--banner-h, 60px));
+  padding-bottom: calc(var(--layout-gap) + var(--bottom-nav-h, 0px));
 }
 
 [data-component='browser-layout'],
@@ -479,5 +538,6 @@ html[data-view='flush'][data-appearance='dark'] [data-component='topbar'] .track
 /* Slightly larger hit target on small screens */
 @media (pointer: coarse) {
   .column-resizer { width: 18px !important; }
+  :root { --touch-btn-min: 2.75rem; }
 }
 

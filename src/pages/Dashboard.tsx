@@ -31,7 +31,6 @@ import {
   Maximize2Icon,
   Minimize2Icon,
 } from 'lucide-react';
-import { LeftRail } from '../components/LeftRail';
 import { statusChipClass } from '../components/documentStatusColors';
 import { DetailSlidePanel, type DetailPanelData, type DetailPanelObjectType } from '../components/DetailSlidePanel';
 import { ProjectMapView } from '../components/ProjectMapView';
@@ -656,7 +655,6 @@ export function Dashboard() {
   const { t } = useLocalization();
   const location = useLocation();
   const { scope } = useScope();
-  const [activeItem, setActiveItem] = useState('dashboard');
   const [selectedSection, setSelectedSection] = useState<DashboardSection>('overview');
   const [panelData, setPanelData] = useState<DetailPanelData | null>(null);
   // Map view is available in both enterprise and project scopes.
@@ -798,7 +796,6 @@ export function Dashboard() {
       style={{
         backgroundColor: 'var(--main-bg-color, #EAEEF6)'
       }}>
-      <LeftRail activeItem={activeItem} onItemClick={setActiveItem} />
 
       <main className="ml-[var(--left-rail-width,88px)]">
         {showMap && mapExpanded ? (

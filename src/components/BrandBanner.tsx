@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, SearchIcon, Settings2Icon } from 'lucide-react';
+import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, MenuIcon, SearchIcon, Settings2Icon, XIcon } from 'lucide-react';
+import { useShellLayout, useShellOverlay } from '../contexts/ShellLayoutContext';
 // Display-name overrides — add an entry here when the filename alone isn't
 // descriptive enough (e.g. "iluka" → "Iluka Resources").
 // To add a new logo: drop any PNG/JPG/SVG/WebP into src/assets/logos/ and
@@ -51,7 +52,9 @@ export function BrandBanner() {
   const { t } = useLocalization();
   const { scope, setScope } = useScope();
   const { adLevel, setAdLevel } = usePermissions();
-  const LEFT_RAIL_WIDTH = 88;
+  const { navMode } = useShellLayout();
+  const { setNavDrawerOpen, isSearchOverlayOpen, setSearchOverlayOpen } = useShellOverlay();
+  const isPhone = navMode === 'mobile';
   const [selectedLogoId, setSelectedLogoId] = useState(DEFAULT_LOGO_ID);
   const [logoMenuOpen, setLogoMenuOpen] = useState(false);
   const logoButtonRef = useRef<HTMLDivElement>(null);
@@ -190,10 +193,23 @@ export function BrandBanner() {
       role="banner">
 
       <div className="flex items-center gap-3">
+        {/* Hamburger — opens NavDrawer. Shown whenever the rail isn't showing
+            full labels (rail-icon at tablet-portrait, mobile at phone): it is
+            how those two tiers recover the labels/Admin section/Settings the
+            icon-only or absent rail can't show room for. */}
+        {navMode !== 'rail' && (
+          <button
+            onClick={() => setNavDrawerOpen(true)}
+            aria-label={t('navigation.menu')}
+            className="w-11 h-11 shrink-0 flex items-center justify-center rounded-md hover:bg-neutral-100 transition-colors"
+          >
+            <MenuIcon size={20} />
+          </button>
+        )}
         <div
           ref={logoButtonRef}
           className="flex items-center justify-center shrink-0 px-1 relative"
-          style={{ width: LEFT_RAIL_WIDTH }}
+          style={{ width: isPhone ? 40 : 'var(--left-rail-width, 88px)' }}
         >
           <button
             onClick={() => {
@@ -250,7 +266,11 @@ export function BrandBanner() {
           )}
         </div>
 
-        {/* Scope Selector */}
+        {/* Scope Selector — moved into NavDrawer on phone (D2): a low-frequency,
+            high-consequence mode switch with its own searchable list has no
+            business competing for width in a 375px topbar. Reachable from the
+            hamburger instead. */}
+        {!isPhone && (
         <div className="relative" ref={scopeDropdownRef}>
           {/* Hidden element to measure natural width of the longest project name */}
           <span
@@ -357,9 +377,19 @@ export function BrandBanner() {
             document.body
           )}
         </div>
+        )}
       </div>
 
       <div className="flex-1 px-4 flex items-center justify-center">
+        {isPhone ? (
+          <button
+            onClick={() => setSearchOverlayOpen(true)}
+            aria-label={t('banner.searchLabel')}
+            className="ml-auto w-11 h-11 flex items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 transition-colors"
+          >
+            <SearchIcon size={18} />
+          </button>
+        ) : (
         <div className="w-full max-w-xl" ref={searchContainerRef}>
           <div className="relative">
             <SearchIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -377,6 +407,7 @@ export function BrandBanner() {
             />
           </div>
         </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
@@ -494,8 +525,46 @@ export function BrandBanner() {
           )}
         </div>
 
-        <span className="text-xs font-semibold tracking-wide text-neutral-700">FusionLive</span>
+        {!isPhone && (
+          <span className="text-xs font-semibold tracking-wide text-neutral-700">FusionLive</span>
+        )}
       </div>
+
+      {/* Full-screen search overlay (phone only). An inline input in the
+          topbar row would get ~120px — not enough to read back a document
+          number like "2100-PR-DS-0042-R3" while typing it. Reuses the same
+          searchValue/submitSearch as the desktop input, so behaviour cannot
+          drift between the two presentations. */}
+      {isPhone && isSearchOverlayOpen && (
+        <div className="fixed inset-0 z-[70] bg-white flex flex-col">
+          <div className="h-[60px] shrink-0 flex items-center gap-2 px-3 border-b border-neutral-100">
+            <button
+              onClick={() => setSearchOverlayOpen(false)}
+              aria-label={t('common.close')}
+              className="w-11 h-11 shrink-0 flex items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100"
+            >
+              <XIcon size={20} />
+            </button>
+            <div className="relative flex-1">
+              <SearchIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                autoFocus
+                aria-label={t('banner.searchLabel')}
+                placeholder={t('banner.searchPlaceholder')}
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    submitSearch();
+                    setSearchOverlayOpen(false);
+                  }
+                }}
+                className="w-full h-10 pl-8 pr-2 rounded-md border border-neutral-200 bg-[#F0F4F8] text-sm text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:bg-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

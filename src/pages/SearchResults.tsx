@@ -13,7 +13,6 @@ import {
   SearchIcon,
   XIcon
 } from 'lucide-react';
-import { LeftRail } from '../components/LeftRail';
 import { statusChipClass } from '../components/documentStatusColors';
 import { useBriefcase } from '../contexts/BriefcaseContext';
 // [API] G19:POST /workspaces/{wsId}/search — served over HTTP (MSW in the prototype).
@@ -369,7 +368,6 @@ export function SearchResults() {
 
   return (
     <div data-component="page-shell" className="h-[calc(100vh-60px)] mt-[60px] bg-[var(--main-bg-color)] overflow-hidden p-4">
-      <LeftRail activeItem="search" onItemClick={() => {}} />
 
       <main className="ml-[var(--left-rail-width,88px)] h-full overflow-hidden">
         <div data-component="page-layout" className="flex h-full w-full flex-col gap-4 overflow-hidden">
