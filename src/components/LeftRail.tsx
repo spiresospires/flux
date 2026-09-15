@@ -85,6 +85,17 @@ export function LeftRail() {
           ${isActive || (isSettings && isColorCustomizerOpen) ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-neutral-700 hover:bg-[#F0F4F8]'}
           ${isFocused ? 'ring-2 ring-[#0461BA] ring-offset-1' : ''}
         `}
+        // Explicit name rather than relying on the label text: at tablet
+        // portrait and on a collapsed rail the label is visually hidden, and a
+        // name that survives only by CSS is one stylesheet edit away from
+        // vanishing. `navigation.briefcaseCount` is already a complete name
+        // ("Briefcase, 8 documents"), so it replaces the label rather than
+        // being appended to it — that keeps what the badge was announcing.
+        aria-label={
+          item.id === 'briefcase' && briefcaseCount > 0
+            ? t('navigation.briefcaseCount', { count: briefcaseCount })
+            : item.label
+        }
         aria-current={isActive ? 'page' : undefined}
       >
         {isActive &&

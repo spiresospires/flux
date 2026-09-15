@@ -1,6 +1,38 @@
 # Responsive architecture
 
-Status: **proposal**, 2026-08-16. No code changed.
+Status: **partially implemented.** Last verified against the code 2026-09-15.
+
+> ## Implementation status — read this before using any file:line below
+>
+> This document was written as a proposal on 2026-08-16 and said "no code changed". That is no
+> longer true, and **many of its file:line references are stale** — files have grown, shrunk and
+> been rewritten since. Treat every citation as a hint, not an address: grep for the symbol.
+>
+> **Landed on master** (2026-08-25, commits `cdde096`, `bbf5dc5`, `d3b6b72`, `960733b`):
+> viewport classification store; pluggable Apryse viewer backend; phone folder/filter sheet;
+> `AppShell` layout route with `BottomTabBar`/`NavDrawer`; `RequiresViewport` route guard.
+>
+> **Phase 0 is complete.** Every bullet in its list below is done, including the two that this
+> document still describes as outstanding (the viewer close button, and a `touchAction: 'none'`
+> on the column resizer that no longer exists anywhere in `src/`).
+>
+> **Phase 1 is complete** as of 2026-09-15, though not as originally scoped — see §12.
+>
+> **Phases 2 and 4 are partly landed**; Phase 3 (tables) is untouched.
+>
+> ### Decisions that supersede the text below
+>
+> | # | Decision | Where it lands |
+> |---|---|---|
+> | P1 | **Laptop/large monitor is the design centre.** Document Controllers are office-based ~90% of the time. Tablets and phones must be *functional*, not equal. | Scope of every phase |
+> | P2 | **A row of buttons that does not fit collapses into a three-dot overflow menu.** The standard answer to crowding, chosen over hiding or wrapping. | §7, §9 |
+> | P3 | **Phone document list shows Title · Rev · Status · Date.** Settles the §13 open question; recency was chosen over the reference code. | §9 |
+> | P4 | **Markup and redlining are NOT gated off on touch.** §10 says to disable them on any coarse pointer. That is wrong: annotation is Apryse's, not ours, and Apryse ships a Mobile SDK for exactly this. Gate on *which viewer backend is active*, never on pointer type or width. | §10 |
+> | P5 | **Activities (RFI, TQ, Formal Review + decision codes) is a planned product area** that must work on mobile. It does not exist in FLUX yet. Leave room for it in primary navigation rather than fitting navigation to today's feature set. | §6 |
+> | P6 | **The JS tier uses `matchMedia`, not `window.innerWidth`.** Reverses §2. See "Tier 2" there for why — do not revert it. | §2 |
+>
+> *FLUX is the internal Idox project name for this user-experience work. The product is
+> **FusionLive**.*
 
 Companion to `ARCHITECTURE.md`. Covers how FLUX moves from a fixed ~1280px desktop shell to
 full tablet-landscape support, usable tablet portrait, and core mobile workflows.
@@ -28,7 +60,7 @@ against them.
 | D3 | **Bottom tab bar** | `Documents · Search · Flint · Briefcase · More`. Five slots, all filled. |
 | D4 | **Gated routes** | `/design-system` only. Automatic Distribution and the Packages wizard **must be made to work** at tablet portrait and phone. |
 | D5 | **Touch targets** | Grow controls, not rows. Checkboxes and icon buttons to 44px on coarse pointers; row padding rises only slightly. |
-| D6 | **Narrow column set** | Reference, Title, Rev, Status. |
+| D6 | **Narrow column set** | ~~Reference, Title, Rev, Status.~~ **Title · Rev · Status · Date** — superseded by P3 (2026-09-15). Recency was chosen over the reference code. |
 | D7 | **iPad Mini portrait (744px)** | Phone layout. Boundary stays at Tailwind's 768px. |
 | D8 | **Offline** | Not a web concern — see §0b. |
 | D9 | **Phone web is fully supported** | FLUX in mobile Safari/Chrome outside the native app must work. The web layer owns the complete phone experience; the wrapper only adds download. |
@@ -142,21 +174,48 @@ setPointerCapture on el  = undefined
 window.innerWidth        = 1024
 ```
 
-`innerWidth` and `addEventListener` are implemented. Choosing them sidesteps the problem rather
-than stubbing around it — no `setupFiles`, no `vitest.config.ts` change, no new exposure to the
-documented Windows worker-start flake.
+> **⚠️ REVERSED 2026-09-15 (decision P6). The paragraphs above are kept as history — do not
+> implement them, and do not revert the code back to them.**
+>
+> `src/shell/viewportStore.ts` now uses **`matchMedia` as the primary source**, fed the query
+> strings exported from `viewport.ts`, which are character-identical to the `@media` blocks in
+> `index.css`. `classifyViewport(window.innerWidth)` survives only as a capability-guarded
+> fallback.
+>
+> **Why the jsdom argument did not hold.** Every benefit it claimed was either non-existent or
+> equally available to `matchMedia`: there is no `setupFiles` entry to change; the worker-start
+> flake is gated per test *file*, so no new file means no new exposure; `viewportStore.ts` is
+> covered by no test under either design; and the repo already ships `matchMedia` in production at
+> `FlintIcon.tsx` behind `?.`. The decision was justified against a cost that was never going to
+> be paid.
+>
+> **The real defect it fixes.** `innerWidth` is integer-rounded; `@media` evaluates the
+> *fractional* CSS viewport width. The two tiers therefore compared in different numeric domains
+> and could settle on opposite sides of a boundary and **stay there** — reachable through browser
+> zoom and Windows 125%/150% display scaling, which is ordinary hardware here. Mirroring the
+> breakpoint *numbers* could never fix that; only moving the JS predicate into the CSS engine
+> could. The `@media` blocks now end in `.98` for the same reason: `max-width: 767px` is not the
+> complement of Tailwind's `min-width: 768px`, so a 767.5px viewport matched neither tier.
+>
+> **The decisive forward reason.** Several remaining items in §9 and §10 are *pointer-triggered
+> unmounts*, and §2's own opening line is that CSS cannot unmount a component. `window.innerWidth`
+> cannot observe pointer type at all. Keeping it would have deferred this same question by one
+> phase to a query with no width-shaped fallback.
+>
+> **What must not be lost if anyone touches this again:** the single module-level store with one
+> atomic mutation before any subscriber is notified; the equality guard (a single boundary crossing
+> fires *two* `change` events, one query going false and one true); the primitive-string snapshot
+> `useSyncExternalStore` requires; module-load initialisation plus the re-read on first bind; and
+> the capability guard — the module is evaluated at import time by a provider that wraps the whole
+> app, so an unguarded `matchMedia` call is a white screen, not a degraded layout.
+>
+> **Do NOT add a global `matchMedia` stub to vitest.** framer-motion probes `window.matchMedia` and
+> then calls the *deprecated* `addListener`, so a modern-only stub throws the moment any jsdom test
+> mounts a motion component — and 14 files in `src/` import framer-motion.
 
-```ts
-// src/shell/viewport.ts — pure, tested in the cheap node environment
-export type ViewportClass = 'phone' | 'tablet-portrait' | 'tablet-landscape' | 'desktop';
-
-export function classifyViewport(width: number): ViewportClass {
-  if (width < 768)  return 'phone';
-  if (width < 1024) return 'tablet-portrait';
-  if (width < 1280) return 'tablet-landscape';
-  return 'desktop';
-}
-```
+The pure mapping functions still live in `src/shell/viewport.ts` and are still tested in the cheap
+`node` environment with zero jsdom exposure — `classifyFromMatches` for the live path,
+`classifyViewport` for the fallback, plus a tripwire test pinning the query strings to `index.css`.
 
 Three ways to get the store wrong:
 
@@ -474,9 +533,12 @@ The obvious fix is Pointer Events plus `setPointerCapture`. **Recommend against 
 only widens the *column* resizer to 18px, and a 12px drag strip is poor touch UX regardless.
 Replace with **discrete snap widths** on touch tiers — better UX, no pointer capture, pure function.
 
-> Live bug: `DocumentBrowser.tsx:3002` sets `touchAction: 'none'` on the column resizer, paired
-> with `onMouseDown`. The strip suppresses native panning while providing no drag — a touch near a
-> column edge does nothing *and* cannot scroll the table. Only `touch-action` in `src/`.
+> ~~Live bug: `DocumentBrowser.tsx:3002` sets `touchAction: 'none'` on the column resizer.~~
+> **FIXED 2026-09-15.** `touchAction` now has zero occurrences in `src/`. The residual issue is
+> different and still worth knowing: the resizer is mouse-only (`onMouseDown`, no touch or pointer
+> equivalent), and the coarse-pointer rule used to *widen* it to 18px — enlarging a target that
+> cannot be operated by finger, over roughly half the adjacent column-filter button. It is now
+> `display: none` on touch-only devices until the snap-width work below exists.
 
 ### Framer Motion: the variant swap double-mounts
 
@@ -713,10 +775,20 @@ with one lifecycle. Two maintained viewers would mean two SDK instances and two 
 > `<img>` reload. With a real SDK mounted it is a full teardown and re-init mid-read. Accept it and
 > record it as a constraint, rather than building portal machinery against a mock.
 
-**Out of scope on any coarse pointer:** markup and redlining, the layer list, precise zoom,
+**Out of scope on any coarse pointer:** ~~markup and redlining,~~ the layer list, precise zoom,
 side-by-side compare, the side-panel switcher. An A1 drawing fit to a 375px canvas is ~1.6mm per CSS
 pixel. Gate on **pointer type, not width** — a 1024px tablet is wide enough to look capable and is
 exactly where the bad decision gets made.
+
+> **⚠️ Markup and redlining struck out per decision P4 (2026-09-15).** Annotation is **not ours to
+> gate**. FusionLive delegates it to **Apryse**, and Apryse ships a Mobile SDK precisely so that
+> annotation works on touch — `src/viewer/apryseNativeViewerBackend.ts` already exists for it.
+> Disabling markup on coarse pointers would switch off a capability the vendor supplies.
+>
+> The correct gate is **which viewer backend is active**, never pointer type and never width.
+> `ViewerBackend` already carries a `supportsLiveMarkup` flag for exactly this, and
+> `selectViewerBackend.ts` chooses the backend by capability detection on the host — browser vs the
+> FusionLive native shell. FLUX's job is the hooks, not the tools.
 
 What remains on a phone is a complete task: see the drawing, read review comments, confirm the
 revision, download, close.
@@ -752,15 +824,52 @@ revision, download, close.
 
 Each phase ships something. None blocks on the next.
 
-**Phase 0 — unblock** *(no visible change, one P1 fix)*
-- Delete `ShellLayoutContext`'s `setProperty`; declare `--left-rail-width` in `index.css :root`.
-- Point `LeftRail` and `BrandBanner`'s hardcoded `88`s at the variable.
-- **Add a 44px close button to the viewer** — it is a trap on narrow screens today.
-- Remove the orphaned `touchAction: 'none'` on the column resizer.
-- Add `--max-warnings 0` to the lint script as its *own* commit, if that gate is meant to be real.
-- Resolve ownership of the two dead panel components. Re-measure the test count; correct the docs.
+**Phase 0 — unblock** — ✅ **COMPLETE**
+- ✅ Delete `ShellLayoutContext`'s `setProperty`; declare `--left-rail-width` in `index.css :root`.
+- ✅ Point `LeftRail` and `BrandBanner`'s hardcoded `88`s at the variable.
+- ✅ **Add a 44px close button to the viewer.**
+- ✅ Remove the orphaned `touchAction: 'none'` on the column resizer.
+- ✅ Add `--max-warnings 0` to the lint script (2026-09-15; the lint baseline was already zero).
+- ⚠️ Dead panel components: there are **three**, not two — `MetadataPanel.tsx`,
+  `RelationshipsPanel.tsx` and `ClipboardPanel.tsx` are all unimported. Ownership still unresolved.
+  Test count as of 2026-09-15: **204 tests across 12 files** (every earlier number in this document
+  is stale).
 
-**Phase 1 — tablet portrait, CSS only** *(ships "usable", zero page edits)*
+**Phase 1 — tablet portrait** — ✅ **COMPLETE 2026-09-15**
+
+> **"CSS only, zero page edits" was never achievable** and should not be used as an acceptance
+> criterion. The grid fixes, the shell-height fixes and the Leaflet hook are all `.tsx` edits. The
+> honest phase boundary is **"no new state, no new components"**, which this work did hold to.
+
+- ✅ The `@media` block and the icon-only rail rule paired with a 44px min-height.
+- ✅ `100vh` → `100svh` in the shared `page-shell` rule *(landed early, inside `960733b`)*.
+- ✅ **The 32px shell-height error.** Four elements hardcoded `calc(100vh - 92px)` — 60px banner
+  plus 32px of padding that flush view zeroes — so each came up 32px short on *every* viewport,
+  desktop included. The document listed three of them; there is a fourth, `Chat.tsx`. All four now
+  read `--shell-content-h`, defined once in `:root`, so they follow `--banner-h` and
+  `--bottom-nav-h` automatically instead of drifting apart again.
+- ✅ **The phone bottom-nav reserve.** `padding: 0 !important` in the flush-view rule was
+  overriding the base rule's `padding-bottom`, so the reserve had never applied to anyone and the
+  56px tab bar covered the bottom of every page — unreachable, since five of the seven roots are
+  `overflow-hidden`.
+- ✅ **Leaflet `invalidateSize()`** via a `ResizeObserver` on the map container.
+- ✅ **Rail buttons keep an accessible name in icon-only mode.** Hiding the label with
+  `display: none` removed the *only* source of each button's name; they are now named explicitly,
+  with the briefcase count preserved.
+- ⚠️ **`--touch-btn-min` is declared but has zero consumers** — deliberately. See the warning below
+  before wiring it up.
+- ⬜ Unprefixed grids and the `col-span-2` → `col-span-full` ordering trap: **not done.**
+- ⬜ Revealing hover-gated row actions where hover does not exist: **not done.**
+
+> **⚠️ `pointer: coarse` is not a stand-in for "small screen."** It matches on the *primary
+> pointing device*, so a touchscreen laptop, a Surface or a touch-enabled all-in-one reports coarse
+> at 1920px — ordinary hardware in a site office, and desktop is the design centre (P1). Any **size**
+> rule placed under bare `pointer: coarse` will inflate every button on a full monitor. Size rules
+> now live under `@media (pointer: coarse) and (hover: none)`; `hover: none` still catches a
+> landscape iPad while excluding a touchscreen laptop with a trackpad. Verify on real touchscreen
+> hardware — DevTools device emulation forces coarse and will not reproduce the hazard.
+
+**Phase 1 as originally written** *(kept for reference)*
 - The `@media` block: rail to 56px, icon-only rule paired with 44px min-height.
 - `100vh` → `100svh` in the shared `page-shell` rule plus the three outliers. Fold in the 32px
   Dashboard discrepancy.
@@ -824,11 +933,12 @@ Each phase ships something. None blocks on the next.
 
 ### Quick wins
 
-1. **The four-line `@media` block.** Tablet portrait, all eight pages, zero page edits.
-2. **One CSS rule revealing hover-gated row actions on coarse pointers** — restores multi-select.
-3. **The viewer's close button.** Converts an unexitable screen into a usable one.
-4. **`100vh` → `100svh` in one shared rule** — nine surfaces and a live desktop bug at once.
-5. **Removing the orphaned `touchAction: 'none'`.**
+1. ✅ **The four-line `@media` block.** Tablet portrait, all eight pages.
+2. ⬜ **One CSS rule revealing hover-gated row actions where hover does not exist** — restores
+   multi-select. Still outstanding; gate it on `hover: none`, not bare `pointer: coarse`.
+3. ✅ **The viewer's close button.** Converts an unexitable screen into a usable one.
+4. ✅ **`100vh` → `100svh` in one shared rule.**
+5. ✅ **Removing the orphaned `touchAction: 'none'`.**
 
 ### Order
 

@@ -877,7 +877,7 @@ export function Chat() {
       className="fixed inset-x-0 top-[60px] bottom-0 bg-[var(--main-bg-color)] z-10 flex pl-[var(--left-rail-width,88px)]">
 
       <div data-component="page-shell" className="flex-1 w-full p-4">
-        <div data-component="page-layout" className="w-full flex items-stretch gap-4 h-[calc(100vh-92px)]">
+        <div data-component="page-layout" className="w-full flex items-stretch gap-4 h-[var(--shell-content-h)]">
 
           {/* Chat history sidebar */}
           <ChatHistorySidebar

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/prewarm-test-env.mjs && vitest run",
     "test:watch": "node scripts/prewarm-test-env.mjs && vitest",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings 0",
     "check": "npm run typecheck && npm run lint && npm run test",
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "preview": "npx vite preview"

@@ -804,7 +804,7 @@ export function Dashboard() {
           // (z-index 400+) cannot float above the top banner or its dropdowns.
           <section
             data-component="content-panel"
-            className="relative z-0 bg-white rounded-xl shadow-md overflow-hidden h-[calc(100vh-92px)] flex flex-col"
+            className="relative z-0 bg-white rounded-xl shadow-md overflow-hidden h-[var(--shell-content-h)] flex flex-col"
             aria-label="Project map view"
           >
             {viewToolbar}
@@ -814,7 +814,7 @@ export function Dashboard() {
             </div>
           </section>
         ) : (
-        <div data-component="page-layout" className="grid grid-cols-[280px_minmax(0,1fr)] gap-4 min-h-[calc(100vh-92px)] items-start">
+        <div data-component="page-layout" className="grid grid-cols-[280px_minmax(0,1fr)] gap-4 min-h-[var(--shell-content-h)] items-start">
           <section data-component="left-panel" className="bg-white rounded-xl shadow-md overflow-hidden h-fit sticky top-0">
             <div className="divide-y divide-neutral-100">
               <button
@@ -855,7 +855,7 @@ export function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className={`bg-white rounded-xl shadow-md overflow-hidden ${
-              showMap ? 'relative z-0 h-[calc(100vh-92px)] flex flex-col' : 'min-h-[480px]'
+              showMap ? 'relative z-0 h-[var(--shell-content-h)] flex flex-col' : 'min-h-[480px]'
             }`}
           >
             {viewToolbar}

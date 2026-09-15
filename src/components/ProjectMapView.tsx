@@ -121,6 +121,26 @@ function MapViewportController({ focusedProjectId }: { focusedProjectId?: (typeo
   return null;
 }
 
+// Leaflet caches the map's pixel size and only re-reads it on a WINDOW resize.
+// This container is sized by CSS, and several things change its size without
+// the window changing at all: the left rail narrowing at a breakpoint, the
+// properties panel opening, the map being expanded. Left stale, Leaflet keeps
+// painting at the old size — tiles stop short of one edge and clicks resolve to
+// the wrong coordinates, which reads as "the map is broken" rather than "the
+// map needs telling". A ResizeObserver on the container is the one signal that
+// catches all of those cases. See docs/responsive-architecture.md §12, Phase 1.
+function MapResizeController() {
+  const map = useMap();
+
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize({ animate: false }));
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+
+  return null;
+}
+
 // Right-click anywhere on the map opens a small menu to copy that point's
 // coordinates. `containerPoint` is relative to the map element, which is the
 // same size/origin as the wrapper, so it doubles as the menu's pixel position.
@@ -247,6 +267,7 @@ export function ProjectMapView({ focusedProjectId = null }: ProjectMapViewProps)
         aria-label="Project locations map"
       >
         <MapViewportController focusedProjectId={focusedProjectId} />
+        <MapResizeController />
         <MapContextMenuController onOpen={(menu) => { setCoordsCopied(false); setContextMenu(menu); }} onClose={closeContextMenu} />
         {basemap === 'hybrid' ? (
           // Satellite base + transparent roads + transparent labels, bottom→top.

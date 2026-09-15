@@ -64,6 +64,17 @@
   --banner-h: 60px;
   --bottom-nav-h: 0px;
   --card-min-w: 220px;
+
+  /* Height of a page shell, and the usable area inside one. Pages that need a
+     full-height child read these rather than re-deriving the arithmetic: the
+     old `calc(100vh - 92px)` open-coded on four elements assumed 60px of banner
+     plus 32px of shell padding, but flush view zeroes that padding, so those
+     elements came up 32px short on EVERY viewport — a dead strip of page
+     background at the bottom of the Dashboard and Chat. Custom properties
+     resolve at use time, so these stay correct when --banner-h or
+     --bottom-nav-h change at a breakpoint. */
+  --shell-h: calc(100svh - var(--banner-h, 60px));
+  --shell-content-h: calc(var(--shell-h) - var(--bottom-nav-h, 0px));
   /* Touch-target floor. 0 by default (fine pointer); raised under
    * `pointer: coarse` below. Deliberately separate from --row-btn (the
    * density scale) — density is a taste preference about text rhythm,
@@ -266,13 +277,20 @@ html[data-density='compact'] {
 }
 
 /* ── Shell responsive breakpoints (docs/responsive-architecture.md §3/§4) ──
-   Widths mirror Tailwind's UNMODIFIED default md/lg boundaries (768/1024) so
-   this tier and the existing `md:`/`lg:`/`xl:` classes elsewhere in the app
-   can never disagree. Do not add `theme.screens` to tailwind.config.js. */
-@media (max-width: 1023px) {
+   THESE QUERY STRINGS ARE CANONICAL. src/shell/viewportStore.ts hands them to
+   matchMedia character-for-character, so both tiers are evaluated by the same
+   engine on the same value and cannot disagree. Change one, change the other,
+   in the same commit — a paraphrase silently reintroduces drift.
+
+   The `.98` endings are deliberate. Tailwind's unmodified md/lg are min-width
+   768/1024, and `max-width: 767px` is NOT their complement: a viewport of
+   767.5px — reachable via browser zoom and Windows 125%/150% display scaling —
+   would match neither, leaving an element with no rule from either tier.
+   Do not add `theme.screens` to tailwind.config.js. */
+@media (max-width: 1023.98px) {
   :root { --left-rail-width: 56px; }
 }
-@media (max-width: 767px) {
+@media (max-width: 767.98px) {
   :root {
     --left-rail-width: 0px;
     --bottom-nav-h: 56px;
@@ -286,7 +304,21 @@ html[data-density='compact'] {
    below the 44px touch floor, on exactly the device class where touch is
    guaranteed. */
 html[data-nav-mode='rail-icon'] [data-component='leftrail'] [data-part='rail-label'] {
-  display: none;
+  /* Visually hidden rather than `display: none`. This label text IS the
+     button's accessible name — LeftRail's buttons carry no aria-label or title
+     (see LeftRail.tsx) — so removing it from the accessibility tree left every
+     rail button unnamed for screen-reader users at exactly the tier where the
+     rail goes icon-only. An aria-label on the button would fix the name but
+     discard the briefcase count, which composes into it from the badge.
+     Out of flow, so the button collapses exactly as `display: none` made it and
+     the paired min-height below still restores the 44px floor. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 html[data-nav-mode='rail-icon'] [data-component='leftrail'] button {
   min-height: 44px;
@@ -397,7 +429,7 @@ html[data-view='flush'][data-appearance='dark'] [data-component='leftrail'] .bor
    * merely off-screen. `svh` (not `dvh`) because this is a fixed shell —
    * `dvh` reflows continuously as the toolbar collapses, which reads as
    * jitter on every scroll. See docs/responsive-architecture.md §4. */
-  height: calc(100svh - var(--banner-h, 60px));
+  height: var(--shell-h);
   padding-bottom: calc(var(--layout-gap) + var(--bottom-nav-h, 0px));
 }
 
@@ -411,6 +443,13 @@ html[data-view='flush'][data-appearance='dark'] [data-component='leftrail'] .bor
 html[data-view='flush'] [data-component='browser-shell'],
 html[data-view='flush'] [data-component='page-shell'] {
   padding: 0 !important;
+  /* The shorthand above also zeroes the bottom-nav reserve set in the base rule,
+     so restore it explicitly — `padding: 0 !important` beat it, which meant the
+     reserve had never applied to anyone. Without this the phone tab bar (56px,
+     fixed, z-30) sits on top of the last 56px of every page, and five of the
+     seven roots are `overflow-hidden`, so that strip is unreachable rather than
+     merely scrolled past. No effect above 767.98px: --bottom-nav-h is 0px there. */
+  padding-bottom: var(--bottom-nav-h, 0px) !important;
 }
 
 /* browser-layout = DocumentBrowser  |  page-layout = Dashboard, Chat, Search, Packages */
@@ -535,9 +574,32 @@ html[data-view='flush'][data-appearance='dark'] [data-component='topbar'] .track
   background-color: rgba(4,97,186,0.12);
 }
 
-/* Slightly larger hit target on small screens */
-@media (pointer: coarse) {
-  .column-resizer { width: 18px !important; }
+/* ── Touch input ───────────────────────────────────────────────────────────
+   `pointer: coarse` alone is NOT a stand-in for "small screen" — it matches on
+   the PRIMARY pointing device, so a touchscreen laptop, a Surface or a
+   touch-enabled all-in-one reports coarse at 1920px. Those are ordinary
+   hardware in the site offices this ships into, and desktop is the design
+   centre, so any SIZE rule placed under bare `pointer: coarse` would inflate
+   every button on a full monitor.
+
+   `hover: none` is the precise discriminator: it is true only where hovering
+   genuinely cannot happen, so it still catches a landscape iPad while
+   excluding a touchscreen laptop that also has a trackpad. Size rules go here;
+   put input-semantics rules that should apply wherever touch is *available*
+   under bare `pointer: coarse` instead. */
+@media (pointer: coarse) and (hover: none) {
+  /* The column resizer is mouse-only — `onMouseDown` at DocumentBrowser.tsx
+     with no touch or pointer equivalent — so it cannot be operated here at all.
+     It used to be WIDENED to 18px on coarse pointers, which only enlarged a
+     dead target sitting over roughly half the 12px column filter button next to
+     it. Hidden until touch column sizing exists (docs/responsive-architecture.md
+     §9); the columns stay readable, they just aren't drag-resizable by finger. */
+  .column-resizer { display: none; }
+
+  /* Touch-target floor. Currently declared but deliberately not yet consumed:
+     wiring it into a broad `button, [role='button']` rule is the regression the
+     block comment above warns about, and it needs a per-surface pass rather
+     than one global selector. */
   :root { --touch-btn-min: 2.75rem; }
 }
 

@@ -3040,7 +3040,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                         <div
                                           onMouseDown={(e) => startResize(e, col.key)}
                                           className="absolute top-0 right-0 h-full w-4 column-resizer"
-                                          style={{ zIndex: 40, touchAction: 'none' }}
+                                          style={{ zIndex: 40 }}
                                         />
                                       </th>
                                       {col.key === 'id' && (

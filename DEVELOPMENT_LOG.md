@@ -834,3 +834,91 @@ Verified in the browser across all six view × appearance combinations: rail bac
 **Not verified end-to-end in a running browser.** The mechanism is a synchronous derive with no async dependency, so there is no window for it to be wrong, but a live cross-workspace deep link (watching the network panel for the absent 404) has not been re-run since the pane was unavailable. Cheap to confirm when it is open again: load `/documents?ws=hedland&doc=<a hedland doc>` from a session persisted to a different workspace and check that no `/workspaces/marra-ridge/documents/…` request appears.
 
 **Gates:** typecheck clean, lint clean across `src` (0/0), 194/194 tests.
+
+---
+
+## 39. Responsive Shell: the 2026-08-25 Commits, and Phase 0/1 Completed (2026-09-15)
+
+**Context.** Five commits landed on 2026-08-25 (`4209049` the proposal, `cdde096` viewport store,
+`bbf5dc5` pluggable Apryse viewer backend, `d3b6b72` phone folder/filter sheet, `960733b` AppShell +
+phone nav) and were never logged here — §38 was the last entry. This entry covers them and the
+Phase 0/1 work completed on 2026-09-15. `docs/responsive-architecture.md` has been brought back in
+line with the code at the same time; it had still described itself as an unimplemented proposal.
+
+**Viewport detection moved from `window.innerWidth` to `matchMedia` (reverses §2 of the proposal).**
+The original rationale was that jsdom has no `matchMedia`, so `innerWidth` "sidesteps the problem
+rather than stubbing around it". Every benefit in that claim turned out to be non-existent or
+equally available to `matchMedia`: there is no `setupFiles` entry to change, the vitest worker-start
+flake is gated per test *file* (so no new file means no new exposure), `viewportStore.ts` is covered
+by no test under either design, and `FlintIcon.tsx` already ships `matchMedia` in production behind
+`?.`. The decision had been justified against a cost that was never going to be paid.
+
+The defect it actually fixes is a numeric-domain mismatch: `innerWidth` is integer-rounded while
+`@media` evaluates the fractional CSS viewport width, so the two tiers could settle on opposite
+sides of a boundary and stay there — reachable through browser zoom and Windows 125%/150% display
+scaling. Mirroring the breakpoint *numbers* cannot fix that. `index.css` now ends its shell queries
+in `.98` (`max-width: 767px` is not the complement of Tailwind's `min-width: 768px` — a 767.5px
+viewport matched neither tier), and `viewport.ts` exports those exact strings for `matchMedia`, with
+a tripwire test pinning them. `classifyViewport(innerWidth)` survives only as a capability-guarded
+fallback — the guard is mandatory, not defensive, because the module is evaluated at import time by
+a provider wrapping the whole app, so an unguarded call would be a white screen. A `recompute()` on
+first bind closes the gap between the module-load snapshot and the first subscriber mounting.
+
+**Do not add a global `matchMedia` stub to vitest.** framer-motion probes `window.matchMedia` then
+calls the *deprecated* `addListener`; a modern-only stub throws the moment any jsdom test mounts a
+motion component, and 14 files in `src/` import framer-motion.
+
+**The 32px shell-height error.** Four elements hardcoded `calc(100vh - 92px)` — 60px banner plus
+32px of page padding — but flush view zeroes that padding, so each came up 32px short on *every*
+viewport including desktop, leaving a dead strip of page background. The proposal named three sites
+(all on Dashboard); there is a fourth on `Chat.tsx`, so anyone implementing from the document alone
+would have shipped Chat still broken. All four now read `--shell-content-h`, defined once in
+`:root`, so they track `--banner-h` and `--bottom-nav-h` instead of drifting apart again.
+
+**The phone bottom-nav reserve had never applied to anyone.** The base `page-shell` rule sets
+`padding-bottom: calc(var(--layout-gap) + var(--bottom-nav-h))`, but the flush-view rule's
+`padding: 0 !important` shorthand overrode it — and flush is the only view since §31. The 56px tab
+bar therefore covered the last 56px of every page, unreachable rather than merely scrolled past,
+since five of the seven page roots are `overflow-hidden`. Measured 0px before, 56px after.
+
+**`pointer: coarse` is not a stand-in for "small screen".** It matches on the primary pointing
+device, so a touchscreen laptop or Surface reports coarse at 1920px. Wiring `--touch-btn-min` into a
+broad `button` rule under bare `pointer: coarse` would have inflated every control on a full
+monitor — a regression on the design centre, delivered by a rule whose own note claimed desktop
+could not be affected. Size rules now sit under `@media (pointer: coarse) and (hover: none)`, which
+still catches a landscape iPad while excluding a touchscreen laptop with a trackpad. `--touch-btn-min`
+remains deliberately unconsumed; wiring it needs a per-surface pass, not one global selector.
+
+**Rail buttons were unnamed for screen readers in icon-only mode.** `display: none` on the label
+removed the only source of each button's accessible name. Now named explicitly via `aria-label`,
+with `navigation.briefcaseCount` used verbatim for the briefcase (it is already a complete name,
+"Briefcase, N documents") so the count is not discarded. The label is also visually hidden rather
+than `display: none`. Note the Browser pane's accessibility tree does not report names for these
+buttons *even when the label is fully visible at desktop*, so it cannot be used to verify this —
+confirm on a real screen reader.
+
+**Leaflet `invalidateSize()`** via a `ResizeObserver` on the map container: the container is sized by
+CSS (rail narrowing at a breakpoint, panel opening, map expanding), none of which fire a window
+resize, so Leaflet kept painting at its old size — tiles stopping short and clicks resolving to the
+wrong coordinates.
+
+**Also:** removed the orphaned `touchAction: 'none'` from the mouse-only column resizer (it
+suppressed native panning while providing no drag); the resizer is now hidden on touch-only devices
+rather than *widened* over the adjacent filter button. Added `--max-warnings 0` to the lint script —
+the baseline was already zero, so this only makes it enforced.
+
+**A correction worth recording.** An adversarial review reported the phone tab bar rendering at zero
+height as a live bug, and it was relayed to the PM as confirmed. Testing showed the bar renders
+correctly at 56px; the failure needed a fractional-pixel disagreement band that could not be
+reproduced. The `matchMedia` change closes that band by construction, so the fix stands — but the
+finding was a hypothesis, not an observation. Two measurement traps produced false readings the same
+day: probing the DOM before the app had mounted (`src/index.tsx` starts MSW *then* renders, so a
+probe straight after navigation sees an empty `#root` and reads as "blank page"), and assuming the
+Browser pane's `resize_window` fires `resize`/`matchMedia` events — measured, it fires **zero** of
+each, so live-resize behaviour cannot be exercised in that harness at all. Verify each tier with a
+fresh load at that size instead.
+
+**Gates:** typecheck clean, lint clean under the stricter `--max-warnings 0`, **204/204 tests across
+12 files**. Verified in the browser at 375 / 800 / 1400 on a fresh dev server and a fresh tab: clean
+console, correct navigation per tier, both Dashboard map branches filling the shell with tiles
+painted, and column drag-resize still working with a mouse (171px → 261px for a 90px drag).

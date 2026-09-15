@@ -2,9 +2,10 @@ import { useSyncExternalStore } from 'react';
 import { getViewportServerSnapshot, getViewportSnapshot, subscribeViewport } from './viewportStore';
 import type { ViewportClass } from './viewport';
 
-/** The current viewport class, re-rendering only when it actually changes
- *  (not on every pixel of a resize). See viewportStore.ts for why this is
- *  `innerWidth`-based rather than `matchMedia`-based. */
+/** The current viewport class, re-rendering only when it actually changes —
+ *  never on a resize that stays inside one class. Backed by matchMedia against
+ *  the same query strings index.css uses, with an innerWidth fallback; see
+ *  viewportStore.ts for why it is built that way. */
 export function useViewportClass(): ViewportClass {
   return useSyncExternalStore(subscribeViewport, getViewportSnapshot, getViewportServerSnapshot);
 }
