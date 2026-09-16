@@ -610,7 +610,7 @@ function ColumnHeaderDropdown({
         className={`shrink-0 rounded transition-all duration-150 ${
           hasFilter
             ? 'opacity-100 text-[#0461BA]'
-            : 'opacity-0 group-hover:opacity-35 hover:!opacity-80 focus-visible:opacity-80 text-neutral-500'
+            : 'touch-reveal opacity-0 group-hover:opacity-35 hover:!opacity-80 focus-visible:opacity-80 text-neutral-500'
         }`}
       >
         <ListFilterIcon size={12} strokeWidth={hasFilter ? 2.5 : 1.5} />
@@ -1655,7 +1655,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             ariaLabel={isChecked ? t('documentBrowser.deselectDocument', { id: doc.id }) : t('documentBrowser.selectDocument', { id: doc.id })}
             // focus:opacity-100 matters for the keyboard-only path: an unchecked
             // box is hover-revealed, and Tab must not land on something invisible.
-            className={!isChecked ? 'opacity-0 group-hover:opacity-100 focus:opacity-100' : ''}
+            className={!isChecked ? 'touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100' : ''}
           />
         </td>
         {columns.map((col) => {
@@ -1703,7 +1703,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                             setOpenActionSubmenuKey(null);
                           }
                         }}
-                        className={`w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                        className={`w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center text-neutral-600 hover:bg-neutral-200 transition-colors ${openActionMenuId === doc.id ? 'opacity-100 bg-neutral-100' : 'touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100'
                           }`}
                         aria-label={t('documentBrowser.actionsFor', { id: doc.id })}
                       >
@@ -1717,7 +1717,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         }}
                         title={t('documentBrowser.askFlintAbout', { id: doc.id })}
                         aria-label={t('documentBrowser.askFlintAbout', { id: doc.id })}
-                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]"
+                        className="touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]"
                       >
                         <SparklesIcon size={14} />
                       </button>
@@ -1733,7 +1733,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         }}
                         title={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
                         aria-label={isInClipboard(doc.id) ? t('documentBrowser.removeFromClipboard', { id: doc.id }) : t('documentBrowser.addToClipboard', { id: doc.id })}
-                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
+                        className={`touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-[var(--row-btn)] h-[var(--row-btn)] rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
                           ? 'bg-neutral-100 text-neutral-700 opacity-100'
                           : 'text-neutral-600 hover:bg-neutral-200'
                           }`}
@@ -2842,7 +2842,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                         }}
                                         title={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
                                         aria-label={isInClipboard(doc.id) ? `Remove ${doc.id} from clipboard` : `Add ${doc.id} to clipboard`}
-                                        className={`opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-6 h-6 rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
+                                        className={`touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all w-6 h-6 rounded-md inline-flex items-center justify-center ${isInClipboard(doc.id)
                                           ? 'bg-neutral-100 text-neutral-700 opacity-100'
                                           : 'text-neutral-600 hover:bg-neutral-200'
                                           }`}>
@@ -2856,7 +2856,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                                         }}
                                         title={`Ask Flint about ${doc.id}`}
                                         aria-label={`Ask Flint about ${doc.id}`}
-                                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
+                                        className="touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-md inline-flex items-center justify-center text-[#0461BA] hover:bg-[#E8F1FB]">
                                         <SparklesIcon size={13} />
                                       </button>
                                       <span

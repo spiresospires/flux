@@ -114,7 +114,7 @@ export function ClipboardDropdown({
                         e.stopPropagation();
                         removeFromClipboard(doc.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-neutral-400 hover:text-red-600 hover:bg-red-50"
+                      className="touch-reveal opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-neutral-400 hover:text-red-600 hover:bg-red-50"
                       aria-label={`Remove ${doc.id} from clipboard`}
                     >
                       <XIcon size={13} />

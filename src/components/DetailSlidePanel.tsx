@@ -207,7 +207,7 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.documentId')} value={data.docId || data.objectId} icon={FileIcon} />
         <Field label={t('detailPanel.revision')} value={data.revision} />
         <Field label={t('detailPanel.author')} value={data.author} icon={UserIcon} />
@@ -255,7 +255,7 @@ function TransmittalDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.transmittalRef')} value={data.objectId.toUpperCase()} icon={SendIcon} />
         <Field label={t('detailPanel.recipient')} value={data.recipient} icon={UserIcon} />
         <Field label={t('detailPanel.issueDate')} value={data.issueDate ? new Date(data.issueDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
@@ -281,7 +281,7 @@ function ReviewDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.reviewRef')} value={data.objectId.toUpperCase()} icon={CheckCircleIcon} />
         <Field label={t('detailPanel.assignedTo')} value={data.assignedTo} icon={UserIcon} />
         <Field label={t('detailPanel.assignedBy')} value={data.assignedBy} icon={UserIcon} />
@@ -310,7 +310,7 @@ function WorkflowDetail({ data }: { data: DetailPanelData }) {
     : null;
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.workflowRef')} value={data.objectId.toUpperCase()} icon={GitBranchIcon} />
         <Field label={t('detailPanel.currentStep')} value={data.currentStep} />
         <Field label={t('detailPanel.progress')} value={progress != null ? t('detailPanel.stepsProgress', { completed: data.completedSteps ?? 0, total: data.totalSteps ?? 0 }) : undefined} />
@@ -349,7 +349,7 @@ function GenericDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.id')} value={data.objectId} />
         <Field label={t('detailPanel.project')} value={data.project} />
         {data.sharedBy && <Field label={t('detailPanel.sharedBy')} value={data.sharedBy} icon={UserIcon} />}

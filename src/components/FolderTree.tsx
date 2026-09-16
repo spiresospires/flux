@@ -121,7 +121,7 @@ export function FolderTree({
             {folder.name}
           </span>
           {/* focus-within (not focus) — reveals the actions when a child button is tabbed to */}
-          <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center shrink-0">
+          <div className="touch-reveal opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();

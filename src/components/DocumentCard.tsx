@@ -134,7 +134,7 @@ export function DocumentCard({ document, isHighlighted, onOpen }: DocumentCardPr
               alt={document.title}
               className="w-full h-full object-cover" />
           )}
-          <div className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity absolute top-2 right-2 flex items-center gap-1.5">
+          <div className="touch-reveal opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity absolute top-2 right-2 flex items-center gap-1.5">
             <button
               onClick={handleClipboardAdd}
               title={inClip ? `${document.id} is in clipboard` : `Add ${document.id} to clipboard`}

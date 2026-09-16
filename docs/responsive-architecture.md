@@ -16,7 +16,9 @@ Status: **partially implemented.** Last verified against the code 2026-09-15.
 > document still describes as outstanding (the viewer close button, and a `touchAction: 'none'`
 > on the column resizer that no longer exists anywhere in `src/`).
 >
-> **Phase 1 is complete** as of 2026-09-15, though not as originally scoped — see §12.
+> **Phase 1 is complete** as of 2026-09-15, though not as originally scoped — see §12. Its two
+> remaining items (the grid prefixes and the hover-reveal rule) landed 2026-09-16; the only thing
+> still parked inside Phase 1 is `--touch-btn-min`, which needs a per-surface pass.
 >
 > **Phases 2 and 4 are partly landed**; Phase 3 (tables) is untouched.
 >
@@ -832,8 +834,10 @@ Each phase ships something. None blocks on the next.
 - ✅ Add `--max-warnings 0` to the lint script (2026-09-15; the lint baseline was already zero).
 - ⚠️ Dead panel components: there are **three**, not two — `MetadataPanel.tsx`,
   `RelationshipsPanel.tsx` and `ClipboardPanel.tsx` are all unimported. Ownership still unresolved.
-  Test count as of 2026-09-15: **204 tests across 12 files** (every earlier number in this document
-  is stale).
+  Test count as of 2026-09-16: **196 tests across 13 files** (every earlier number in this document
+  is stale). The drop from 204 is not lost coverage: the FlintIcon rebuild (`f3c539c`) replaced
+  `flintGeometry.test.ts` with the smaller `flintArt.test.ts`, since the new mark is supplied path
+  data rather than geometry derived in code, and there is far less arithmetic left to assert.
 
 **Phase 1 — tablet portrait** — ✅ **COMPLETE 2026-09-15**
 
@@ -858,8 +862,36 @@ Each phase ships something. None blocks on the next.
   with the briefcase count preserved.
 - ⚠️ **`--touch-btn-min` is declared but has zero consumers** — deliberately. See the warning below
   before wiring it up.
-- ⬜ Unprefixed grids and the `col-span-2` → `col-span-full` ordering trap: **not done.**
-- ⬜ Revealing hover-gated row actions where hover does not exist: **not done.**
+- ✅ **Unprefixed grids and the `col-span-2` ordering trap** (2026-09-16). The span fixes landed
+  first, as the document warned they must. Not every `col-span-2` wanted `col-span-full`: in the
+  Packages wizard's `Field full` it did, because that genuinely means “span the row” and so holds
+  at any column count; but the two spans in the *three*-column main+sidebar layouts meant
+  “two thirds”, and became `lg:col-span-2` so they keep that proportion once three columns exist
+  and simply fill the single column below it. Grids prefixed: the four Packages wizard/detail
+  grids and `DetailSlidePanel`'s five metadata pair grids.
+  **Breakpoints are `md:`/`lg:`, never `sm:`** — `src/shell/viewport.ts` pins the tier
+  boundaries to Tailwind’s unmodified `md` (768) and `lg` (1024) precisely so prefixes and
+  `ViewportClass` cannot drift apart. `sm:` (640) is not a tier here, and using it would invent
+  a fourth boundary no other rule in the app observes. So pair grids stack below `md`, i.e.
+  exactly the phone tier, and the two three-column main+sidebar layouts stack below `lg`, since
+  three columns inside a tablet-portrait width would leave ~250px per column.
+  Deliberately left unprefixed, all verified rather than assumed: `DesignSystem.tsx` (two grids —
+  the route is behind `RequiresViewport min="desktop"`, so it never renders below desktop),
+  `ColorCustomizer` (a swatch pair grid — stacking only makes the picker taller),
+  `ProjectMapView` (inside a Leaflet popup, already narrow by construction), and
+  `RuleEditor` (Automatic Distribution admin — desktop intent, and pending the
+  `RequiresViewport` guard Phase 4 still owes the admin routes).
+- ✅ **Hover-gated controls revealed where hover cannot happen** (2026-09-16). `.touch-reveal`
+  in the `(pointer: coarse) and (hover: none)` block, opted into by 11 controls. The worst case
+  was exactly as predicted: `DocumentBrowser`’s row checkbox is hidden while unchecked, so there
+  was no way to *begin* a multi-select by finger. Also restored: the column filter button, the
+  row overflow menu, the open and clipboard row buttons in both table and card views, folder-tree
+  row actions, document-card actions, the clipboard remove button and the Chat conversation menu.
+  **Opt-in, not a blanket rule on `.group-hover:opacity-100`** — the panel and column resize
+  indicators use the same utility and are drag-only with no touch handler, so revealing them
+  would paint a permanent affordance over a target no finger can operate, which is the same
+  mistake hiding `.column-resizer` was meant to undo. Opt-in also forces new hover-gated code to
+  state its intent instead of being captured silently.
 
 > **⚠️ `pointer: coarse` is not a stand-in for "small screen."** It matches on the *primary
 > pointing device*, so a touchscreen laptop, a Surface or a touch-enabled all-in-one reports coarse
@@ -934,8 +966,10 @@ Each phase ships something. None blocks on the next.
 ### Quick wins
 
 1. ✅ **The four-line `@media` block.** Tablet portrait, all eight pages.
-2. ⬜ **One CSS rule revealing hover-gated row actions where hover does not exist** — restores
-   multi-select. Still outstanding; gate it on `hover: none`, not bare `pointer: coarse`.
+2. ✅ **Revealing hover-gated row actions where hover does not exist** — restores multi-select.
+   Landed 2026-09-16 as `.touch-reveal`, gated on `hover: none` as instructed. It took one rule
+   plus an opt-in class on 11 controls rather than one rule alone; see Phase 1 in §12 for why a
+   blanket rule would have revealed dead drag affordances too.
 3. ✅ **The viewer's close button.** Converts an unexitable screen into a usable one.
 4. ✅ **`100vh` → `100svh` in one shared rule.**
 5. ✅ **Removing the orphaned `touchAction: 'none'`.**

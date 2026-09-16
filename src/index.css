@@ -627,5 +627,26 @@ html[data-view='flush'][data-appearance='dark'] [data-component='topbar'] .track
      block comment above warns about, and it needs a per-surface pass rather
      than one global selector. */
   :root { --touch-btn-min: 2.75rem; }
+
+  /* Hover-gated controls: reveal them where hover cannot happen.
+
+     Row actions across the app are `opacity-0 group-hover:opacity-100`, which
+     on a touch device leaves them invisible AND unreachable forever. The worst
+     case was multi-select: the row checkbox in DocumentBrowser is hidden while
+     unchecked, so there was no way to begin a selection by finger at all.
+
+     This is opt-in (a class on each control) rather than a blanket rule on
+     `.group-hover\:opacity-100`, because not everything hidden behind hover is
+     an action worth showing. The panel/column resize indicators use the same
+     utility, and they are drag-only with no touch handler — revealing those
+     would paint a permanent affordance over a target that cannot be operated,
+     which is precisely the mistake `.column-resizer` above was hidden to undo.
+     Opt-in also means new hover-gated code has to state its intent instead of
+     being silently captured.
+
+     !important because the utility it overrides (`opacity-0`) has equal
+     specificity, and a media query adds none — so without it the winner would
+     depend on Tailwind emitting this file after its utilities layer. */
+  .touch-reveal { opacity: 1 !important; }
 }
 

@@ -796,7 +796,7 @@ function CreatePackageWizard({
 
       <div className="bg-white border border-neutral-200 rounded-lg p-6 mt-6">
         {step === 1 &&
-        <div className="grid grid-cols-2 gap-4 max-w-3xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
             <Field label={t('packages.packageReference')}><input value={details.reference} onChange={(e) => setDetails({ ...details, reference: e.target.value })} className={inputCls} /></Field>
             <Field label={t('packages.title')}><input value={details.title} onChange={(e) => setDetails({ ...details, title: e.target.value })} className={inputCls} /></Field>
             <Field label={t('packages.description')} full><textarea value={details.description} onChange={(e) => setDetails({ ...details, description: e.target.value })} rows={3} className={inputCls} /></Field>
@@ -882,8 +882,8 @@ function CreatePackageWizard({
         {step === 3 &&
         <div>
             <h3 className="text-sm font-semibold text-neutral-900 mb-3">{t('packages.organiseContents')}</h3>
-            <div className="grid grid-cols-3 gap-6">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
                 <div className="border border-neutral-200 rounded-md">
                   {docs.length === 0 &&
                 <div className="p-6 text-center text-sm text-neutral-500">{t('packages.noDocumentsToOrganise')}</div>
@@ -937,7 +937,7 @@ function CreatePackageWizard({
         {step === 4 &&
         <div>
             <h3 className="text-sm font-semibold text-neutral-900 mb-4">{t('packages.reviewGenerateTitle')}</h3>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <SummaryRow k={t('packages.reference')} v={details.reference} />
                 <SummaryRow k={t('packages.title')} v={details.title} />
@@ -997,7 +997,7 @@ const inputCls = 'w-full h-9 px-3 rounded-md border border-neutral-200 text-sm f
 
 function Field({ label, children, full }: {label: string;children: React.ReactNode;full?: boolean;}) {
   return (
-    <div className={full ? 'col-span-2' : ''}>
+    <div className={full ? 'col-span-full' : ''}>
       <label className="block text-xs font-medium text-neutral-600 mb-1.5">{label}</label>
       {children}
     </div>);
@@ -1243,10 +1243,10 @@ function PackageDetail({
       </div>
 
       {tab === 'overview' &&
-      <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-white border border-neutral-200 rounded-lg p-5 space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-white border border-neutral-200 rounded-lg p-5 space-y-3">
             <h3 className="text-sm font-semibold text-neutral-900 mb-2">{t('packages.metadata')}</h3>
-            <div className="grid grid-cols-2 gap-y-2.5 gap-x-6 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2.5 gap-x-6 text-sm">
               <Meta k={t('packages.type')} v={pkg.type} />
               <Meta k={t('packages.discipline')} v={pkg.discipline} />
               <Meta k={t('packages.area')} v={pkg.area} />
@@ -1387,7 +1387,7 @@ function PackageDetail({
       }
 
       {tab === 'distribution' &&
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ActionCard
           icon={SendIcon}
           title={t('packages.sendViaTransmittal')}

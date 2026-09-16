@@ -1507,7 +1507,7 @@ function SidebarItem({ c, p, isDraggable = false }: { c: Conversation; p: Sideba
       {c.favourited && !isRenaming && <StarIcon size={12} className="text-amber-400 fill-amber-400 shrink-0" />}
       <button
         onClick={(e) => { e.stopPropagation(); p.onMenuOpen(menuOpen ? null : c.id); }}
-        className={`w-6 h-6 rounded shrink-0 inline-flex items-center justify-center ${menuOpen || isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} hover:bg-white`}>
+        className={`w-6 h-6 rounded shrink-0 inline-flex items-center justify-center ${menuOpen || isActive ? 'opacity-100' : 'touch-reveal opacity-0 group-hover:opacity-100'} hover:bg-white`}>
 
         <MoreHorizontalIcon size={14} />
       </button>
