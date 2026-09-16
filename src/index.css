@@ -17,6 +17,29 @@
   animation: docs-nav-appear 1.3s ease-in-out;
 }
 
+/* ── Flint effort-mode menu: fade-up-grow out of the trigger ─────────────
+   The trigger is a 36 px icon-only circle; the panel that opens from it is
+   272 px wide, so the size change needs to read as the small button growing
+   rather than a panel appearing from nowhere.
+
+   transform-origin is bottom right because that is where the panel is actually
+   anchored: EffortModeMenu places it with its BOTTOM edge on the trigger's top
+   edge and its RIGHT edge on the trigger's right edge. Any other origin would
+   grow the panel out of a corner the button is not in.
+
+   Entry only, no exit animation: the panel is unmounted synchronously on
+   outside-click and on Escape, and animating that out would mean keeping a
+   dead menu in the DOM swallowing clicks that land behind it.
+   ─────────────────────────────────────────────────────────────── */
+@keyframes mode-menu-grow {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);   }
+}
+.animate-mode-menu {
+  transform-origin: bottom right;
+  animation: mode-menu-grow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* ── Project map popups (Dashboard enterprise map view) ──
    Tighten Leaflet's default popup chrome to match the app's panel styling. */
 .project-map-popup .leaflet-popup-content-wrapper {
@@ -32,6 +55,9 @@
    reduced motion enabled. Framer Motion is handled by MotionConfig in App.tsx. */
 @media (prefers-reduced-motion: reduce) {
   .animate-docs-appear {
+    animation: none;
+  }
+  .animate-mode-menu {
     animation: none;
   }
   *, *::before, *::after {

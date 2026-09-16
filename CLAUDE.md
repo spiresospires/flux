@@ -33,7 +33,7 @@ Tests live beside the code they cover, as `*.test.ts`.
 | `npm run build` | Production build (does **not** typecheck — Vite strips types without checking) |
 | `npm run typecheck` | `tsc --noEmit`. Currently clean; keep it that way |
 | `npm run lint` | ESLint. **0 errors, 0 warnings** — keep it there |
-| `npm test` | Vitest, single run. 194 tests over business rules, mock generators, icon geometry + two component suites |
+| `npm test` | Vitest, single run. 196 tests over business rules, mock generators, icon geometry + two component suites |
 | `npm run check` | typecheck → lint → test in one go. Run this before any handover |
 | `npm run test:watch` | Vitest in watch mode |
 
@@ -217,6 +217,69 @@ The same file also pins the rotation itself: it inverts the projection and asser
 - **Starts collapsed** on first visit (`useUserPref('chat.historyOpen', false)`).
 - Collapsed/open state and panel width **persist** via `useUserPref` (localStorage now; see `src/hooks/useUserPref.ts` for Oracle API wiring instructions).
 
+### Effort mode (Regular / Advanced)
+A pill on the composer lets the user choose how hard Flint works before sending.
+Components: `src/components/EffortModeMenu.tsx` (pill + portalled menu + `EffortBadge`),
+`src/components/ReasoningTrace.tsx`, `src/components/effortModes.ts` (label/icon metadata),
+`src/types/effort.ts` (type, timings, step keys — React-free).
+
+- **Two modes.** `regular` (ZapIcon, 1200 ms, unchanged behaviour) and `advanced`
+  (LayersIcon, 2150 ms, narrates four canned steps while it waits). The mock drew a
+  star on Advanced; `StarIcon` already means *favourite* in the history sidebar and
+  `SparklesIcon` is Flint's avatar, so a third meaning for either was avoided — change
+  the one `Icon:` line in `effortModes.ts` to go back to the mock.
+- **Global and persisted** via `useUserPref('chat.effortMode')`, not per-conversation:
+  the choice is a working preference, and a per-conversation value has no sensible
+  answer to "what does the composer show when I reopen last week's thread?". Every read
+  goes through `normaliseEffortMode` because `useUserPref` never validates stored JSON.
+- **Recorded per message** (`ChatMessage.effort`, `ChatMessage.trace`, both optional so
+  the seeded conversations need no migration). The mode is captured at send time, not
+  read at timer time — the user can change the pill while a reply is in flight.
+- **The trigger is icon-only** — a 36 px circle showing just the mode's icon, with the
+  mode name carried by `title` + `aria-label` ("Effort mode: Regular") rather than
+  printed on it. The menu it opens is unchanged: 272 px wide, both labels and
+  descriptions in full. It animates in with `.animate-mode-menu` (`src/index.css`):
+  fade + rise 6 px + scale 0.9->1 over 150 ms, `transform-origin: bottom right` because
+  that is the corner the panel is actually anchored to, so it grows out of the button.
+  Entry only — the panel unmounts synchronously on outside-click and Escape, and
+  animating that out would leave a dead menu swallowing clicks behind it.
+- **Placement differs per composer.** The **empty-state** composer puts the pill *inside*
+  the field (`pr-[108px]` on the input, pill absolutely positioned at `right-14`; the
+  108 px is the send button's 48 px + the pill's 36 px + a 16 px gap). The
+  **follow-up** composer never does: that input is `bg-[#F0F4F8]`, on which a
+  `bg-neutral-100` pill is nearly invisible and the send button's `disabled:bg-[#F0F4F8]`
+  state vanishes — so there the pill is a flex sibling beside the input.
+- **No stacked fallback row, at any width** — a product decision taken 2026-09-16.
+  Until then both composers moved the pill onto its own row below a `ResizeObserver`-
+  measured `COMPOSER_STACK_WIDTH` of 520 px, because the labelled 136 px pill reserved
+  208 px of right padding and left a 375 px phone with ~55 px to type in. Icon-only it
+  reserves 108 px, so that same phone keeps ~109 px (~14 characters visible at a time,
+  text scrolling as you type) in the empty-state field and ~95 px in the follow-up one.
+  That is tight, and was accepted deliberately in exchange for one control that behaves
+  identically at every size. The observer and the `viewport` first-paint fallback existed
+  only to drive that switch and went with it.
+  **Reinstating the stack means restoring three things together, not just a breakpoint:**
+  measure the composer *row*, never the window — the chat column is also squeezed by
+  the history sidebar, which clamps at 560 px with no reference to window width, so a
+  window-width rule kept the pill in-field at 1024 px with the sidebar dragged wide
+  (284 px field, 232 px of it padding); re-attach the observer when the two composers
+  swap, since they are separate elements; and give the stacked pill its text label back,
+  or a lone 36 px circle floats above the composer reading as an orphaned dot.
+- **The menu is portalled** (`createPortal` to `document.body`, fixed, z 9999) per the
+  house popup rule — mandatory here because `content-panel` is `overflow-hidden` and the
+  empty-state composer also sits inside the `overflow-y-auto` messages region.
+- **`isTyping` became `pending: Record<convId, PendingReply>`.** A bare boolean could not
+  survive two modes with different delays: a Regular send fired during an Advanced wait
+  lands first and scrambles the transcript, and whichever timer finished first cleared the
+  flag out from under the other. `handleSend` gates on `pending[resolvedId]`, so a thread
+  still thinking never blocks composing in a different one — an earlier single-slot version
+  did, silently, in a composer that structurally could not show the indicator explaining why.
+- **The trace carries a permanent `SIMULATED` chip.** A step list that looks like an
+  audit trail, in a product where every other trail is real, gets screenshotted out of a
+  demo and believed. Remove it only when the steps come from G29 for real.
+- Tested in `src/types/effort.test.ts` (node env). No jsdom component test on purpose —
+  see the file header.
+
 ### First-message bug fix
 - Previous code had a **stale closure bug**: `setMessages` in the 1.2 s `setTimeout` captured `activeId=null` from the closure for new conversations, causing the Flint response to be written to a second orphan conversation and `setActiveId` to switch away from the user's message.
 - **Fix:** `resolvedId` is computed synchronously at the top of `handleSend` (`activeId ?? 'c-' + Date.now()`). New conversations are created with the user message already included in a single `setConversations` call. The setTimeout closure captures `resolvedId` (a string constant) — no stale state.
@@ -245,6 +308,7 @@ Drop-in replacement for `useState` that persists to `localStorage` under `flux.u
 | `dashboard.view` | `'widgets'` | Dashboard Widgets/Map toggle (both scopes) |
 | `dashboard.mapBasemap` | `'map'` | Map basemap: OSM (`map`) vs satellite Hybrid (`hybrid`) |
 | `ui.density` | `'compact'` | Global density (DensityContext → `html[data-density]`) |
+| `chat.effortMode` | `'regular'` | Flint effort mode (`regular` \| `advanced`) |
 
 **Planned usages (not yet wired):** document browser column choice, column order, column widths.
 
@@ -444,7 +508,7 @@ These are known, non-blocking, and pre-date recent sessions:
 
 ## Testing status
 
-**Vitest is installed and 194 tests pass.** Coverage is deliberately narrow: the business
+**Vitest is installed and 196 tests pass.** Coverage is deliberately narrow: the business
 rules that a new team cannot re-derive from the UI, the mock generators, the icon geometry,
 and two component suites. The rest of the rendering is still unverified — see the manual
 checklist in **MDR_AND_PROGRESS.md §5b**.
@@ -470,7 +534,7 @@ ignored on macOS/Linux clones (Windows is unaffected):
 |-------|-------|--------|
 | `npm run typecheck` | whole project, **clean** | via `check` |
 | `npm run lint` | whole project, **0 errors, 0 warnings** | via `check` |
-| `npm test` | **194 tests**, 11 files (see below) | via `check` |
+| `npm test` | **196 tests**, 13 files (see below) | via `check` |
 | `npm run check` | all three, sequential, fails fast | **yes** — pre-commit hook + CI |
 
 | test file | covers |
@@ -486,6 +550,7 @@ ignored on macOS/Linux clones (Windows is unaffected):
 | `src/pages/documentBrowserWorkspace.test.ts` | which workspace a deep link queries: URL beats a disagreeing scope on the first render, unknown/traversal ids rejected, and the document fetch stays gated while a claim is unresolvable |
 | `src/components/DocumentJourney.test.tsx` | **jsdom** — current-status badge tracks the document state, red confined to the rejection path, no hard-coded width |
 | `src/components/VersionStack.test.tsx` | **jsdom** — placeholder version disables view/download, current row marked once, view opens the framed viewer for that revision |
+| `src/types/effort.test.ts` | Flint effort mode: stored-pref narrowing (the values a stale localStorage actually yields), reply-timing derivation, and effort translation keys present in both locales with their `{{…}}` placeholders intact |
 
 **Why these two engines first:** `distributionEngine` and `search` are pure functions with no
 DOM, no async and no mocking required — the cheapest possible coverage — and they encode

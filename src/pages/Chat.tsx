@@ -36,7 +36,7 @@ import { ClipboardDropdown } from '../components/ClipboardDropdown';
 import { useClipboard } from '../contexts/ClipboardContext';
 import { useScope } from '../contexts/ScopeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
-import { FlintIcon } from '../components/FlintIcon';
+import { FlintLockup } from '../components/FlintIcon';
 import { useUserPref } from '../hooks/useUserPref';
 import { Document } from '../types/document';
 // [MOCK] Workspace list for the chat scope picker.
@@ -44,12 +44,37 @@ import { Document } from '../types/document';
 // [AUTH]
 // [PHASE-1]
 import { PROJECTS } from '../data/projects';
+import { EffortBadge, EffortModeMenu } from '../components/EffortModeMenu';
+import { ReasoningTrace } from '../components/ReasoningTrace';
+import {
+  DEFAULT_EFFORT_MODE,
+  STEP_MS,
+  TRACE_STEP_KEYS,
+  normaliseEffortMode,
+  replyDelayMs,
+  type EffortMode,
+} from '../types/effort';
 interface ChatMessage {
   id: string;
   content: React.ReactNode;
   sender: 'user' | 'flint';
   timestamp: string;
   attachments?: Document[];
+  /** Effort mode this message was sent/answered with. Optional so the seeded
+   *  conversations below need no migration — absent means "before the picker
+   *  existed" and renders exactly as it always did. */
+  effort?: EffortMode;
+  /** Advanced replies only: the steps narrated while the answer was produced. */
+  trace?: string[];
+}
+/** A reply Flint is currently composing. Tracked as an object rather than a
+ *  boolean so the indicator belongs to a specific conversation and knows which
+ *  effort mode (and therefore which presentation) is in flight. */
+interface PendingReply {
+  convId: string;
+  effort: EffortMode;
+  /** Advanced only: index of the step currently narrating. */
+  stepIndex: number;
 }
 type ChatScope =
   | { kind: 'enterprise' }
@@ -480,21 +505,71 @@ export function Chat() {
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = useMemo(() => active?.messages ?? [], [active]);
   const [inputValue, setInputValue] = useState('');
-  const [iconHovered, setIconHovered] = useState(false);
-
-  // Auto-play the bloom animation once whenever the empty state becomes visible
-  // (initial load, or switching to a new/empty conversation).
-  useEffect(() => {
-    if (messages.length !== 0) return;
-    setIconHovered(true);
-    const t = setTimeout(() => setIconHovered(false), 1200); // full sequence ~1.1 s
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]); // re-evaluate on conversation switch, not on every new message
   const [selectedClipboardDocs, setSelectedClipboardDocs] = useState<Document[]>([]);
   const { clipboard } = useClipboard();
-  const [isTyping, setIsTyping] = useState(false);
+
+  // ---------- Effort mode ----------
+  // Global and persisted, not per-conversation: the choice is a working
+  // preference ("I want thorough answers today"), and a per-conversation value
+  // has no sensible answer to "what does the composer show when I reopen a
+  // thread from last week?". The mode actually used is recorded on each message
+  // instead, so a thread can escalate mid-conversation and the transcript still
+  // shows which answer cost what.
+  const [storedEffort, setStoredEffort] = useUserPref<EffortMode>('chat.effortMode', DEFAULT_EFFORT_MODE);
+  const effortMode = normaliseEffortMode(storedEffort);
+  // The portalled menu takes focus out of the composer, which drops
+  // focus-within and blinks the focus ring off. Holding the ring on while the
+  // menu is open keeps the field looking active, which it still is.
+  const [effortMenuOpen, setEffortMenuOpen] = useState(false);
+  // The pill lives inside the field at every width, icon-only, with no
+  // stacked fallback row — a product decision taken 2026-09-16, not an
+  // oversight.
+  //
+  // It used to move onto its own row below a measured composer width of
+  // 520 px, because the labelled 136 px pill reserved 208 px of right padding
+  // and left a phone field with ~55 px to type in. Icon-only it reserves
+  // 108 px, so the same 375 px phone keeps ~109 px: tight, and accepted
+  // deliberately in exchange for one consistent control at every size. The
+  // ResizeObserver that measured the row (and the phone/tablet fallback behind
+  // it) existed only to drive that switch and went with it.
+  //
+  // Reinstating the stack means restoring three things together, not just the
+  // breakpoint: measure the COMPOSER ROW, never the window — the chat column
+  // is also squeezed by the resizable history sidebar, which clamps at 560 px
+  // with no reference to window width, so a window-width rule left the pill
+  // in-field at 1024 px with the sidebar dragged wide; re-attach the observer
+  // when the two composers swap, since they are separate elements; and give
+  // the stacked pill its text label back, or a lone 36 px circle floats above
+  // the composer reading as an orphaned dot.
+
+  // In-flight replies, keyed by conversation id. Replaces a bare `isTyping`
+  // boolean, which could not survive two modes with different delays: a Regular
+  // send fired during an Advanced wait would land first and scramble the
+  // transcript, and whichever timer finished first cleared the shared flag out
+  // from under the other.
+  //
+  // Keyed rather than a single slot because two threads can legitimately be
+  // waiting at once — ask a question, then start a new chat while it thinks. A
+  // single slot made the indicator belong to whichever send was most recent,
+  // and made the send gate global, so composing in a *different* conversation
+  // was silently blocked by a reply the user could not even see.
+  const [pending, setPending] = useState<Record<string, PendingReply>>({});
+  const activePending = activeId ? pending[activeId] ?? null : null;
+  const isTyping = activePending !== null;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // An Advanced reply schedules several timers. Navigating away mid-reply would
+  // otherwise leave them to fire against an unmounted tree.
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const registerTimer = (id: ReturnType<typeof setTimeout>) => {
+    timersRef.current.push(id);
+  };
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, []);
   const removePendingAttachment = (docId: string) => {
     setSelectedClipboardDocs((prev) => prev.filter((doc) => doc.id !== docId));
   };
@@ -791,21 +866,37 @@ export function Chat() {
     const attachments = selectedClipboardDocs;
     if (!text.trim() && attachments.length === 0) return;
 
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      content: text,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      attachments
-    };
-
     // Resolve the conversation ID now, synchronously, before any async work.
     // If we let setConversations resolve it internally and then call setMessages
     // in a setTimeout, the setTimeout closure captures the stale activeId (null
     // for a brand-new conversation) and creates a second orphan conversation —
     // which makes the user's first message appear to vanish.
-    const titleSource = text.trim() || attachments.map((d) => d.id).join(', ');
     const resolvedId = activeId ?? 'c-' + Date.now();
+
+    // One reply in flight per conversation — scoped to THIS conversation, so a
+    // thread still thinking never blocks composing in another one. Without the
+    // gate the two modes' delays reorder the transcript: send Advanced (2150 ms),
+    // then Regular (1200 ms) a moment later, and the second question is answered
+    // above the first. The real G29 stream will gate on the same condition, with
+    // a Stop button that aborts instead of blocking.
+    if (pending[resolvedId]) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      content: text,
+      sender: 'user',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      attachments,
+      effort: effortMode
+    };
+    // Captured now, not read at timer time: the user can change the picker while
+    // the reply is in flight, and the answer must reflect the mode it was sent
+    // with. This is also why ChatMessage carries `effort` rather than the
+    // transcript reading the live preference.
+    const sentEffort = effortMode;
+    const traceSteps = TRACE_STEP_KEYS.map((key) => t(key));
+
+    const titleSource = text.trim() || attachments.map((d) => d.id).join(', ');
 
     if (!activeId) {
       // New conversation — create it with the user message already included.
@@ -830,21 +921,40 @@ export function Chat() {
 
     setInputValue('');
     setSelectedClipboardDocs([]);
-    setIsTyping(true);
+    setPending((p) => ({ ...p, [resolvedId]: { convId: resolvedId, effort: sentEffort, stepIndex: 0 } }));
 
-    // [MOCK] Canned reply after a fixed delay — this setTimeout is what the real
-    //        G29 SSE token stream replaces (render message.delta chunks
-    //        progressively; AbortController on the stream implements Stop).
+    // [MOCK] Canned reply after a fixed delay — these setTimeouts are what the
+    //        real G29 SSE token stream replaces (render message.delta chunks
+    //        progressively; AbortController on the stream implements Stop). The
+    //        Advanced step ticker maps onto tool_use / tool_result events.
     // [API] G29:POST /workspaces/{wsId}/assistant/conversations/{convId}/messages
     // [AUTH]
     // [PHASE-1]
-    setTimeout(() => {
-      setIsTyping(false);
+    if (sentEffort === 'advanced') {
+      // Advance the narrated step every STEP_MS. Guarded on convId so a reply
+      // the user cancelled by starting a new conversation cannot resurrect the
+      // indicator.
+      for (let step = 1; step < traceSteps.length; step++) {
+        registerTimer(setTimeout(() => {
+          setPending((p) => (p[resolvedId] ? { ...p, [resolvedId]: { ...p[resolvedId], stepIndex: step } } : p));
+        }, step * STEP_MS));
+      }
+    }
+
+    registerTimer(setTimeout(() => {
+      setPending((p) => {
+        if (!p[resolvedId]) return p;
+        const next = { ...p };
+        delete next[resolvedId];
+        return next;
+      });
       const flintMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         content: buildResponseForQuery(text, attachments),
         sender: 'flint',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        effort: sentEffort,
+        trace: sentEffort === 'advanced' ? traceSteps : undefined,
       };
       // Use resolvedId directly — avoids any stale-closure issue with activeId.
       setConversations((prev) => prev.map((c) =>
@@ -852,7 +962,7 @@ export function Chat() {
           ? { ...c, messages: [...c.messages, flintMsg], updatedAt: Date.now() }
           : c
       ));
-    }, 1200);
+    }, replyDelayMs(sentEffort)));
   };
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -927,12 +1037,16 @@ export function Chat() {
         
         {messages.length === 0 ?
         <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
-            <div
-              className="mb-6 cursor-default"
-              onMouseEnter={() => setIconHovered(true)}
-              onMouseLeave={() => setIconHovered(false)}
-            >
-              <FlintIcon isHovered={iconHovered} size={88} />
+            {/* The Flint navy the mark is drawn in by the design team. The nav
+                icons deliberately inherit nav state colour instead; this is the
+                one place Flint is presented as itself rather than as a nav item. */}
+            <div className="mb-6 cursor-default text-[#1C1D8D]">
+              {/* Keyed on the conversation so the mark re-ignites when you
+                  switch to a different empty conversation — React would
+                  otherwise reuse the element and the mount animation would play
+                  only once per visit. The lockup owns its own hover re-spark,
+                  so this wrapper no longer tracks hover state. */}
+              <FlintLockup key={activeId ?? 'new'} height={88} />
             </div>
             <p className="text-neutral-500 mb-6 text-center text-base">
               {askAbout
@@ -968,26 +1082,51 @@ export function Chat() {
               </div>
             )}
 
-            {/* Centered Input for Empty State */}
-            <div className="w-full max-w-[960px] mx-auto flex items-center gap-3">
-              {renderClipboardTrigger('down')}
-              <div className="flex-1 relative shadow-sm rounded-full bg-white border border-neutral-200 focus-within:ring-2 focus-within:ring-[#0461BA] focus-within:border-transparent transition-all">
-                <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t('chat.inputPlaceholder')}
-                className="w-full pl-6 pr-16 py-4 rounded-full bg-transparent text-neutral-900 placeholder-neutral-400 focus:outline-none text-base"
-                autoFocus />
+            {/* Centered Input for Empty State.
+                aria-live="off" because this block sits inside the messages
+                region, which is role="log" aria-live="polite" — without it the
+                pill's aria-label changing would be read out as new log
+                content. */}
+            <div className="w-full max-w-[960px] mx-auto" aria-live="off">
+              <div className="flex items-center gap-3">
+                {renderClipboardTrigger('down')}
+                <div
+                  className={`flex-1 min-w-0 relative shadow-sm rounded-full bg-white border transition-all ${
+                    effortMenuOpen
+                      ? 'ring-2 ring-[#0461BA] border-transparent'
+                      : 'border-neutral-200 focus-within:ring-2 focus-within:ring-[#0461BA] focus-within:border-transparent'
+                  }`}>
+                  <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t('chat.inputPlaceholder')}
+                  aria-label={t('chat.messageInputAria')}
+                  // pr-[108px] reserves the right end of the field for the two
+                  // controls that sit on top of it: the send button (right-2,
+                  // 40 px) and the effort pill beside it (right-14, 36 px),
+                  // plus a 16 px gap before the text can reach them.
+                  className="w-full pl-6 pr-[108px] py-4 rounded-full bg-transparent text-neutral-900 placeholder-neutral-400 focus:outline-none text-base"
+                  autoFocus />
 
-                <button
-                onClick={() => handleSend()}
-                disabled={!inputValue.trim() && selectedClipboardDocs.length === 0}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#0461BA] hover:bg-[#035299] disabled:bg-[#F0F4F8] disabled:text-neutral-400 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors">
+                  {/* DOM order matters: the pill and the send button must come
+                      after the w-full input or they render underneath it. */}
+                  <EffortModeMenu
+                    value={effortMode}
+                    onChange={setStoredEffort}
+                    onOpenChange={setEffortMenuOpen}
+                    className="absolute right-14 top-1/2 -translate-y-1/2" />
 
-                  <SendIcon size={18} className="ml-0.5" />
-                </button>
+                  <button
+                  onClick={() => handleSend()}
+                  disabled={activePending !== null || (!inputValue.trim() && selectedClipboardDocs.length === 0)}
+                  aria-label={t('chat.sendMessageAria')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#0461BA] hover:bg-[#035299] disabled:bg-[#F0F4F8] disabled:text-neutral-400 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors">
+
+                    <SendIcon size={18} className="ml-0.5" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1030,10 +1169,18 @@ export function Chat() {
                     className={`max-w-[75%] px-5 py-4 shadow-sm ${message.sender === 'user' ? 'bg-[#0461BA] text-white rounded-2xl rounded-br-sm ml-auto' : 'bg-white border border-neutral-200 text-neutral-900 rounded-2xl rounded-bl-sm'}`}>
                     
                       {message.sender === 'flint' &&
-                    <p className="text-xs font-bold text-[#0461BA] mb-2 uppercase tracking-wider">
-                          {t('chat.flintLabel')}
-                        </p>
+                    <div className="flex items-center gap-2 mb-2">
+                          <p className="text-xs font-bold text-[#0461BA] uppercase tracking-wider">
+                            {t('chat.flintLabel')}
+                          </p>
+                          {message.effort && <EffortBadge mode={message.effort} />}
+                        </div>
                     }
+                      {message.sender === 'flint' && message.trace && message.trace.length > 0 && (
+                        <div className="mb-3">
+                          <ReasoningTrace steps={message.trace} />
+                        </div>
+                      )}
                       {message.sender === 'user' && message.attachments && message.attachments.length > 0 && (
                         <div className="mb-3">
                           {renderAttachmentChips(message.attachments, { tone: 'sent' })}
@@ -1053,41 +1200,52 @@ export function Chat() {
                 <div className="w-8 h-8 rounded-full bg-[#E8F1FB] flex items-center justify-center shrink-0 mr-3 mt-1">
                   <SparklesIcon size={14} className="text-[#0461BA]" />
                 </div>
-                <div className="bg-white border border-neutral-200 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm flex items-center gap-1.5">
-                  <motion.div
-                animate={{
-                  y: [0, -5, 0]
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 0.6,
-                  delay: 0
-                }}
-                className="w-2 h-2 bg-neutral-300 rounded-full" />
-              
-                  <motion.div
-                animate={{
-                  y: [0, -5, 0]
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 0.6,
-                  delay: 0.2
-                }}
-                className="w-2 h-2 bg-neutral-300 rounded-full" />
-              
-                  <motion.div
-                animate={{
-                  y: [0, -5, 0]
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 0.6,
-                  delay: 0.4
-                }}
-                className="w-2 h-2 bg-neutral-300 rounded-full" />
-              
-                </div>
+                {activePending?.effort === 'advanced' ?
+              // Advanced narrates what it is doing rather than showing three
+              // dots — the whole point of the mode is that it takes longer, so
+              // the wait has to account for itself.
+              <div className="bg-white border border-neutral-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm w-full max-w-[420px]">
+                    <ReasoningTrace
+                  steps={TRACE_STEP_KEYS.map((key) => t(key))}
+                  activeIndex={activePending.stepIndex} />
+                  </div> :
+
+              <div className="bg-white border border-neutral-200 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm flex items-center gap-1.5">
+                    <motion.div
+                  animate={{
+                    y: [0, -5, 0]
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 0.6,
+                    delay: 0
+                  }}
+                  className="w-2 h-2 bg-neutral-300 rounded-full" />
+
+                    <motion.div
+                  animate={{
+                    y: [0, -5, 0]
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 0.6,
+                    delay: 0.2
+                  }}
+                  className="w-2 h-2 bg-neutral-300 rounded-full" />
+
+                    <motion.div
+                  animate={{
+                    y: [0, -5, 0]
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 0.6,
+                    delay: 0.4
+                  }}
+                  className="w-2 h-2 bg-neutral-300 rounded-full" />
+
+                  </div>
+              }
               </div>
           }
             <div ref={messagesEndRef} />
@@ -1107,26 +1265,40 @@ export function Chat() {
               })}
             </div>
           )}
-          <div className="max-w-[960px] mx-auto flex items-center gap-3">
-            <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t('chat.followUpPlaceholder')}
-            className="flex-1 px-5 py-3.5 rounded-full bg-[#F0F4F8] border border-neutral-200 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent text-sm transition-shadow"
-            aria-label={t('chat.messageInputAria')} />
+          <div className="max-w-[960px] mx-auto">
+            <div className="flex items-center gap-3">
+              {/* min-w-0 is a fix, not a tidy-up: a bare flex child defaults to
+                  min-width:auto, so this input refused to shrink below its
+                  intrinsic width and pushed the send button out of the
+                  overflow-hidden content panel at phone width. */}
+              <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t('chat.followUpPlaceholder')}
+              className="flex-1 min-w-0 px-5 py-3.5 rounded-full bg-[#F0F4F8] border border-neutral-200 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#0461BA] focus:border-transparent text-sm transition-shadow"
+              aria-label={t('chat.messageInputAria')} />
 
-            {renderClipboardTrigger('up')}
+              {/* A flex sibling here rather than inside the field: this input is
+                  bg-[#F0F4F8], on which a neutral-100 pill is nearly invisible
+                  and the send button's disabled state disappears entirely. */}
+              <EffortModeMenu
+                value={effortMode}
+                onChange={setStoredEffort}
+                onOpenChange={setEffortMenuOpen} />
 
-            <button
-            onClick={() => handleSend()}
-            disabled={!inputValue.trim() && selectedClipboardDocs.length === 0}
-            className="w-12 h-12 rounded-full bg-[#0461BA] hover:bg-[#035299] disabled:bg-neutral-200 disabled:text-neutral-400 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shrink-0 shadow-sm"
-            aria-label={t('chat.sendMessageAria')}>
-            
-              <SendIcon size={20} className="ml-0.5" />
-            </button>
+              {renderClipboardTrigger('up')}
+
+              <button
+              onClick={() => handleSend()}
+              disabled={activePending !== null || (!inputValue.trim() && selectedClipboardDocs.length === 0)}
+              className="w-12 h-12 rounded-full bg-[#0461BA] hover:bg-[#035299] disabled:bg-neutral-200 disabled:text-neutral-400 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shrink-0 shadow-sm"
+              aria-label={t('chat.sendMessageAria')}>
+
+                <SendIcon size={20} className="ml-0.5" />
+              </button>
+            </div>
           </div>
         </div>
       }

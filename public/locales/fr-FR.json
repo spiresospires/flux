@@ -59,7 +59,6 @@
     "outOfDate": "Périmé",
     "upToDate": "À jour",
     "changesDetected": "Modifications détectées",
-    "new": "Nouveau",
     "actionRequired": "Action requise",
     "warning": "Avertissement",
     "info": "Info"
@@ -427,6 +426,27 @@
     "messageInputAria": "Saisie du message",
     "sendMessageAria": "Envoyer le message",
     "clipboardTriggerAria": "Ajouter depuis le presse-papiers",
+    "effort": {
+      "triggerAria": "Mode d'effort : {{mode}}",
+      "menuAria": "Choisir le mode d'effort",
+      "regular": {
+        "label": "Standard",
+        "description": "Recherche directe dans les documents indexés"
+      },
+      "advanced": {
+        "label": "Avancé",
+        "description": "Agent multi-étapes avec outils et raisonnement"
+      },
+      "simulated": "Simulé",
+      "traceRunning": "Analyse en cours",
+      "traceSummary": "Raisonnement en {{count}} étapes",
+      "step": {
+        "search": "Recherche dans les documents indexés",
+        "revisions": "Lecture de l’historique des révisions",
+        "crossRef": "Recoupement des tags associés",
+        "compose": "Rédaction de la réponse"
+      }
+    },
     "showHistory": "Afficher l'historique du chat",
     "hideHistory": "Masquer l'historique du chat",
     "newChat": "Nouveau chat",

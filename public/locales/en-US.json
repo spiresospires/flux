@@ -59,7 +59,6 @@
     "outOfDate": "Out of Date",
     "upToDate": "Up to date",
     "changesDetected": "Changes detected",
-    "new": "New",
     "actionRequired": "Action Required",
     "warning": "Warning",
     "info": "Info"
@@ -427,6 +426,27 @@
     "messageInputAria": "Message input",
     "sendMessageAria": "Send message",
     "clipboardTriggerAria": "Add from clipboard",
+    "effort": {
+      "triggerAria": "Effort mode: {{mode}}",
+      "menuAria": "Choose effort mode",
+      "regular": {
+        "label": "Regular",
+        "description": "Direct retrieval over indexed documents"
+      },
+      "advanced": {
+        "label": "Advanced",
+        "description": "Multi-step agent with tool use and reasoning"
+      },
+      "simulated": "Simulated",
+      "traceRunning": "Working through it",
+      "traceSummary": "Reasoned over {{count}} steps",
+      "step": {
+        "search": "Searching indexed documents",
+        "revisions": "Reading revision history",
+        "crossRef": "Cross-checking related tags",
+        "compose": "Composing an answer"
+      }
+    },
     "showHistory": "Show chat history",
     "hideHistory": "Hide chat history",
     "newChat": "New chat",
