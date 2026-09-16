@@ -25,6 +25,7 @@ import { ViewStyleProvider } from './contexts/ViewStyleContext';
 import { DensityProvider } from './contexts/DensityContext';
 import { PermissionProvider } from './contexts/PermissionContext';
 import { ViewerProvider } from './contexts/ViewerContext';
+import { FeedbackVisibilityProvider } from './contexts/FeedbackVisibilityContext';
 import { DocumentViewer } from './components/DocumentViewer';
 
 export function App() {
@@ -40,6 +41,7 @@ export function App() {
               <PermissionProvider>
               <ShellLayoutProvider>
               <ViewerProvider>
+              <FeedbackVisibilityProvider>
                 {/* reducedMotion="user" disables all Framer Motion transforms when the OS
                     prefers-reduced-motion setting is on (WCAG 2.3.3). CSS keyframes are
                     handled separately in index.css. */}
@@ -77,6 +79,7 @@ export function App() {
                   <DocumentViewer />
                 </BrowserRouter>
                 </MotionConfig>
+              </FeedbackVisibilityProvider>
               </ViewerProvider>
               </ShellLayoutProvider>
               </PermissionProvider>

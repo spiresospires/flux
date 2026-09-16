@@ -53,6 +53,7 @@ Tests live beside the code they cover, as `*.test.ts`.
 | `ViewStyleContext` | Global appearance (`light`/`dark`/`basic`) and layout (`floating`/`flush`). Always active — not gated by project. |
 | `DensityContext` | Global density (`compact` default / `comfortable`) → `html[data-density]`, drives the density CSS vars in index.css. |
 | `SearchContext` | Persists `lastQuery` so the Search nav button restores the last search. |
+| `FeedbackVisibilityContext` | Whether the floating feedback pill shows. Shared because the pill hides itself while the profile menu toggles it back — two `useUserPref` reads of one key do **not** converge in a single document. |
 
 ---
 
@@ -309,6 +310,7 @@ Drop-in replacement for `useState` that persists to `localStorage` under `flux.u
 | `dashboard.mapBasemap` | `'map'` | Map basemap: OSM (`map`) vs satellite Hybrid (`hybrid`) |
 | `ui.density` | `'compact'` | Global density (DensityContext → `html[data-density]`) |
 | `chat.effortMode` | `'regular'` | Flint effort mode (`regular` \| `advanced`) |
+| `ui.feedbackHidden` | `false` | Floating feedback pill hidden (`FeedbackVisibilityContext`) |
 
 **Planned usages (not yet wired):** document browser column choice, column order, column widths.
 

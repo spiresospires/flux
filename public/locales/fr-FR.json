@@ -533,6 +533,10 @@
     "submitting": "Envoi…",
     "thankYou": "Merci pour votre retour !",
     "thankYouSub": "Cela nous aide à améliorer l'expérience.",
+    "hide": "Masquer les commentaires",
+    "show": "Afficher les commentaires",
+    "hideAriaLabel": "Masquer le bouton de commentaires",
+    "hiddenNotice": "Commentaires masqués. Vous pouvez les réafficher à tout moment depuis le menu de votre profil, en haut à droite.",
     "contexts": {
       "dashboard": "le Tableau de bord",
       "documentBrowsing": "la navigation documentaire",

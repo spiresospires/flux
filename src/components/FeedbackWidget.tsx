@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThumbsUpIcon, ThumbsDownIcon, XIcon, SendIcon } from 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useFeedbackVisibility } from '../contexts/FeedbackVisibilityContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -120,6 +121,12 @@ export function FeedbackWidget() {
   const [isSubmitting, setSubmitting] = useState(false);
   const [isDone, setIsDone]         = useState(false);
 
+  const { isHidden, setHidden } = useFeedbackVisibility();
+  // Transient, deliberately not persisted: the notice is the answer to "where
+  // did it go?", so it belongs to the act of hiding, not to the hidden state.
+  // Persisting it would replay the notice on every page load until dismissed.
+  const [showHiddenNotice, setShowHiddenNotice] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Resolve the human-readable context label for the current page.
@@ -144,6 +151,14 @@ export function FeedbackWidget() {
     return () => clearTimeout(timer);
   }, [isDone]);
 
+  // The notice is an aside, not a dialog — it takes itself away. Long enough to
+  // read a sentence and find the profile photo it points at.
+  useEffect(() => {
+    if (!showHiddenNotice) return;
+    const timer = setTimeout(() => setShowHiddenNotice(false), 6000);
+    return () => clearTimeout(timer);
+  }, [showHiddenNotice]);
+
   function reset() {
     setSentiment(null);
     setComment('');
@@ -158,6 +173,13 @@ export function FeedbackWidget() {
 
   function handleClose() {
     setIsOpen(false);
+    setTimeout(reset, 300);
+  }
+
+  function handleHide() {
+    setIsOpen(false);
+    setHidden(true);
+    setShowHiddenNotice(true);
     setTimeout(reset, 300);
   }
 
@@ -195,6 +217,31 @@ export function FeedbackWidget() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen]);
+
+  // Hidden: the pill is gone from every page. What is left is a one-off notice
+  // naming where the control went, so dismissing it is not a one-way door.
+  // Deliberately no "undo" button here — the point is to teach where the toggle
+  // lives, and an undo would let the user put it back without ever finding it.
+  if (isHidden) {
+    return (
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+        <AnimatePresence>
+          {showHiddenNotice && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+              role="status"
+              className="max-w-[17rem] bg-neutral-900 text-white text-xs leading-relaxed px-3.5 py-2.5 rounded-lg shadow-2xl"
+            >
+              {t('feedback.hiddenNotice')}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
@@ -342,23 +389,40 @@ export function FeedbackWidget() {
         )}
       </AnimatePresence>
 
-      {/* ── Trigger button ──────────────────────────────────────────────────── */}
-      <motion.button
-        onClick={isOpen ? handleClose : handleOpen}
+      {/* ── Trigger pill ────────────────────────────────────────────────────
+          A row of two buttons rather than one button with an icon inside it:
+          the dismiss control has its own action, and a button cannot be nested
+          in a button. The hover lift moved to the wrapper so the pill still
+          behaves as one object. */}
+      <motion.div
         whileHover={{ scale: 1.04 }}
-        whileTap={{   scale: 0.97 }}
-        className={`flex items-center gap-2 px-3.5 py-2 rounded-full border shadow-md text-xs font-semibold transition-colors ${
+        className={`flex items-center gap-1 pl-3.5 pr-1.5 py-1.5 rounded-full border shadow-md text-xs font-semibold transition-colors ${
           isOpen
             ? 'bg-[#0461BA] border-[#0353A4] text-white'
             : 'bg-white border-neutral-200 text-neutral-600 hover:bg-[#F0F4F8] hover:border-neutral-300'
         }`}
-        aria-expanded={isOpen}
-        aria-label={t('feedback.buttonAriaLabel')}
       >
-        <ThumbsUpIcon  size={13} strokeWidth={2} />
-        <ThumbsDownIcon size={13} strokeWidth={2} />
-        {t('feedback.buttonLabel')}
-      </motion.button>
+        <button
+          onClick={isOpen ? handleClose : handleOpen}
+          className="flex items-center gap-2 py-0.5"
+          aria-expanded={isOpen}
+          aria-label={t('feedback.buttonAriaLabel')}
+        >
+          <ThumbsUpIcon  size={13} strokeWidth={2} />
+          <ThumbsDownIcon size={13} strokeWidth={2} />
+          {t('feedback.buttonLabel')}
+        </button>
+        <button
+          onClick={handleHide}
+          className={`shrink-0 w-6 h-6 rounded-full inline-flex items-center justify-center transition-colors ${
+            isOpen ? 'hover:bg-white/20' : 'hover:bg-neutral-200 text-neutral-400 hover:text-neutral-700'
+          }`}
+          aria-label={t('feedback.hideAriaLabel')}
+          title={t('feedback.hideAriaLabel')}
+        >
+          <XIcon size={13} strokeWidth={2.5} />
+        </button>
+      </motion.div>
     </div>
   );
 }

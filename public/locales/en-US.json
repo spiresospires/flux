@@ -533,6 +533,10 @@
     "submitting": "Sending…",
     "thankYou": "Thanks for the feedback!",
     "thankYouSub": "It helps us improve the experience.",
+    "hide": "Hide feedback",
+    "show": "Show feedback",
+    "hideAriaLabel": "Hide the feedback button",
+    "hiddenNotice": "Feedback hidden. You can turn it back on any time from your profile menu, top right.",
     "contexts": {
       "dashboard": "the Dashboard",
       "documentBrowsing": "Document Browsing",

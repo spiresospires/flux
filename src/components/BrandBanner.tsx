@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, Globe2Icon, MenuIcon, SearchIcon, Settings2Icon, XIcon } from 'lucide-react';
+import { BellIcon, Building2Icon, CheckIcon, ChevronDownIcon, EyeIcon, EyeOffIcon, Globe2Icon, MenuIcon, SearchIcon, Settings2Icon, XIcon } from 'lucide-react';
 import { useShellLayout, useShellOverlay } from '../contexts/ShellLayoutContext';
 // Display-name overrides — add an entry here when the filename alone isn't
 // descriptive enough (e.g. "iluka" → "Iluka Resources").
@@ -26,6 +26,7 @@ const LOGOS = Object.entries(_logoModules)
   .sort((a, b) => a.label.localeCompare(b.label));
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useFeedbackVisibility } from '../contexts/FeedbackVisibilityContext';
 import { useScope } from '../contexts/ScopeContext';
 // [MOCK] Demo switcher for the Automatic Distribution grant — replace with real
 // role management once G01 auth lands (AUTO_DISTRIBUTION_PLAN.md §1).
@@ -66,6 +67,7 @@ export function BrandBanner() {
   const [projectSearch, setProjectSearch] = useState('');
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const { isHidden: feedbackHidden, setHidden: setFeedbackHidden } = useFeedbackVisibility();
   const [searchValue, setSearchValue] = useState('');
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
   const scopeMenuRef = useRef<HTMLDivElement>(null);
@@ -494,6 +496,21 @@ export function BrandBanner() {
               <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-[#F0F4F8] transition-colors">
                 <Settings2Icon size={14} />
                 Profile Settings
+              </button>
+              {/* The only route back once the floating pill is dismissed — the
+                  notice shown on hiding points here, so the two must stay
+                  together if either moves. */}
+              <button
+                onClick={() => {
+                  setFeedbackHidden(!feedbackHidden);
+                  setShowProfileMenu(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-[#F0F4F8] transition-colors"
+                role="menuitemcheckbox"
+                aria-checked={!feedbackHidden}
+              >
+                {feedbackHidden ? <EyeIcon size={14} /> : <EyeOffIcon size={14} />}
+                {feedbackHidden ? t('feedback.show') : t('feedback.hide')}
               </button>
               {/* [MOCK] AD permission demo switcher — flips the Admin rail section
                   between manage / read-only / hidden without real auth. */}
