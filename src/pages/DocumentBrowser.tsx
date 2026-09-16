@@ -966,6 +966,16 @@ export function DocumentBrowser() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  // Picking a folder is one decision, so the panel gets out of the way and shows
+  // what was picked (P10). Unconditional: off phone the sheet is already closed,
+  // so this is a no-op React bails out of rather than a branch to keep in step.
+  // Safe to hang off selection alone — FolderTree's expand chevron stops
+  // propagation, so expanding a node never reaches this.
+  const selectFolderFromTree = useCallback((folderId: string | null) => {
+    selectFolder(folderId);
+    setPhoneTreeSheetOpen(false);
+  }, [selectFolder]);
+
   // Server-side sort (G06 ?sort=&order= — ADR-011): the active column sort wins,
   // else newest-modified first. Changing it discards the cursor chain (query key).
   const serverSort = useMemo(() => {
@@ -2324,7 +2334,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
       <FolderTree
         folders={projectFolders}
         selectedFolderId={selectedFolderId}
-        onFolderSelect={selectFolder} />;
+        onFolderSelect={selectFolderFromTree} />;
 
   return (
     <div
@@ -2373,6 +2383,13 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 only state — never routed through docBrowser.treeOpen, so a
                 phone visit can never overwrite the desktop panel-open
                 preference (docs/responsive-architecture.md §5). */}
+            {/* NOT inset-0: the banner is z-[60] to this sheet's z-40, so a
+                full-viewport sheet gets its own header — the mode toggle and the
+                only close button — painted over by the banner, while its z-40
+                covers the z-30 bottom tab bar. That left no exit but a page
+                reload. Overlays here start below the banner (DetailSlidePanel's
+                drawer already does) and stop above the bottom nav, so both
+                primary navs stay reachable. */}
             <AnimatePresence>
               {isPhone && phoneTreeSheetOpen && (
                 <motion.div
@@ -2380,7 +2397,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="fixed inset-0 z-40 bg-white"
+                  className="fixed inset-x-0 top-[var(--banner-h,60px)] bottom-[var(--bottom-nav-h,0px)] z-40 bg-white"
                 >
                   <CollapsibleFilterPanel
                     variant="sheet"
