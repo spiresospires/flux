@@ -19,7 +19,6 @@ import { useNavItems, type NavItem } from './nav/useNavItems';
 export function LeftRail() {
   const { t } = useLocalization();
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const { scope } = useScope();
   const { count: briefcaseCount } = useBriefcase();
   const { isColorCustomizerOpen, setColorCustomizerOpen } = useShellOverlay();
@@ -78,8 +77,6 @@ export function LeftRail() {
         key={item.id}
         onClick={item.onClick}
         onFocus={() => setFocusedIndex(index)}
-        onMouseEnter={() => setHoveredId(item.id)}
-        onMouseLeave={() => setHoveredId(null)}
         className={`
           relative w-full flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-md transition-colors duration-200
           ${isActive || (isSettings && isColorCustomizerOpen) ? 'text-[#0461BA] bg-[#E8F1FB]' : 'text-neutral-500 hover:text-neutral-700 hover:bg-[#F0F4F8]'}
@@ -110,11 +107,7 @@ export function LeftRail() {
           </span>
         }
         {isFlint ? (
-          <FlintIcon
-            isHovered={hoveredId === 'chat'}
-            isActive={isActive}
-            size={20}
-          />
+          <FlintIcon size={20} />
         ) : (
           // For the Documents item: wrap the icon in a span that carries the
           // amber CSS animation on first appearance.  The class is keyed so

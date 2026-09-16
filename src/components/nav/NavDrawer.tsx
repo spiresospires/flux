@@ -209,7 +209,7 @@ function DrawerRow({
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#0461BA] rounded-r-full" />}
       {isFlint ? (
-        <FlintIcon isHovered={false} isActive={active} size={18} />
+        <FlintIcon size={18} />
       ) : (
         <Icon size={18} className="shrink-0" />
       )}

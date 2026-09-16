@@ -353,7 +353,7 @@ export function ProjectMapView({ focusedProjectId = null }: ProjectMapViewProps)
                     title={`Ask Flint about ${project.name}`}
                     className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-700 hover:bg-[#E8F1FB] hover:text-[#0461BA] transition-colors"
                   >
-                    <FlintIcon isHovered={false} size={14} />
+                    <FlintIcon size={14} />
                     Flint
                   </button>
                   <button

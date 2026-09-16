@@ -112,7 +112,7 @@ function TabButton({
         </span>
       )}
       {isFlint ? (
-        <Icon isHovered={false} isActive={active} size={22} />
+        <Icon size={22} />
       ) : (
         <Icon size={22} className={active ? 'stroke-[2.25px]' : 'stroke-[1.75px]'} />
       )}
