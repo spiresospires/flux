@@ -33,6 +33,15 @@ Status: **partially implemented.** Last verified against the code 2026-09-15.
 > | P5 | **Activities (RFI, TQ, Formal Review + decision codes) is a planned product area** that must work on mobile. It does not exist in FLUX yet. Leave room for it in primary navigation rather than fitting navigation to today's feature set. | §6 |
 > | P6 | **The JS tier uses `matchMedia`, not `window.innerWidth`.** Reverses §2. See "Tier 2" there for why — do not revert it. | §2 |
 >
+> ### Phase 2 decisions, taken with the product owner 2026-09-16
+>
+> | # | Decision | Where it lands |
+> |---|---|---|
+> | P7 | **Desk intent is only ever set at a desk.** A drag below the desktop class applies for that visit and is never written to the stored preference. Settles §5 in favour of one stored width per panel rather than one per viewport class — the alternative was rejected as more for the engineering team to carry, and for making "why is my panel this width?" unanswerable. | §5 |
+> | P8 | **Touch resizes panels by preset widths, not by dragging.** The drag handles stay mouse-only. Touch tiers get a control that steps through set widths, per §7's "replace, don't port". | §7 |
+> | P9 | **Column reorder keeps desktop drag *and* gains a non-drag route.** §9 offered up/down controls as a replacement; the decision is that it is an addition. Mouse users lose nothing, and touch and keyboard users get the first route they have ever had. | §9 |
+> | P10 | **The tablet-portrait folder/filter pane closes when a folder is picked.** It slides over the document list rather than sitting beside it, and a folder tap returns the user straight to the documents. | §8 |
+>
 > *FLUX is the internal Idox project name for this user-experience work. The product is
 > **FusionLive**.*
 
@@ -913,12 +922,24 @@ Each phase ships something. None blocks on the next.
   container without a window resize.
 
 **Phase 2 — the JS tier and the persistence rule** *(ships tablet landscape as "fully supported")*
-- `classifyViewport`, the store, the hook. Pure-function tests in node.
+
+> **Status, 2026-09-16: in progress.** The first bullet landed early, inside the Phase 4 groundwork
+> of `cdde096` — which is what the banner at the top of this document means by "Phase 2 partly
+> landed". Anyone reading this list alone would conclude nothing had started. Keep the marks
+> current.
+
+- ✅ `classifyViewport`, the store, the hook. Pure-function tests in node. *(landed early in
+  `cdde096`, 2026-08-25; revised to `matchMedia` 2026-09-15 under P6. Live consumers:
+  `ShellLayoutContext`, `DocumentBrowser`, `DocumentViewer`.)*
 - `clampPanelWidth` at consume time across all three persisted widths; derived `effectiveOpen`.
-- Discrete snap widths replacing drag-resize on touch tiers.
-- Non-drag column reorder in the chooser — the only route to touch parity.
+  - ✅ **`effectiveOpen` needs nothing.** Both persisted open/closed prefs already hold the rule:
+    `docBrowser.treeOpen` gives phone a separate unpersisted `phoneTreeSheetOpen` (landed with the
+    phone sheet in `d3b6b72`), and no viewport effect anywhere writes `chat.historyOpen`. The gap
+    was only ever the widths.
+- Discrete snap widths replacing drag-resize on touch tiers (P8).
+- Non-drag column reorder **added beside** the existing desktop drag, not replacing it (P9).
 - Panel `sheet` variant, `key={variant}`, and the `fieldColumns` prop.
-- The filter/tree pane becomes an overlay drawer at tablet portrait (§8).
+- The filter/tree pane becomes an overlay drawer at tablet portrait, closing on folder pick (§8, P10).
 
 **Phase 3 — tables** *(the highest-risk phase)*
 - Extract the column logic as a standalone, tested commit *before* any behaviour change.

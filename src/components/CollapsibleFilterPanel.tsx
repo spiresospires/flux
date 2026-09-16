@@ -7,8 +7,12 @@ import {
   XIcon } from
 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
-import { useUserPref } from '../hooks/useUserPref';
+import { usePanelWidth } from '../shell/usePanelWidth';
+import type { PanelWidthBounds } from '../shell/panelWidth';
 import { PanelResizeHandle } from './PanelResizeHandle';
+
+const TREE_WIDTH: PanelWidthBounds = { min: 240, max: 560, fallback: 320 };
+
 interface CollapsibleFilterPanelProps {
   isExpanded: boolean;
   onToggle: () => void;
@@ -43,13 +47,15 @@ export function CollapsibleFilterPanel({
   // this component is only used in DocumentBrowser, so the key lives here.
   // The open/closed state is owned by DocumentBrowser (docBrowser.treeOpen),
   // mirroring how Chat owns chat.historyOpen for its history sidebar.
-  const [width, setWidth] = useUserPref<number>('docBrowser.treeWidth', 320);
+  // usePanelWidth, not useUserPref: the stored value is desk intent and a drag
+  // below desktop must not overwrite it (P7).
+  const [width, setWidth] = usePanelWidth('docBrowser.treeWidth', TREE_WIDTH);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current || !panelRef.current) return;
       const rect = panelRef.current.getBoundingClientRect();
-      const next = Math.min(560, Math.max(240, e.clientX - rect.left));
+      const next = Math.min(TREE_WIDTH.max, Math.max(TREE_WIDTH.min, e.clientX - rect.left));
       setWidth(next);
     };
     const onUp = () => {

@@ -88,10 +88,15 @@ import { useDensity } from '../contexts/DensityContext';
 import type { Density } from '../contexts/DensityContext';
 import { useUserPref } from '../hooks/useUserPref';
 import { useViewportClass } from '../shell/useViewportClass';
+import { usePanelWidth } from '../shell/usePanelWidth';
+import type { PanelWidthBounds } from '../shell/panelWidth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isPlaceholder, isOverdue } from '../types/document';
 import type { Document, DocumentStatus, DocumentType, Folder } from '../types/document';
+
+const DETAIL_PANEL_WIDTH: PanelWidthBounds = { min: 260, max: 640, fallback: 360 };
+
 type SortDirection = 'asc' | 'desc' | null;
 type ColumnKey = string;
 
@@ -864,13 +869,18 @@ export function DocumentBrowser() {
   const [liveMessage, setLiveMessage] = useState('');
   // [MOCK] Panel width persisted via useUserPref — swaps to Oracle preferences API when available.
   // [API] G02:GET /user/preferences/docBrowser.panelWidth
-  const [panelWidth, setPanelWidth] = useUserPref<number>('docBrowser.panelWidth', 360);
+  // usePanelWidth, not useUserPref: the stored value is desk intent and a drag
+  // below desktop must not overwrite it (P7).
+  const [panelWidth, setPanelWidth] = usePanelWidth('docBrowser.panelWidth', DETAIL_PANEL_WIDTH);
   const panelResizingRef = useRef(false);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!panelResizingRef.current) return;
       // Panel is on the right; dragging left = wider, right = narrower.
-      const next = Math.min(640, Math.max(260, window.innerWidth - e.clientX));
+      const next = Math.min(
+        DETAIL_PANEL_WIDTH.max,
+        Math.max(DETAIL_PANEL_WIDTH.min, window.innerWidth - e.clientX)
+      );
       setPanelWidth(next);
     };
     const onUp = () => {

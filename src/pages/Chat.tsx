@@ -38,6 +38,8 @@ import { useScope } from '../contexts/ScopeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { FlintLockup } from '../components/FlintIcon';
 import { useUserPref } from '../hooks/useUserPref';
+import { usePanelWidth } from '../shell/usePanelWidth';
+import type { PanelWidthBounds } from '../shell/panelWidth';
 import { Document } from '../types/document';
 // [MOCK] Workspace list for the chat scope picker.
 // [API] G03:GET /workspaces
@@ -54,6 +56,9 @@ import {
   replyDelayMs,
   type EffortMode,
 } from '../types/effort';
+
+const HISTORY_WIDTH: PanelWidthBounds = { min: 240, max: 560, fallback: 288 };
+
 interface ChatMessage {
   id: string;
   content: React.ReactNode;
@@ -467,12 +472,14 @@ export function Chat() {
   //                       Defaults to false (collapsed) on first visit.
   // 'chat.historyWidth' → pixel width of the sidebar when expanded.
   const [historyOpen, setHistoryOpen] = useUserPref<boolean>('chat.historyOpen', false);
-  const [historyWidth, setHistoryWidth] = useUserPref<number>('chat.historyWidth', 288);
+  // usePanelWidth, not useUserPref: the stored value is desk intent and a drag
+  // below desktop must not overwrite it (P7).
+  const [historyWidth, setHistoryWidth] = usePanelWidth('chat.historyWidth', HISTORY_WIDTH);
   const resizingRef = useRef(false);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const next = Math.min(560, Math.max(240, e.clientX - 56));
+      const next = Math.min(HISTORY_WIDTH.max, Math.max(HISTORY_WIDTH.min, e.clientX - 56));
       setHistoryWidth(next);
     };
     const onUp = () => {
