@@ -11,6 +11,7 @@
     "test:watch": "node scripts/prewarm-test-env.mjs && vitest",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings 0",
     "check": "npm run typecheck && npm run lint && npm run test",
+    "test:e2e": "node e2e/run-all.mjs",
     "prepare": "git config core.hooksPath .githooks || exit 0",
     "preview": "npx vite preview"
   },
@@ -42,6 +43,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
     "jsdom": "^29.1.1",
+    "playwright": "^1.63.0",
     "postcss": "latest",
     "tailwindcss": "3.4.17",
     "typescript": "^5.9.3",

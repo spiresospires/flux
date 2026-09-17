@@ -28,3 +28,6 @@ _FUSION/
 
 # Claude Code personal settings (permissions allowlist) - not team-wide
 .claude/settings.local.json
+
+# Browser-harness screenshots (see e2e/README.md)
+e2e/screenshots/
