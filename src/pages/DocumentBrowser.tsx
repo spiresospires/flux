@@ -88,8 +88,9 @@ import { useDensity } from '../contexts/DensityContext';
 import type { Density } from '../contexts/DensityContext';
 import { useUserPref } from '../hooks/useUserPref';
 import { useViewportClass } from '../shell/useViewportClass';
+import { resolveDetailPanelVariant, resolveFilterPaneMode } from '../shell/viewport';
 import { usePanelWidth } from '../shell/usePanelWidth';
-import type { PanelWidthBounds } from '../shell/panelWidth';
+import { nextPanelWidth, type PanelWidthBounds } from '../shell/panelWidth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isPlaceholder, isOverdue } from '../types/document';
@@ -778,16 +779,35 @@ export function DocumentBrowser() {
   // (chat.historyOpen). Defaults to OPEN — unlike Chat, this panel is the
   // page's primary navigation.
   const [leftPanelOpen, setLeftPanelOpen] = useUserPref<boolean>('docBrowser.treeOpen', true);
-  // Phone gets its own open/closed state, deliberately NOT persisted through
-  // docBrowser.treeOpen: a phone session must never write a viewport-derived
-  // value into a desktop preference (see docs/responsive-architecture.md §5)
-  // — a phone user opening the tree sheet must not cause it to reopen
-  // inline on their next desktop visit. Defaults closed so the table gets
-  // full width immediately; there was no equivalent "collapsed" state to
-  // inherit anyway, since the panel is inline (not a sheet) on every other
-  // viewport.
-  const isPhone = useViewportClass() === 'phone';
-  const [phoneTreeSheetOpen, setPhoneTreeSheetOpen] = useState(false);
+  // The overlay presentations (drawer at tablet portrait, sheet on phone) get
+  // their own open/closed state, deliberately NOT persisted through
+  // docBrowser.treeOpen: a session on a small screen must never write a
+  // viewport-derived value into a desktop preference (§5) — opening the pane on
+  // a tablet must not cause it to reopen inline on the next desktop visit.
+  // Defaults closed so the table gets full width immediately; there is no
+  // equivalent "collapsed" state to inherit, since an overlay is either up or
+  // it is not.
+  const viewport = useViewportClass();
+  const paneMode = resolveFilterPaneMode(viewport);
+  const [overlayPaneOpen, setOverlayPaneOpen] = useState(false);
+
+  // Escape closes the overlay, as it does every other dismissible surface here.
+  // Also closes it when the viewport grows back to an inline column: the pane
+  // is then rendered in the layout anyway, and a stale overlay flag would put a
+  // second copy over it the next time the window narrowed.
+  useEffect(() => {
+    if (!overlayPaneOpen) return;
+    if (paneMode === 'inline') {
+      setOverlayPaneOpen(false);
+      return;
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverlayPaneOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [overlayPaneOpen, paneMode]);
+
   const navigate = useNavigate();
   // Folder tree over HTTP (G05, MSW-served in the prototype). Each workspace has
   // its own tree — switching projects in the banner refetches it.
@@ -872,6 +892,11 @@ export function DocumentBrowser() {
   // usePanelWidth, not useUserPref: the stored value is desk intent and a drag
   // below desktop must not overwrite it (P7).
   const [panelWidth, setPanelWidth] = usePanelWidth('docBrowser.panelWidth', DETAIL_PANEL_WIDTH);
+  const detailVariant = resolveDetailPanelVariant(viewport);
+  // Metadata pairs need ~210px each to stay readable. The split panel's width is
+  // the user's to drag, so ask it directly; the drawer is ~half a tablet portrait
+  // screen and the sheet is a phone, so neither has room for two.
+  const fieldColumns: 1 | 2 = detailVariant === 'split' ? (panelWidth < 420 ? 1 : 2) : 1;
   const panelResizingRef = useRef(false);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -973,7 +998,7 @@ export function DocumentBrowser() {
   // propagation, so expanding a node never reaches this.
   const selectFolderFromTree = useCallback((folderId: string | null) => {
     selectFolder(folderId);
-    setPhoneTreeSheetOpen(false);
+    setOverlayPaneOpen(false);
   }, [selectFolder]);
 
   // Server-side sort (G06 ?sort=&order= — ADR-011): the active column sort wins,
@@ -2362,11 +2387,11 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
             data-component="browser-layout"
             className="flex h-full gap-4 pl-[var(--left-rail-width,88px)] items-stretch">
 
-            {/* Sidebar Island — inline on desktop/tablet ('panel' variant).
-                On phone the identical content instead renders as an
-                on-demand full-screen sheet (below), so nothing here
-                consumes flex width when isPhone — see phoneTreeSheetOpen. */}
-            {!isPhone && (
+            {/* Sidebar Island — a column only where there is room for one.
+                At tablet portrait and below the identical content is an
+                on-demand overlay instead (below), so nothing here consumes
+                flex width — see overlayPaneOpen. */}
+            {paneMode === 'inline' && (
               <CollapsibleFilterPanel
                 isExpanded={leftPanelOpen}
                 onToggle={() => setLeftPanelOpen((v) => !v)}
@@ -2377,32 +2402,53 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
               </CollapsibleFilterPanel>
             )}
 
-            {/* Phone: the same tree/filter content as an on-demand full-screen
-                sheet, opened via the Folders button in the content-panel
-                header toolbar below. `phoneTreeSheetOpen` is local, session-
-                only state — never routed through docBrowser.treeOpen, so a
-                phone visit can never overwrite the desktop panel-open
-                preference (docs/responsive-architecture.md §5). */}
-            {/* NOT inset-0: the banner is z-[60] to this sheet's z-40, so a
-                full-viewport sheet gets its own header — the mode toggle and the
-                only close button — painted over by the banner, while its z-40
-                covers the z-30 bottom tab bar. That left no exit but a page
+            {/* Tablet portrait and phone: the same tree/filter content as an
+                on-demand overlay, opened from the Folders button in the toolbar
+                below. `overlayPaneOpen` is local, session-only state — never
+                routed through docBrowser.treeOpen, so a visit on a small screen
+                can never overwrite the desktop panel-open preference
+                (docs/responsive-architecture.md §5).
+
+                NOT inset-0: the banner is z-[60] to this overlay's z-40, so a
+                full-viewport overlay gets its own header — the mode toggle and
+                the only close button — painted over by the banner, while its
+                z-40 covers the z-30 bottom tab bar. That left no exit but a page
                 reload. Overlays here start below the banner (DetailSlidePanel's
                 drawer already does) and stop above the bottom nav, so both
-                primary navs stay reachable. */}
+                primary navs stay reachable.
+
+                The drawer also starts AFTER the rail: it covers the list it is
+                filtering, not the navigation out of it. The sheet has no rail
+                to clear — at phone the rail is unmounted and the width is 0. */}
             <AnimatePresence>
-              {isPhone && phoneTreeSheetOpen && (
+              {paneMode === 'drawer' && overlayPaneOpen && (
                 <motion.div
+                  key="pane-backdrop"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="fixed inset-x-0 top-[var(--banner-h,60px)] bottom-[var(--bottom-nav-h,0px)] z-40 bg-white"
+                  onClick={() => setOverlayPaneOpen(false)}
+                  className="fixed inset-0 z-40 bg-black/40"
+                />
+              )}
+              {paneMode !== 'inline' && overlayPaneOpen && (
+                <motion.div
+                  key="pane-overlay"
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  transition={{ duration: 0.22, ease: [0.32, 0, 0.16, 1] }}
+                  className={`fixed top-[var(--banner-h,60px)] bottom-[var(--bottom-nav-h,0px)] z-40 bg-white ${
+                    paneMode === 'drawer'
+                      ? 'left-[var(--left-rail-width,88px)] w-[320px] shadow-2xl'
+                      : 'inset-x-0'
+                  }`}
                 >
                   <CollapsibleFilterPanel
-                    variant="sheet"
+                    variant="overlay"
                     isExpanded
-                    onToggle={() => setPhoneTreeSheetOpen(false)}
+                    onToggle={() => setOverlayPaneOpen(false)}
                     mode={leftPanelMode}
                     onModeChange={setLeftPanelMode}
                   >
@@ -2581,13 +2627,15 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                   <div />
                 )}
                 <div className="flex items-center gap-1">
-                  {/* Folders/Filters trigger — phone only. Opens the same
-                      content (FolderTree or FilterPanel, per leftPanelMode)
-                      as the inline panel on wider screens, as a full-screen
-                      sheet instead — see phoneTreeSheetOpen above. */}
-                  {isPhone && (
+                  {/* Folders/Filters trigger — wherever the pane is not a
+                      column. Opens the same content (FolderTree or FilterPanel,
+                      per leftPanelMode) as an overlay instead: a drawer at
+                      tablet portrait, a full-bleed sheet on phone. Without this
+                      the pane would be unreachable at those widths, since the
+                      inline island it normally lives in is not rendered. */}
+                  {paneMode !== 'inline' && (
                     <button
-                      onClick={() => setPhoneTreeSheetOpen(true)}
+                      onClick={() => setOverlayPaneOpen(true)}
                       className="relative h-9 min-w-[44px] px-2 rounded-md border border-neutral-200 bg-white text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-colors inline-flex items-center justify-center"
                       aria-label={t('panel.folders')}
                     >
@@ -3180,8 +3228,12 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                 unmounting: DetailSlidePanel's own AnimatePresence is *inside* it,
                 so unmounting would take the exit animation with it and snap the
                 grid wider in one frame. */}
+            {/* Only the split variant is a flex column. The drawer and sheet are
+                fixed overlays, so mounting them in this row would reserve width
+                for something that is not in the flow — see the non-split branch
+                after this layout. */}
             <AnimatePresence initial={false}>
-              {panelData && !panelDismissed && (
+              {detailVariant === 'split' && panelData && !panelDismissed && (
                 <motion.div
                   key="detail-panel"
                   className="relative shrink-0 h-full"
@@ -3194,7 +3246,13 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                       live inside the clipping box below — it's dropped outright while
                       collapsed rather than left floating over the grid. */}
                   {!sidebarCollapsed && (
-                    <PanelResizeHandle side="left" onResizeStart={startPanelResize} ariaLabel={t('panel.resize')} />
+                    <PanelResizeHandle
+                      side="left"
+                      onResizeStart={startPanelResize}
+                      ariaLabel={t('panel.resize')}
+                      onStepWidth={() => setPanelWidth(nextPanelWidth(panelWidth, viewport, DETAIL_PANEL_WIDTH))}
+                      stepAriaLabel={t('panel.stepWidth')}
+                    />
                   )}
                   <div className="h-full overflow-hidden">
                     {/* Fixed inner width so the panel's contents don't reflow (and
@@ -3204,6 +3262,7 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
                         data={panelData}
                         onClose={dismissDetailPanel}
                         variant="split"
+                        fieldColumns={fieldColumns}
                       />
                     </div>
                   </div>
@@ -3213,6 +3272,19 @@ if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.targe
 
           </motion.div>
       </AnimatePresence>
+
+      {/* Drawer (tablet portrait) and sheet (phone): fixed overlays, so they sit
+          OUTSIDE browser-layout and take no width from the grid. The collapse
+          rule still applies — two or more checked rows means there is no single
+          document to describe. */}
+      {detailVariant !== 'split' && (
+        <DetailSlidePanel
+          data={panelDismissed || sidebarCollapsed ? null : panelData}
+          onClose={dismissDetailPanel}
+          variant={detailVariant}
+          fieldColumns={fieldColumns}
+        />
+      )}
     </div>);
 
 }

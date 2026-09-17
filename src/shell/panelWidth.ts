@@ -59,6 +59,44 @@ export function clampPanelWidth(
   return Math.max(Math.min(intent, ceiling), bounds.min);
 }
 
+/** The widths a finger can choose between, narrowest first (decision P8).
+ *
+ *  Dragging is a mouse interaction: the handle is a 12px strip, and porting it
+ *  to touch means either a target too thin to hit or one so fat it swallows its
+ *  neighbours. Presets replace it rather than emulate it — three stops, so the
+ *  choice is "how much room do I want", not a pixel hunt.
+ *
+ *  Derived from each panel's own limits rather than hard-coded, so a panel that
+ *  needs 260px to be readable never offers 240, and every stop is a width that
+ *  panel and this viewport can both honour. Deduplicated: where the usable
+ *  minimum meets the class ceiling there may be fewer than three real choices,
+ *  and offering the same width twice makes the control look broken. */
+export function panelWidthPresets(viewport: ViewportClass, bounds: PanelWidthBounds): number[] {
+  const narrow = clampPanelWidth(bounds.min, viewport, bounds);
+  const wide = clampPanelWidth(bounds.max, viewport, bounds);
+  const middle = clampPanelWidth(Math.round((narrow + wide) / 2), viewport, bounds);
+  return [...new Set([narrow, middle, wide])].sort((a, b) => a - b);
+}
+
+/** The next preset after the current width, wrapping at the widest.
+ *
+ *  Matches on the nearest stop rather than an exact one, because the current
+ *  width is usually a number dragged at a desk, not a preset — so the first tap
+ *  moves somewhere predictable instead of jumping to the start of the list. */
+export function nextPanelWidth(
+  current: number,
+  viewport: ViewportClass,
+  bounds: PanelWidthBounds
+): number {
+  const presets = panelWidthPresets(viewport, bounds);
+  const here = clampPanelWidth(current, viewport, bounds);
+  let nearest = 0;
+  for (let i = 1; i < presets.length; i++) {
+    if (Math.abs(presets[i] - here) < Math.abs(presets[nearest] - here)) nearest = i;
+  }
+  return presets[(nearest + 1) % presets.length];
+}
+
 /** Whether a width the user just dragged to is desk intent, and so may be
  *  written to the stored preference (decision P7).
  *

@@ -79,7 +79,8 @@
     "filters": "Filters",
     "collapse": "Collapse panel",
     "expand": "Expand panel",
-    "resize": "Drag to resize panel"
+    "resize": "Drag to resize panel",
+    "stepWidth": "Change panel width"
   },
   "appearance": {
     "title": "Appearance",

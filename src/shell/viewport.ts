@@ -24,6 +24,20 @@ export const VIEWPORT_QUERIES = {
   tabletLandscape: '(max-width: 1279.98px)',
 } as const;
 
+/** Where a pointer genuinely cannot hover, so drag affordances are unusable.
+ *
+ *  Character-identical to the `@media (pointer: coarse) and (hover: none)`
+ *  block in index.css, for the same reason the width queries are — the CSS tier
+ *  hides drag handles under it and the JS tier mounts their replacement, and a
+ *  device matching one but not the other gets either two resize controls or
+ *  none.
+ *
+ *  `hover: none` is load-bearing, not belt-and-braces: bare `pointer: coarse`
+ *  also matches a touchscreen laptop or Surface at 1920px, which is ordinary
+ *  hardware in a site office and squarely the desktop experience (decision P1).
+ *  Those keep dragging, because they can. */
+export const TOUCH_ONLY_QUERY = '(pointer: coarse) and (hover: none)';
+
 export type ViewportMatches = { phone: boolean; tabletPortrait: boolean; tabletLandscape: boolean };
 
 /** Map the three max-width matches to a class. The queries nest — phone implies
@@ -60,4 +74,42 @@ export function resolveNavMode(viewport: ViewportClass, isRailCollapsed: boolean
   if (viewport === 'phone') return 'mobile';
   if (viewport === 'tablet-portrait') return 'rail-icon';
   return isRailCollapsed ? 'rail-icon' : 'rail';
+}
+
+/** How the object-properties panel is PRESENTED. */
+export type DetailPanelVariant =
+  | 'split'   // inline third column, caller owns the width  (desktop, tablet-landscape)
+  | 'drawer'  // right-hand overlay with a backdrop          (tablet-portrait)
+  | 'sheet';  // bottom sheet with a backdrop                (phone)
+
+/** Chosen by the caller, never by the panel — see §7. The panel's subtree holds
+ *  two of the repo's only jsdom-tested components, and this keeps viewport
+ *  logic out of it.
+ *
+ *  `sheet` is not a nicety: the drawer is `w-1/2 min-w-[380px]`, and on a 375px
+ *  phone the minimum beats the half, so the drawer renders WIDER than the
+ *  screen. A side panel is the wrong shape for a phone regardless — vertical
+ *  space is what a phone has. */
+export function resolveDetailPanelVariant(viewport: ViewportClass): DetailPanelVariant {
+  if (viewport === 'phone') return 'sheet';
+  if (viewport === 'tablet-portrait') return 'drawer';
+  return 'split';
+}
+
+/** How the folder-tree / filter pane is PRESENTED. */
+export type FilterPaneMode =
+  | 'inline'  // a column in the browser layout        (desktop, tablet-landscape)
+  | 'drawer'  // overlay beside the rail, with backdrop (tablet-portrait)
+  | 'sheet';  // full-bleed overlay                     (phone)
+
+/** Same shape as the detail panel, one tier apart, and for the same reason:
+ *  at 768px the document table cannot spare 320px to a tree AND stay a usable
+ *  list, so the pane stops being a column and starts being something you open.
+ *
+ *  Both overlay modes close when a folder is picked (decision P10) — picking is
+ *  one decision, and the point of it is to see what you picked. */
+export function resolveFilterPaneMode(viewport: ViewportClass): FilterPaneMode {
+  if (viewport === 'phone') return 'sheet';
+  if (viewport === 'tablet-portrait') return 'drawer';
+  return 'inline';
 }

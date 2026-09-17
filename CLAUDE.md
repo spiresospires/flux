@@ -36,6 +36,7 @@ Tests live beside the code they cover, as `*.test.ts`.
 | `npm test` | Vitest, single run. 196 tests over business rules, mock generators, icon geometry + two component suites |
 | `npm run check` | typecheck → lint → test in one go. Run this before any handover |
 | `npm run test:watch` | Vitest in watch mode |
+| `npm run test:e2e` | Browser harnesses against a **running** dev server (`npm run dev` first). Not part of `check`, not in CI — see `e2e/README.md` |
 
 ⚠️ `npm run build` succeeding does **not** mean the code typechecks — Vite strips types without checking them. That is what the separate `typecheck` script is for. Run `typecheck`, `lint` and `test`; the build alone proves very little.
 
@@ -342,12 +343,19 @@ The detail panel supports two rendering variants via the `variant` prop:
 
 | Variant | Behaviour |
 |---|---|
-| `'drawer'` (default) | Fixed overlay, slides in from the right with backdrop. Used everywhere except DocumentBrowser. |
-| `'split'` | Inline flex column, no backdrop, no fixed positioning. Used in DocumentBrowser. |
+| `'drawer'` (default) | Fixed overlay, slides in from the right with backdrop. Dashboard at every width above phone; DocumentBrowser at tablet portrait. |
+| `'split'` | Inline flex column, no backdrop, no fixed positioning. DocumentBrowser at tablet landscape and desktop. |
+| `'sheet'` | Bottom sheet with backdrop, `max-h-[70svh]`. Both callers on phone — the drawer's `w-1/2 min-w-[380px]` resolves to the minimum and renders wider than a 375px screen. |
+
+**The caller picks the variant, and the two callers do not share a mapping.** DocumentBrowser uses `resolveDetailPanelVariant` (`src/shell/viewport.ts`). Dashboard must not — that returns `split` at desktop, an inline column, and Dashboard has none; it maps phone → `sheet`, everything else → `drawer`. Only `split` sits inside the flex row; the overlays mount outside it so they reserve no width.
+
+`fieldColumns?: 1 | 2` controls the metadata pair grids via a single `[data-field-columns='1']` rule in `index.css`. It is a prop rather than a breakpoint because the panel's width is dragged independently of the viewport — at 260px on a 1920px monitor every `md:` prefix is satisfied and the pairs are still crushed. DocumentBrowser passes `panelWidth < 420 ? 1 : 2`; the 360px default is already one column.
+
+`key={variant}` on each branch forces an atomic remount when the variant flips on a live instance (a tablet rotating). Without it the outgoing panel stays mounted through its exit while the incoming one paints a backdrop over the page.
 
 **Split layout (DocumentBrowser):**
 - Panel renders as a flex sibling of `content-panel` inside `browser-layout`; width controlled by `useUserPref('docBrowser.panelWidth', 360)` (min 260 px, max 640 px).
-- Resizing uses the shared `PanelResizeHandle` component (`src/components/PanelResizeHandle.tsx`): a faint centred line + always-visible grip pill rendered **in the 16px `browser-layout` gap** between islands (positioned `-left-4`/`-right-4` off the host panel's edge). The same handle resizes the folder-tree island via `CollapsibleFilterPanel` (`useUserPref('docBrowser.treeWidth', 320)`), so both separators look and behave identically. Dragging recalculates width from `window.innerWidth - e.clientX` (detail panel) / `e.clientX - rect.left` (tree).
+- Resizing uses the shared `PanelResizeHandle` component (`src/components/PanelResizeHandle.tsx`), which has **two presentations chosen by input capability**: a drag grabber where a pointer can hover, and a 44px tap target stepping through three preset widths where it cannot (`(pointer: coarse) and (hover: none)` via `useTouchOnly`). All three resizable panels — folder/filter, detail, and Chat history — use it. Widths come from `usePanelWidth`, never `useUserPref` directly: the stored value is desk intent and a resize below desktop must not overwrite it. The grabber is a faint centred line + always-visible grip pill rendered **in the 16px `browser-layout` gap** between islands (positioned `-left-4`/`-right-4` off the host panel's edge). The same handle resizes the folder-tree island via `CollapsibleFilterPanel` (`useUserPref('docBrowser.treeWidth', 320)`), so both separators look and behave identically. Dragging recalculates width from `window.innerWidth - e.clientX` (detail panel) / `e.clientX - rect.left` (tree).
 - `content-panel` has `transition-all duration-200` — smoothly compresses as the panel opens.
 - `browser-layout` has `items-stretch` so all columns fill full height.
 - Animation: `opacity+x` slide-in (`x: 20 → 0`, 200 ms ease-out) on the panel itself, plus a `width: 0 ↔ panelWidth` animation on the wrapper for the collapse rule below. `DetailSlidePanel`'s `AnimatePresence` lives **inside** the wrapper, so the wrapper must animate rather than unmount — unmounting it takes the exit animation with it and the grid snaps wider in one frame.
@@ -510,10 +518,19 @@ These are known, non-blocking, and pre-date recent sessions:
 
 ## Testing status
 
-**Vitest is installed and 196 tests pass.** Coverage is deliberately narrow: the business
+**Vitest is installed and 221 tests pass.** Coverage is deliberately narrow: the business
 rules that a new team cannot re-derive from the UI, the mock generators, the icon geometry,
 and two component suites. The rest of the rendering is still unverified — see the manual
 checklist in **MDR_AND_PROGRESS.md §5b**.
+
+**Plus browser harnesses in `e2e/`** (`npm run test:e2e`, dev server must be running). These
+assert what the unit suite structurally cannot: that a control is where it should be, is not
+covered by something else, and responds when pressed. They have already caught two bugs that
+every presence-based check passed — a close button painted under the top banner, and a resize
+handle clipped by an `overflow-hidden` parent. **Assert hit-testing, not existence** —
+`document.elementFromPoint` at the element's centre. They launch installed Edge because this
+machine blocks Playwright's own browser builds, which is also why they are not in CI. Full
+reasoning in `e2e/README.md`.
 
 Component tests opt in per-file with `// @vitest-environment jsdom` on the first line. The
 suite runs `globals: false`, so **each such file must call `afterEach(cleanup)` itself** —

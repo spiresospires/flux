@@ -600,6 +600,20 @@ html[data-view='flush'][data-appearance='dark'] [data-component='topbar'] .track
   background-color: rgba(4,97,186,0.12);
 }
 
+/* ── Detail panel metadata grids ───────────────────────────────────────────
+   The properties panel lays its fields out in label/value pairs, two per row.
+   What squeezes them is the PANEL's width, which the user drags independently
+   of the viewport — on a 1920px monitor with the panel pulled in to 260px every
+   `md:` prefix is satisfied and the pairs are still crushed. So the caller
+   passes a count (DetailSlidePanel's `fieldColumns`) and it lands here, rather
+   than a breakpoint that would sacrifice the desktop layout to fix a phone.
+
+   Specificity 0,2,0 beats the `md:grid-cols-2` utility's 0,1,0, and a media
+   query adds none — so this wins wherever it applies without !important. */
+[data-field-columns='1'] .detail-field-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
 /* ── Touch input ───────────────────────────────────────────────────────────
    `pointer: coarse` alone is NOT a stand-in for "small screen" — it matches on
    the PRIMARY pointing device, so a touchscreen laptop, a Surface or a
@@ -612,7 +626,13 @@ html[data-view='flush'][data-appearance='dark'] [data-component='topbar'] .track
    genuinely cannot happen, so it still catches a landscape iPad while
    excluding a touchscreen laptop that also has a trackpad. Size rules go here;
    put input-semantics rules that should apply wherever touch is *available*
-   under bare `pointer: coarse` instead. */
+   under bare `pointer: coarse` instead.
+
+   ⚠️ This query string is MIRRORED in JS as TOUCH_ONLY_QUERY (src/shell/
+   viewport.ts), where PanelResizeHandle uses it to swap the drag grabber for a
+   preset-width button. The two must stay character-identical: CSS hides drag
+   affordances here while JS mounts their replacement, so any drift leaves a
+   device with two resize controls or none. viewport.test.ts pins the string. */
 @media (pointer: coarse) and (hover: none) {
   /* The column resizer is mouse-only — `onMouseDown` at DocumentBrowser.tsx
      with no touch or pointer equivalent — so it cannot be operated here at all.

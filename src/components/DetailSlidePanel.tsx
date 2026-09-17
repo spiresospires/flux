@@ -7,6 +7,7 @@ import { useViewer } from '../contexts/ViewerContext';
 import { statusChipClass } from './documentStatusColors';
 import { DocumentJourney } from './DocumentJourney';
 import { VersionStack } from './VersionStack';
+import type { DetailPanelVariant } from '../shell/viewport';
 import type { JourneyStep, VersionStackEntry } from '../types/journey';
 import type { DocumentStatus } from '../types/document';
 
@@ -68,9 +69,22 @@ export interface DetailPanelData {
 interface DetailSlidePanelProps {
   data: DetailPanelData | null;
   onClose: () => void;
-  /** 'drawer' (default) — fixed overlay that slides in from the right.
-   *  'split'            — inline flex column; caller controls width.  */
-  variant?: 'drawer' | 'split';
+  /** 'drawer' (default) — fixed overlay sliding in from the right.
+   *  'split'            — inline flex column; caller controls width.
+   *  'sheet'            — bottom sheet; for phones, where a side panel cannot fit.
+   *
+   *  The CALLER decides this (resolveDetailPanelVariant), not the component. */
+  variant?: DetailPanelVariant;
+  /**
+   * How many columns the metadata pair grids use.
+   *
+   * A prop rather than a breakpoint because the thing that squeezes these grids
+   * is the PANEL's width, which the user drags independently of the viewport:
+   * on a 1920px monitor with the panel pulled to 260px every `md:` prefix is
+   * satisfied and the two-column layout is still broken. A responsive prefix
+   * would damage the primary desktop experience to fix a phone.
+   */
+  fieldColumns?: 1 | 2;
 }
 
 const typeConfig: Record<DetailPanelObjectType, { icon: React.ElementType; label: string; color: string }> = {
@@ -207,7 +221,7 @@ function DocumentDetail({ data }: { data: DetailPanelData }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="detail-field-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.documentId')} value={data.docId || data.objectId} icon={FileIcon} />
         <Field label={t('detailPanel.revision')} value={data.revision} />
         <Field label={t('detailPanel.author')} value={data.author} icon={UserIcon} />
@@ -255,7 +269,7 @@ function TransmittalDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="detail-field-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.transmittalRef')} value={data.objectId.toUpperCase()} icon={SendIcon} />
         <Field label={t('detailPanel.recipient')} value={data.recipient} icon={UserIcon} />
         <Field label={t('detailPanel.issueDate')} value={data.issueDate ? new Date(data.issueDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) : undefined} icon={CalendarIcon} />
@@ -281,7 +295,7 @@ function ReviewDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="detail-field-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.reviewRef')} value={data.objectId.toUpperCase()} icon={CheckCircleIcon} />
         <Field label={t('detailPanel.assignedTo')} value={data.assignedTo} icon={UserIcon} />
         <Field label={t('detailPanel.assignedBy')} value={data.assignedBy} icon={UserIcon} />
@@ -310,7 +324,7 @@ function WorkflowDetail({ data }: { data: DetailPanelData }) {
     : null;
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="detail-field-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.workflowRef')} value={data.objectId.toUpperCase()} icon={GitBranchIcon} />
         <Field label={t('detailPanel.currentStep')} value={data.currentStep} />
         <Field label={t('detailPanel.progress')} value={progress != null ? t('detailPanel.stepsProgress', { completed: data.completedSteps ?? 0, total: data.totalSteps ?? 0 }) : undefined} />
@@ -349,7 +363,7 @@ function GenericDetail({ data }: { data: DetailPanelData }) {
   const { t, locale } = useLocalization();
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="detail-field-grid grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t('detailPanel.id')} value={data.objectId} />
         <Field label={t('detailPanel.project')} value={data.project} />
         {data.sharedBy && <Field label={t('detailPanel.sharedBy')} value={data.sharedBy} icon={UserIcon} />}
@@ -374,11 +388,13 @@ function PanelInner({
   onClose,
   px = 'px-6',
   py = 'py-5',
+  fieldColumns = 2,
 }: {
   data: DetailPanelData;
   onClose: () => void;
   px?: string;
   py?: string;
+  fieldColumns?: 1 | 2;
 }) {
   const { t } = useLocalization();
   const typeLabel = t(`detailPanel.types.${data.objectType}`);
@@ -452,8 +468,11 @@ function PanelInner({
         </div>
       )}
 
-      {/* Body */}
-      <div className={`flex-1 overflow-y-auto ${px} ${py}`}>
+      {/* Body. data-field-columns drives the metadata pair grids from ONE rule
+          in index.css rather than threading the count through five separate
+          detail renderers — same effect, and a narrow panel cannot end up with
+          four of the five grids converted and one forgotten. */}
+      <div className={`flex-1 overflow-y-auto ${px} ${py}`} data-field-columns={fieldColumns}>
         {tab === 'versions' && data.versions
           ? <VersionStack
               versions={data.versions}
@@ -479,7 +498,12 @@ function PanelInner({
   );
 }
 
-export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSlidePanelProps) {
+export function DetailSlidePanel({
+  data,
+  onClose,
+  variant = 'drawer',
+  fieldColumns = 2,
+}: DetailSlidePanelProps) {
   const { t } = useLocalization();
 
   // Escape closes the panel — required for the drawer (role="dialog") and a
@@ -494,9 +518,16 @@ export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSl
   }, [data, onClose]);
 
   // ── Split variant: inline flex column, no backdrop, no fixed positioning ──
+  // key={variant} on every branch: the three presentations root an
+  // AnimatePresence at the SAME tree position with different child keys, so
+  // flipping variant on a live instance — which is what rotating a tablet does
+  // — would keep the outgoing panel mounted for its exit while the incoming one
+  // mounts a backdrop over the page. The user sees the page go black behind a
+  // ghost panel. Keying the root forces an atomic remount instead. The trade is
+  // accepted: the Escape effect re-runs and internal scroll position is lost.
   if (variant === 'split') {
     return (
-      <AnimatePresence>
+      <AnimatePresence key={variant}>
         {data && (
           <motion.aside
             key="split-panel"
@@ -508,8 +539,56 @@ export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSl
             role="complementary"
             aria-label={t('detailPanel.detailsAria', { title: data.title })}
           >
-            <PanelInner data={data} onClose={onClose} px="px-4" py="py-4" />
+            <PanelInner data={data} onClose={onClose} px="px-4" py="py-4" fieldColumns={fieldColumns} />
           </motion.aside>
+        )}
+      </AnimatePresence>
+    );
+  }
+
+  // ── Sheet variant: bottom sheet, for phones ───────────────────────────────
+  // Geometry follows ClipboardPanel, the sheet primitive already written in
+  // this repo's idiom. Animates y, not x: a panel arriving from the side on a
+  // phone reads as a page transition, and there is no horizontal room to give.
+  if (variant === 'sheet') {
+    return (
+      <AnimatePresence key={variant}>
+        {data && (
+          <>
+            <motion.div
+              key="sheet-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/40 z-40"
+              onClick={onClose}
+            />
+            <motion.aside
+              key="sheet-panel"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ duration: 0.28, ease: [0.32, 0, 0.16, 1] }}
+              // svh, not vh: on iOS `vh` is the LARGE viewport, so with the URL
+              // bar showing a 70vh sheet is taller than the space it has.
+              // Covering the bottom tab bar is deliberate — this is a modal
+              // inspect with a backdrop, not a navigation surface.
+              className="fixed bottom-0 left-0 right-0 z-50 flex flex-col max-h-[70svh] bg-white rounded-t-2xl border-t border-neutral-200 shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('detailPanel.detailsAria', { title: data.title })}
+            >
+              {/* Grab bar: the one affordance a bottom sheet is expected to
+                  have. Decorative — dismissal is the close button or the
+                  backdrop, since a drag-to-dismiss gesture would need the
+                  pointer handling §7 rejected for the resize handles. */}
+              <div className="shrink-0 pt-2 pb-1 flex justify-center" aria-hidden="true">
+                <div className="h-1 w-9 rounded-full bg-neutral-300" />
+              </div>
+              <PanelInner data={data} onClose={onClose} px="px-4" py="py-4" fieldColumns={fieldColumns} />
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
     );
@@ -517,7 +596,7 @@ export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSl
 
   // ── Drawer variant (default): fixed overlay sliding in from the right ──
   return (
-    <AnimatePresence>
+    <AnimatePresence key={variant}>
       {data && (
         <>
           <motion.div
@@ -540,7 +619,7 @@ export function DetailSlidePanel({ data, onClose, variant = 'drawer' }: DetailSl
             aria-modal="true"
             aria-label={t('detailPanel.detailsAria', { title: data.title })}
           >
-            <PanelInner data={data} onClose={onClose} />
+            <PanelInner data={data} onClose={onClose} fieldColumns={fieldColumns} />
           </motion.aside>
         </>
       )}

@@ -32,6 +32,7 @@
 // different tiers within the same render. One store, one funnel, one atomic
 // mutation before any subscriber is notified.
 import {
+  TOUCH_ONLY_QUERY,
   VIEWPORT_QUERIES,
   classifyFromMatches,
   classifyViewport,
@@ -39,6 +40,9 @@ import {
 } from './viewport';
 
 const SERVER_SNAPSHOT: ViewportClass = 'desktop';
+// A pointer that can hover is the safe assumption when we cannot ask: it leaves
+// the drag handles in place, which is the behaviour every existing surface has.
+const SERVER_TOUCH_SNAPSHOT = false;
 
 const hasMatchMedia = typeof window !== 'undefined' && typeof window.matchMedia === 'function';
 
@@ -48,6 +52,7 @@ const queries = hasMatchMedia
       phone: window.matchMedia(VIEWPORT_QUERIES.phone),
       tabletPortrait: window.matchMedia(VIEWPORT_QUERIES.tabletPortrait),
       tabletLandscape: window.matchMedia(VIEWPORT_QUERIES.tabletLandscape),
+      touchOnly: window.matchMedia(TOUCH_ONLY_QUERY),
     }
   : null;
 
@@ -63,11 +68,26 @@ function readViewport(): ViewportClass {
   return classifyViewport(window.innerWidth);
 }
 
+// Pointer capability has no width-shaped fallback — innerWidth cannot observe
+// it at all — so without matchMedia this stays false and drag handles remain,
+// which is exactly the pre-existing behaviour rather than a degraded one.
+function readTouchOnly(): boolean {
+  if (typeof window === 'undefined') return SERVER_TOUCH_SNAPSHOT;
+  return queries ? queries.touchOnly.matches : SERVER_TOUCH_SNAPSHOT;
+}
+
 // Computed at module load, not in an effect, so the FIRST render is already
 // correct rather than flashing the desktop layout and correcting itself.
 // Nothing is listening yet at this point — subscribeViewport re-reads on its
 // first bind to close the gap between here and the first subscriber mounting.
 let snapshot: ViewportClass = readViewport();
+// Second snapshot, one store. Both are refreshed by the same recompute and
+// announced down the same listener set: useSyncExternalStore re-reads whichever
+// getSnapshot a subscriber passed and bails out when that one is unchanged, so
+// a width change costs pointer subscribers nothing. A separate store would mean
+// a second listener set resolving in its own order — the intra-commit tearing
+// the block comment above exists to prevent.
+let touchSnapshot: boolean = readTouchOnly();
 
 const listeners = new Set<() => void>();
 
@@ -80,9 +100,13 @@ const listeners = new Set<() => void>();
 // boundary crossing fires TWO change events (one query going false, one going
 // true), and the guard collapses them into exactly one subscriber notification.
 function recompute(): void {
-  const next = readViewport();
-  if (next === snapshot) return;
-  snapshot = next;
+  const nextViewport = readViewport();
+  const nextTouch = readTouchOnly();
+  if (nextViewport === snapshot && nextTouch === touchSnapshot) return;
+  // Both mutate BEFORE anyone is notified, so no subscriber can observe the two
+  // snapshots disagreeing part-way through an update.
+  snapshot = nextViewport;
+  touchSnapshot = nextTouch;
   listeners.forEach((listener) => listener());
 }
 
@@ -95,6 +119,9 @@ function bind(): void {
     queries.phone.addEventListener('change', recompute);
     queries.tabletPortrait.addEventListener('change', recompute);
     queries.tabletLandscape.addEventListener('change', recompute);
+    // Pointer capability does change mid-session: a Surface docked to a mouse,
+    // an iPad gaining a trackpad case, a 2-in-1 folded into tablet mode.
+    queries.touchOnly.addEventListener('change', recompute);
     return;
   }
   // Fallback path only. No { passive: true } — resize is not cancelable, so
@@ -109,6 +136,7 @@ function unbind(): void {
     queries.phone.removeEventListener('change', recompute);
     queries.tabletPortrait.removeEventListener('change', recompute);
     queries.tabletLandscape.removeEventListener('change', recompute);
+    queries.touchOnly.removeEventListener('change', recompute);
     return;
   }
   window.removeEventListener('resize', recompute);
@@ -134,3 +162,6 @@ export function subscribeViewport(onStoreChange: () => void): () => void {
 
 export const getViewportSnapshot = (): ViewportClass => snapshot;
 export const getViewportServerSnapshot = (): ViewportClass => SERVER_SNAPSHOT;
+
+export const getTouchOnlySnapshot = (): boolean => touchSnapshot;
+export const getTouchOnlyServerSnapshot = (): boolean => SERVER_TOUCH_SNAPSHOT;

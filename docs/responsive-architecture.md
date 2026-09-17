@@ -20,7 +20,8 @@ Status: **partially implemented.** Last verified against the code 2026-09-15.
 > remaining items (the grid prefixes and the hover-reveal rule) landed 2026-09-16; the only thing
 > still parked inside Phase 1 is `--touch-btn-min`, which needs a per-surface pass.
 >
-> **Phases 2 and 4 are partly landed**; Phase 3 (tables) is untouched.
+> **Phase 2 is complete** as of 2026-09-17 — see §12 for what each bullet actually became, since
+> several differed from the plan. **Phase 4 is partly landed**; Phase 3 (tables) is untouched.
 >
 > ### Decisions that supersede the text below
 >
@@ -514,7 +515,7 @@ factored out. Add a third member rather than building anything new.
 |---|---|---|
 | `split` | desktop, tablet-landscape | Inline flex column, caller owns width |
 | `drawer` | tablet-portrait | `w-1/2 min-w-[380px] max-w-[640px]`, right overlay |
-| `sheet` *(new)* | phone | Bottom sheet — copy `ClipboardPanel`'s geometry, animate `y` not `x` |
+| `sheet` ✅ *(built 2026-09-17)* | phone | Bottom sheet — copy `ClipboardPanel`'s geometry, animate `y` not `x` |
 
 The `sheet` variant is provably necessary: at 375px, `min-w-[380px]` wins over `w-1/2` and the
 drawer renders 5px wider than the screen.
@@ -543,6 +544,16 @@ The obvious fix is Pointer Events plus `setPointerCapture`. **Recommend against 
 `setPointerCapture` is undefined in jsdom so the handler is untestable, the coarse-pointer rule
 only widens the *column* resizer to 18px, and a 12px drag strip is poor touch UX regardless.
 Replace with **discrete snap widths** on touch tiers — better UX, no pointer capture, pure function.
+
+> ✅ **DONE 2026-09-17.** Built as described — `panelWidthPresets`/`nextPanelWidth` are pure and
+> node-tested, and `PanelResizeHandle` swaps the drag strip for a 44px tap target. Two
+> corrections to the text above, both of which matter if anyone extends this:
+>
+> - It says "on touch **tiers**", which would be a width test. It is gated on **pointer**
+>   (`TOUCH_ONLY_QUERY`), because a landscape iPad and a snapped desktop window are both
+>   1024px and need opposite answers. Width was never the right question here.
+> - All **three** resizable panels are covered, not the two this section lists: Chat's history
+>   sidebar held its own copy of the handle and now uses the shared component.
 
 > ~~Live bug: `DocumentBrowser.tsx:3002` sets `touchAction: 'none'` on the column resizer.~~
 > **FIXED 2026-09-15.** `touchAction` now has zero occurrences in `src/`. The residual issue is
@@ -596,6 +607,12 @@ stack needs no navigation history of its own, because the URL already *is* the s
 **tablet-portrait — the pane becomes an overlay drawer** over the document list rather than an
 inline column. At 768px, subtracting a 320px pane leaves too little for the table. Same two modes,
 same components, different presentation — reuse the `drawer` variant from §7.
+
+> ✅ **DONE 2026-09-17.** One correction to the text above: it says to reuse §7's `drawer`
+> variant, but §7's variants belong to `DetailSlidePanel`, a different component. The pane's own
+> component gained a single `'overlay'` variant covering both the tablet drawer and the phone
+> sheet, with the caller supplying the geometry — the two differ only in width and insets, and
+> the component behaves identically for both.
 
 **phone — drill-down stack.** The tree stops being a tree and becomes a navigation stack:
 
@@ -936,10 +953,76 @@ Each phase ships something. None blocks on the next.
     `docBrowser.treeOpen` gives phone a separate unpersisted `phoneTreeSheetOpen` (landed with the
     phone sheet in `d3b6b72`), and no viewport effect anywhere writes `chat.historyOpen`. The gap
     was only ever the widths.
-- Discrete snap widths replacing drag-resize on touch tiers (P8).
+- ✅ **Discrete preset widths replacing drag-resize where a pointer cannot hover** (P8,
+  2026-09-17). `panelWidthPresets` / `nextPanelWidth` in `panelWidth.ts` derive three stops
+  from each panel's *own* bounds intersected with the class ceiling, deduplicated — a panel
+  whose usable minimum exceeds the ceiling honestly offers one stop rather than the same
+  width three times. `PanelResizeHandle` swaps the 12px drag strip for a 44px tap target
+  under `TOUCH_ONLY_QUERY`.
+  - **Gated on pointer, not width** — `(pointer: coarse) and (hover: none)`, character-
+    identical to the `@media` block in `index.css` and pinned by a tripwire test, because CSS
+    hides drag affordances under it while JS mounts the replacement: drift leaves a device
+    with two resize controls or none. `hover: none` is load-bearing, not decoration — bare
+    `pointer: coarse` matches a touchscreen laptop at 1920px, which is the desktop experience
+    (P1) and keeps dragging.
+  - **The store grew a second snapshot rather than a second store.** `viewportStore` now also
+    publishes `touchOnly`, refreshed in the same `recompute` and announced down the same
+    listener set. A separate store would mean a second listener set resolving in its own
+    order — precisely the intra-commit tearing the single-store rule exists to prevent.
+    `useTouchOnly()` is the hook; its fallback is `false`, so where `matchMedia` is absent the
+    drag handles simply remain, which is the pre-existing behaviour rather than a degraded one.
+  - **`PanelResizeHandle` reads the capability itself**, a deliberate exception to "the caller
+    decides the variant": both presentations are one control, every call site would pass the
+    same value, and the convention's reason elsewhere — keeping viewport logic out of a
+    jsdom-tested subtree — does not apply to this leaf.
+  - Chat's history sidebar had a **hand-rolled copy** of the drag handle; it now uses the
+    shared component, so the preset control has one definition rather than a second that
+    drifts.
+  - ⚠️ Consequence of P7 worth knowing: an iPad Pro in landscape is ~1366px, so it is
+    *desktop* class by width. Stepping the width there **is** treated as desk intent and
+    persists. That follows from width being the trigger rather than device identity, and is
+    the rule working as decided — not a bug — but it is the one case where a tablet writes a
+    desk preference.
 - Non-drag column reorder **added beside** the existing desktop drag, not replacing it (P9).
-- Panel `sheet` variant, `key={variant}`, and the `fieldColumns` prop.
-- The filter/tree pane becomes an overlay drawer at tablet portrait, closing on folder pick (§8, P10).
+- ✅ **Panel `sheet` variant, `key={variant}`, and the `fieldColumns` prop** (2026-09-17).
+  `resolveDetailPanelVariant` (pure, node-tested, beside `resolveNavMode`) maps phone → `sheet`,
+  tablet-portrait → `drawer`, everything wider → `split`. The sheet copies `ClipboardPanel`'s
+  geometry and animates `y`, with `max-h-[70svh]` rather than `vh` — on iOS `vh` is the *large*
+  viewport, so a 70vh sheet is taller than the space it has.
+  - **Both callers had to change, and they do NOT share a mapping.** DocumentBrowser uses the
+    resolver. The Dashboard must not: the resolver returns `split` at desktop, which is an
+    inline flex column, and the Dashboard has no column to put one in. It maps phone → `sheet`
+    and everything else → `drawer`. A shared "variant for this viewport" helper would have been
+    wrong for one of the two — this is exactly why §7 says the caller decides.
+  - **Only `split` belongs in the flex row.** The drawer and sheet are fixed overlays, so
+    DocumentBrowser mounts them outside `browser-layout`; leaving them in the row reserved
+    width for something not in the flow.
+  - `fieldColumns` lands via one `[data-field-columns='1']` rule in `index.css` on the body
+    wrapper, rather than being threaded through the five separate detail renderers. Same
+    effect, and a narrow panel cannot end up with four of five grids converted and one
+    forgotten. DocumentBrowser passes `panelWidth < 420 ? 1 : 2` for `split` — note the
+    **default panel width of 360 is already under that**, so the desktop default is one column.
+  - `key={variant}` is on all three branches. Verified by resizing a live instance across the
+    boundary: the panel swaps with no orphaned backdrop left behind.
+- ✅ **The filter/tree pane becomes an overlay at tablet portrait, closing on folder pick**
+  (§8, P10, 2026-09-17). `resolveFilterPaneMode` maps tablet-portrait → `drawer`, phone →
+  `sheet`, wider → `inline`. **Phase 2 is now complete.**
+  - `CollapsibleFilterPanel`'s `'sheet'` variant was **renamed `'overlay'`** and now serves both:
+    the component's job is identical either way — fill the space it is given, no collapsed rail,
+    no resize handle — and only the geometry differs, which is the caller's. A second variant
+    would have been two names for one behaviour.
+  - The drawer starts **after** the nav rail (`left-[var(--left-rail-width)]`, 320px wide, with a
+    backdrop): it covers the list it is filtering, not the navigation out of it. The sheet has no
+    rail to clear, since the rail is unmounted at phone and the variable is 0.
+  - Open state is the **session-only** `overlayPaneOpen`, never `docBrowser.treeOpen` — opening
+    the pane on a tablet must not reopen it inline on the next desktop visit (§5). Verified:
+    the stored preference is unchanged across open, close, Escape and folder-pick.
+  - **Growing back to `inline` force-closes the overlay.** Without it the flag survives, and the
+    next time the window narrowed a second copy appeared over the column.
+  - ⚠️ The trigger button's condition is `paneMode !== 'inline'`, not `isPhone`. It is the *only*
+    way to reach the pane at these widths, since the inline island it normally lives in is not
+    rendered — gating it on the wrong thing makes folders and filters unreachable rather than
+    merely awkward.
 
 **Phase 3 — tables** *(the highest-risk phase)*
 - Extract the column logic as a standalone, tested commit *before* any behaviour change.

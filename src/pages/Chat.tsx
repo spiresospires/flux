@@ -39,7 +39,9 @@ import { useLocalization } from '../contexts/LocalizationContext';
 import { FlintLockup } from '../components/FlintIcon';
 import { useUserPref } from '../hooks/useUserPref';
 import { usePanelWidth } from '../shell/usePanelWidth';
-import type { PanelWidthBounds } from '../shell/panelWidth';
+import { useViewportClass } from '../shell/useViewportClass';
+import { nextPanelWidth, type PanelWidthBounds } from '../shell/panelWidth';
+import { PanelResizeHandle } from '../components/PanelResizeHandle';
 import { Document } from '../types/document';
 // [MOCK] Workspace list for the chat scope picker.
 // [API] G03:GET /workspaces
@@ -475,6 +477,7 @@ export function Chat() {
   // usePanelWidth, not useUserPref: the stored value is desk intent and a drag
   // below desktop must not overwrite it (P7).
   const [historyWidth, setHistoryWidth] = usePanelWidth('chat.historyWidth', HISTORY_WIDTH);
+  const viewport = useViewportClass();
   const resizingRef = useRef(false);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -1001,6 +1004,7 @@ export function Chat() {
             open={historyOpen}
             width={historyWidth}
             onResizeStart={startResize}
+            onStepWidth={() => setHistoryWidth(nextPanelWidth(historyWidth, viewport, HISTORY_WIDTH))}
             onToggle={() => setHistoryOpen((v) => !v)}
             conversations={scopedConversations}
             activeId={activeId}
@@ -1322,6 +1326,7 @@ interface SidebarProps {
   open: boolean;
   width: number;
   onResizeStart: () => void;
+  onStepWidth: () => void;
   onToggle: () => void;
   conversations: Conversation[];
   activeId: string | null;
@@ -1461,16 +1466,22 @@ function ChatHistorySidebar(p: SidebarProps) {
         <div className="px-3 py-6 text-center text-xs text-neutral-400">{t('chat.noChatsFound')}</div>
         }
       </div>
-      {/* Resize handle */}
-      <div
-        onMouseDown={(e) => { e.preventDefault(); p.onResizeStart(); }}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={t('chat.resizeHistory')}
-        title={t('chat.dragToResize')}
-        className="absolute top-0 right-0 h-full w-4 cursor-col-resize group z-10">
-        <div className="absolute inset-y-0 right-0 w-0.5 bg-[#0461BA] opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-150" />
-      </div>
+      {/* Was a hand-rolled copy of PanelResizeHandle. Switched to the shared
+          component so the touch preset-width control has one definition rather
+          than a second that quietly drifts.
+
+          placement="inside" is load-bearing: this aside is overflow-hidden for
+          its rounded corners, so the default straddling handle has its outer
+          half clipped and becomes ungrabbable — while still reporting a full
+          bounding box, so it looks fine and measures fine. */}
+      <PanelResizeHandle
+        side="right"
+        placement="inside"
+        onResizeStart={p.onResizeStart}
+        ariaLabel={t('chat.resizeHistory')}
+        onStepWidth={p.onStepWidth}
+        stepAriaLabel={t('panel.stepWidth')}
+      />
     </aside>);
 
 }

@@ -79,7 +79,8 @@
     "filters": "Filtres",
     "collapse": "Réduire le panneau",
     "expand": "Développer le panneau",
-    "resize": "Glisser pour redimensionner le panneau"
+    "resize": "Glisser pour redimensionner le panneau",
+    "stepWidth": "Modifier la largeur du panneau"
   },
   "appearance": {
     "title": "Apparence",

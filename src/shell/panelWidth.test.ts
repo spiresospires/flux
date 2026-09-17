@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { clampPanelWidth, isDeskIntent, type PanelWidthBounds } from './panelWidth';
+import {
+  clampPanelWidth,
+  isDeskIntent,
+  nextPanelWidth,
+  panelWidthPresets,
+  type PanelWidthBounds,
+} from './panelWidth';
 import type { ViewportClass } from './viewport';
 
 // The real detail panel. Its min (260) sits below every class ceiling, which is
@@ -80,6 +86,68 @@ describe('clampPanelWidth', () => {
     clampPanelWidth(desk, 'phone', PANEL);
     clampPanelWidth(desk, 'tablet-portrait', PANEL);
     expect(clampPanelWidth(desk, 'desktop', PANEL)).toBe(600);
+  });
+});
+
+describe('panelWidthPresets', () => {
+  it('offers three stops spanning what the panel allows at a desk', () => {
+    expect(panelWidthPresets('desktop', PANEL)).toEqual([260, 450, 640]);
+  });
+
+  it('never offers a width the viewport cannot honour', () => {
+    // The widest stop is the class ceiling, not the panel's desk maximum.
+    expect(panelWidthPresets('tablet-landscape', PANEL)).toEqual([260, 310, 360]);
+    expect(panelWidthPresets('tablet-portrait', PANEL)).toEqual([260, 280, 300]);
+  });
+
+  it('collapses to fewer stops rather than repeating one', () => {
+    // Usable minimum above the class ceiling: there is exactly one honest
+    // answer, and offering it three times makes the control look broken.
+    expect(panelWidthPresets('tablet-portrait', WIDE_MIN)).toEqual([420]);
+  });
+
+  it('always returns stops inside the panel bounds, ascending', () => {
+    for (const viewport of CLASSES) {
+      for (const bounds of [PANEL, WIDE_MIN]) {
+        const stops = panelWidthPresets(viewport, bounds);
+        expect(stops.length, `${viewport}`).toBeGreaterThan(0);
+        expect([...stops].sort((a, b) => a - b), `${viewport}`).toEqual(stops);
+        for (const w of stops) {
+          expect(w).toBeGreaterThanOrEqual(bounds.min);
+          expect(w).toBeLessThanOrEqual(bounds.max);
+        }
+      }
+    }
+  });
+});
+
+describe('nextPanelWidth', () => {
+  it('steps through the stops and wraps at the widest', () => {
+    expect(nextPanelWidth(260, 'desktop', PANEL)).toBe(450);
+    expect(nextPanelWidth(450, 'desktop', PANEL)).toBe(640);
+    expect(nextPanelWidth(640, 'desktop', PANEL)).toBe(260);
+  });
+
+  it('moves on from a dragged width rather than jumping to the start', () => {
+    // 620 is nearest the widest stop, so the next tap wraps to narrow — what a
+    // user would predict. Snapping to the list head instead would feel random.
+    expect(nextPanelWidth(620, 'desktop', PANEL)).toBe(260);
+    expect(nextPanelWidth(300, 'desktop', PANEL)).toBe(450);
+  });
+
+  it('always lands on one of the offered stops', () => {
+    for (const viewport of CLASSES) {
+      const stops = panelWidthPresets(viewport, PANEL);
+      for (const start of [-100, 0, 259, 300, 445, 640, 9999, NaN]) {
+        expect(stops, `${viewport} from ${start}`).toContain(
+          nextPanelWidth(start, viewport, PANEL)
+        );
+      }
+    }
+  });
+
+  it('is a no-op where only one width is possible', () => {
+    expect(nextPanelWidth(420, 'tablet-portrait', WIDE_MIN)).toBe(420);
   });
 });
 

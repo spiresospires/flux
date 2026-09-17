@@ -8,7 +8,8 @@ import {
 'lucide-react';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { usePanelWidth } from '../shell/usePanelWidth';
-import type { PanelWidthBounds } from '../shell/panelWidth';
+import { useViewportClass } from '../shell/useViewportClass';
+import { nextPanelWidth, type PanelWidthBounds } from '../shell/panelWidth';
 import { PanelResizeHandle } from './PanelResizeHandle';
 
 const TREE_WIDTH: PanelWidthBounds = { min: 240, max: 560, fallback: 320 };
@@ -20,15 +21,17 @@ interface CollapsibleFilterPanelProps {
   onModeChange: (mode: 'filter' | 'folder') => void;
   children: React.ReactNode;
   topSlot?: React.ReactNode;
-  /** 'panel' (default) — the desktop/tablet inline island: fixed pixel
-   *  width, drag-resizable, collapses to a 40px icon rail.
-   *  'sheet' — full-width phone presentation. The caller (DocumentBrowser)
-   *  mounts this component only while its own phone-only open state is
-   *  true, so there is no collapsed-rail case to render here; width is
-   *  always 100% rather than the persisted drag-resize pixel value, and
-   *  there is no resize handle, since dragging a column width by mouse has
-   *  no touch equivalent (see docs/responsive-architecture.md §7). */
-  variant?: 'panel' | 'sheet';
+  /** 'panel' (default) — the inline island: fixed pixel width, resizable,
+   *  collapses to a 40px icon rail.
+   *  'overlay' — the pane as something you open over the list rather than a
+   *  column beside it: a full-bleed sheet on phone, a drawer at tablet
+   *  portrait. One variant for both, because the component's job is identical —
+   *  fill the space the caller gives it, with no collapsed rail (the caller
+   *  mounts this only while open) and no resize handle (an overlay's width is
+   *  the caller's, and dragging has no touch equivalent anyway). The CALLER
+   *  owns the geometry and the difference between the two.
+   *  See docs/responsive-architecture.md §7 and §8. */
+  variant?: 'panel' | 'overlay';
 }
 export function CollapsibleFilterPanel({
   isExpanded,
@@ -39,7 +42,7 @@ export function CollapsibleFilterPanel({
   topSlot,
   variant = 'panel'
 }: CollapsibleFilterPanelProps) {
-  const isSheet = variant === 'sheet';
+  const isOverlay = variant === 'overlay';
   const { t } = useLocalization();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const resizingRef = useRef(false);
@@ -50,6 +53,7 @@ export function CollapsibleFilterPanel({
   // usePanelWidth, not useUserPref: the stored value is desk intent and a drag
   // below desktop must not overwrite it (P7).
   const [width, setWidth] = usePanelWidth('docBrowser.treeWidth', TREE_WIDTH);
+  const viewport = useViewportClass();
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -86,14 +90,14 @@ export function CollapsibleFilterPanel({
     'w-8 h-8 rounded-md flex items-center justify-center transition-colors';
 
   return (
-    <div className={`relative h-full flex ${isSheet ? 'w-full' : 'flex-shrink-0'}`}>
+    <div className={`relative h-full flex ${isOverlay ? 'w-full' : 'flex-shrink-0'}`}>
       {/* Collapsed: a 40px strip of buttons, not a panel — same treatment as the
           Chat history sidebar. Tagged collapsed-rail (NOT left-panel): in flush
           view left-panel would paint it grey with a right divider, inventing a
           sidebar that is not there. See index.css for the full reasoning.
           bg-white (not --element-bg-color) is deliberate — it's the class
           content-panel uses, so rail and content stay seamless in every theme. */}
-      {!isExpanded && !isSheet &&
+      {!isExpanded && !isOverlay &&
         <div
           data-component="collapsed-rail"
           className="w-10 shrink-0 bg-white flex flex-col items-center py-3 gap-2 rounded-xl overflow-hidden shadow-md">
@@ -130,14 +134,14 @@ export function CollapsibleFilterPanel({
       {/* Expanded panel. Hidden rather than unmounted while collapsed: FolderTree
           owns its expanded rows and search term in local state, so unmounting
           would reset the tree on every collapse/expand round trip. */}
-      <div className={`relative h-full flex ${isExpanded ? '' : 'hidden'} ${isSheet ? 'flex-1' : ''}`}>
+      <div className={`relative h-full flex ${isExpanded ? '' : 'hidden'} ${isOverlay ? 'flex-1' : ''}`}>
         {/* Main Panel - Island Card */}
         <div
           ref={panelRef}
           data-component="left-panel"
-          className={`h-full overflow-hidden flex flex-col relative ${isSheet ? 'w-full' : 'rounded-xl shadow-md'}`}
+          className={`h-full overflow-hidden flex flex-col relative ${isOverlay ? 'w-full' : 'rounded-xl shadow-md'}`}
           style={{
-            width: isSheet ? '100%' : width,
+            width: isOverlay ? '100%' : width,
             backgroundColor: 'var(--element-bg-color, #FFFFFF)'
           }}>
 
@@ -174,13 +178,13 @@ export function CollapsibleFilterPanel({
               </div>
               <button
                 onClick={onToggle}
-                title={isSheet ? t('common.close') : t('panel.collapse')}
-                aria-label={isSheet ? t('common.close') : t('panel.collapse')}
+                title={isOverlay ? t('common.close') : t('panel.collapse')}
+                aria-label={isOverlay ? t('common.close') : t('panel.collapse')}
                 aria-expanded={true}
                 aria-controls="filter-panel-content"
-                className={`shrink-0 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 inline-flex items-center justify-center transition-colors ${isSheet ? 'w-11 h-11' : 'w-7 h-7'}`}>
+                className={`shrink-0 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 inline-flex items-center justify-center transition-colors ${isOverlay ? 'w-11 h-11' : 'w-7 h-7'}`}>
 
-                {isSheet ? <XIcon size={20} /> : <PanelLeftCloseIcon size={16} />}
+                {isOverlay ? <XIcon size={20} /> : <PanelLeftCloseIcon size={16} />}
               </button>
             </div>
 
@@ -191,7 +195,15 @@ export function CollapsibleFilterPanel({
 
         {/* Resize handle — no touch equivalent (mouse-only drag), and no
             meaning against a full-width sheet — desktop/tablet 'panel' only. */}
-        {!isSheet && <PanelResizeHandle side="right" onResizeStart={startResize} ariaLabel={t('panel.resize')} />}
+        {!isOverlay && (
+          <PanelResizeHandle
+            side="right"
+            onResizeStart={startResize}
+            ariaLabel={t('panel.resize')}
+            onStepWidth={() => setWidth(nextPanelWidth(width, viewport, TREE_WIDTH))}
+            stepAriaLabel={t('panel.stepWidth')}
+          />
+        )}
       </div>
     </div>);
 

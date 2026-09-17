@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  TOUCH_ONLY_QUERY,
   VIEWPORT_QUERIES,
   classifyFromMatches,
   classifyViewport,
+  resolveDetailPanelVariant,
+  resolveFilterPaneMode,
   resolveNavMode,
 } from './viewport';
 
@@ -45,6 +48,43 @@ describe('resolveNavMode', () => {
     expect(resolveNavMode('tablet-landscape', true)).toBe('rail-icon');
     expect(resolveNavMode('desktop', false)).toBe('rail');
     expect(resolveNavMode('desktop', true)).toBe('rail-icon');
+  });
+});
+
+describe('resolveDetailPanelVariant', () => {
+  it('gives a phone a bottom sheet, never a side panel', () => {
+    // Not cosmetic: the drawer is `w-1/2 min-w-[380px]`, so on a 375px phone the
+    // minimum wins and the drawer is wider than the screen.
+    expect(resolveDetailPanelVariant('phone')).toBe('sheet');
+  });
+
+  it('overlays at tablet portrait rather than taking a third column', () => {
+    expect(resolveDetailPanelVariant('tablet-portrait')).toBe('drawer');
+  });
+
+  it('keeps the inline column where there is room for one', () => {
+    expect(resolveDetailPanelVariant('tablet-landscape')).toBe('split');
+    expect(resolveDetailPanelVariant('desktop')).toBe('split');
+  });
+});
+
+describe('resolveFilterPaneMode', () => {
+  it('keeps the pane as a column where the table can still spare the width', () => {
+    expect(resolveFilterPaneMode('desktop')).toBe('inline');
+    expect(resolveFilterPaneMode('tablet-landscape')).toBe('inline');
+  });
+
+  it('becomes something you open, one tier before the detail panel does', () => {
+    // At 768px a 320px tree leaves the table too narrow to read; the pane stops
+    // being a column and becomes an overlay over the list it filters.
+    expect(resolveFilterPaneMode('tablet-portrait')).toBe('drawer');
+    expect(resolveFilterPaneMode('phone')).toBe('sheet');
+  });
+
+  it('never leaves a tier without a presentation', () => {
+    for (const v of ['phone', 'tablet-portrait', 'tablet-landscape', 'desktop'] as const) {
+      expect(['inline', 'drawer', 'sheet']).toContain(resolveFilterPaneMode(v));
+    }
   });
 });
 
@@ -91,5 +131,19 @@ describe('VIEWPORT_QUERIES', () => {
     // nothing in the CSS tier changes there. If one is ever added it must use
     // this string verbatim.
     expect(VIEWPORT_QUERIES.tabletLandscape).toBe('(max-width: 1279.98px)');
+  });
+});
+
+describe('TOUCH_ONLY_QUERY', () => {
+  // Same tripwire, and the stakes here are higher than for the width queries:
+  // index.css HIDES drag affordances under this exact block while the JS tier
+  // MOUNTS their replacement under this string. Any drift and a device gets two
+  // resize controls or none at all.
+  //
+  // `hover: none` is not optional. Dropping it to bare `pointer: coarse` would
+  // match a touchscreen laptop at 1920px and replace dragging with tap-to-step
+  // on the primary desktop experience (decision P1).
+  it('matches the @media block in index.css verbatim', () => {
+    expect(TOUCH_ONLY_QUERY).toBe('(pointer: coarse) and (hover: none)');
   });
 });

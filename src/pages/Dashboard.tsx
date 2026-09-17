@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { statusChipClass } from '../components/documentStatusColors';
 import { DetailSlidePanel, type DetailPanelData, type DetailPanelObjectType } from '../components/DetailSlidePanel';
+import { useViewportClass } from '../shell/useViewportClass';
 import { ProjectMapView } from '../components/ProjectMapView';
 import type { ProjectId } from '../data/projects';
 import { useUserPref } from '../hooks/useUserPref';
@@ -653,6 +654,7 @@ function DashboardContent({
 
 export function Dashboard() {
   const { t } = useLocalization();
+  const viewport = useViewportClass();
   const location = useLocation();
   const { scope } = useScope();
   const [selectedSection, setSelectedSection] = useState<DashboardSection>('overview');
@@ -874,7 +876,20 @@ export function Dashboard() {
         )}
       </main>
 
-      <DetailSlidePanel data={panelData} onClose={() => setPanelData(null)} />
+      {/* Variant is the caller's call, and this caller's answer is NOT
+          resolveDetailPanelVariant: that maps desktop to `split`, an inline flex
+          column, and the Dashboard has no column to put one in. Here the drawer
+          is right at every width except a phone, where `w-1/2 min-w-[380px]`
+          resolves to the minimum and renders wider than a 375px screen.
+
+          Columns: the drawer is half the viewport (floor 380), so it only clears
+          the ~420px two-column threshold above tablet portrait. */}
+      <DetailSlidePanel
+        data={panelData}
+        onClose={() => setPanelData(null)}
+        variant={viewport === 'phone' ? 'sheet' : 'drawer'}
+        fieldColumns={viewport === 'phone' || viewport === 'tablet-portrait' ? 1 : 2}
+      />
     </div>
   );
 }
